@@ -10,6 +10,7 @@ import {
   ZoomOut,
   Square,
   Box,
+  ChevronDown,
 } from "lucide-react";
 import MapComponent from "./Map";
 import SafeGISAIChat from "./SafeGIS-AI-Chat";
@@ -124,6 +125,31 @@ export default function MainUILayout() {
     <div className="relative w-screen h-screen overflow-hidden">
       <MapComponent ref={mapRef} />
 
+      {/* Time of Day + Map Style Dropdowns (Centered with 18px spacing) */}
+      <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
+        <div className="flex gap-[18px]">
+          {/* Time of Day */}
+          <button
+            className="h-[55px] px-5 flex items-center justify-center gap-2 
+              bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md 
+              hover:bg-[#3a3a3a] transition text-base font-medium"
+          >
+            <span className="leading-none">Time of Day</span>
+            <ChevronDown size={22} />
+          </button>
+
+          {/* Map Style */}
+          <button
+            className="h-[55px] px-5 flex items-center justify-center gap-2 
+              bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md 
+              hover:bg-[#3a3a3a] transition text-base font-medium"
+          >
+            <span className="leading-none">Map Style</span>
+            <ChevronDown size={22} />
+          </button>
+        </div>
+      </div>
+
       {/* Left Menu */}
       <div className="absolute top-1/2 left-[18px] -translate-y-1/2 z-50 flex flex-col gap-4 bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px]">
         {[Earth, MapPinned, ListTodo, OctagonAlert].map((Icon, i) => (
@@ -219,12 +245,19 @@ export default function MainUILayout() {
             <ZoomOut width={28} height={28} />
           </button>
         </div>
+
+        {/* Help Button */}
+        <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+          <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
+            ?
+          </button>
+        </div>
       </div>
 
       {/* SafeGIS AI Chat */}
       <SafeGISAIChat isVisible={showChat} />
 
-      {/* SafeGIS AI Logo Button (with active gradient) */}
+      {/* SafeGIS AI Logo Button */}
       <button
         onClick={() => setShowChat((prev) => !prev)}
         className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"

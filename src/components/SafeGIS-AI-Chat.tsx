@@ -37,7 +37,7 @@ export default function SafeGISAIChat({ isVisible }: Props) {
             : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
         }`}
       style={{
-        height: "calc(100% - 2 * 194.5px)",
+        height: "calc(100% - 2 * 175.5px)",
         background: "linear-gradient(to bottom, #5A5C99, #232323)",
         overflow: "hidden",
         display: "flex",
