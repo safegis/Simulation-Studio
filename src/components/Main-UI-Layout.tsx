@@ -15,6 +15,7 @@ import {
 import MapComponent from "./Map";
 import SafeGISAIChat from "./SafeGIS-AI-Chat";
 import { useEffect, useRef, useState } from "react";
+import SelectMaps from "./controls/Maps/SelectMaps";
 
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
@@ -23,6 +24,8 @@ export default function MainUILayout() {
   const [isDesktop, setIsDesktop] = useState(true);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [showChat, setShowChat] = useState(false);
+  const [showSelectMaps, setShowSelectMaps] = useState(false);
+
   const mapRef = useRef<any>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -125,25 +128,14 @@ export default function MainUILayout() {
     <div className="relative w-screen h-screen overflow-hidden">
       <MapComponent ref={mapRef} />
 
-      {/* Time of Day + Map Style Dropdowns (Centered with 18px spacing) */}
+      {/* Time of Day + Map Style Dropdowns */}
       <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
         <div className="flex gap-[18px]">
-          {/* Time of Day */}
-          <button
-            className="h-[55px] px-5 flex items-center justify-center gap-2 
-              bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md 
-              hover:bg-[#3a3a3a] transition text-base font-medium"
-          >
+          <button className="h-[55px] px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium">
             <span className="leading-none">Time of Day</span>
             <ChevronDown size={22} />
           </button>
-
-          {/* Map Style */}
-          <button
-            className="h-[55px] px-5 flex items-center justify-center gap-2 
-              bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md 
-              hover:bg-[#3a3a3a] transition text-base font-medium"
-          >
+          <button className="h-[55px] px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium">
             <span className="leading-none">Map Style</span>
             <ChevronDown size={22} />
           </button>
@@ -152,7 +144,18 @@ export default function MainUILayout() {
 
       {/* Left Menu */}
       <div className="absolute top-1/2 left-[18px] -translate-y-1/2 z-50 flex flex-col gap-4 bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px]">
-        {[Earth, MapPinned, ListTodo, OctagonAlert].map((Icon, i) => (
+        <button
+          onClick={() => setShowSelectMaps((prev) => !prev)}
+          className={`p-2 rounded-lg transition ${
+            showSelectMaps
+              ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
+              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+          }`}
+        >
+          <Earth width={28} height={28} />
+        </button>
+
+        {[MapPinned, ListTodo, OctagonAlert].map((Icon, i) => (
           <button
             key={i}
             className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
@@ -165,7 +168,7 @@ export default function MainUILayout() {
       {/* Search Bar */}
       <div
         ref={searchContainerRef}
-        className="absolute top-[18px] left-[90px] z-50 w-96"
+        className="absolute top-[18px] left-[96px] z-50 w-96"
       >
         <div className="bg-[#2E2E2E] h-[55px] flex items-center gap-3 px-4 py-2 rounded-xl shadow-md text-[#C7C7C7]">
           <Search width={26} height={26} />
@@ -202,9 +205,15 @@ export default function MainUILayout() {
         )}
       </div>
 
+      {/* SelectMaps container */}
+      {showSelectMaps && (
+        <div className="absolute left-[96px] top-[73px] w-96 z-40">
+          <SelectMaps isVisible={true} />
+        </div>
+      )}
+
       {/* Right Controls */}
       <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
-        {/* 2D/3D Switch */}
         <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] h-[112px] overflow-hidden">
           <div
             className="absolute w-[44px] h-[44px] left-2 rounded-lg bg-gradient-to-b from-[#9699FF] to-white transition-all duration-300 ease-in-out"
@@ -230,7 +239,6 @@ export default function MainUILayout() {
           </div>
         </div>
 
-        {/* Zoom Controls */}
         <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex flex-col gap-2">
           <button
             onClick={() => handleZoom(1)}
@@ -246,7 +254,6 @@ export default function MainUILayout() {
           </button>
         </div>
 
-        {/* Help Button */}
         <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
           <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
             ?
@@ -254,10 +261,8 @@ export default function MainUILayout() {
         </div>
       </div>
 
-      {/* SafeGIS AI Chat */}
       <SafeGISAIChat isVisible={showChat} />
 
-      {/* SafeGIS AI Logo Button */}
       <button
         onClick={() => setShowChat((prev) => !prev)}
         className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
