@@ -12,6 +12,7 @@ import {
   Box,
 } from "lucide-react";
 import MapComponent from "./Map";
+import SafeGISAIChat from "./SafeGIS-AI-Chat";
 import { useEffect, useRef, useState } from "react";
 
 export default function MainUILayout() {
@@ -20,6 +21,7 @@ export default function MainUILayout() {
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const [isDesktop, setIsDesktop] = useState(true);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
+  const [showChat, setShowChat] = useState(false);
   const mapRef = useRef<any>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -119,7 +121,7 @@ export default function MainUILayout() {
   }
 
   return (
-    <div className="relative w-screen h-screen">
+    <div className="relative w-screen h-screen overflow-hidden">
       <MapComponent ref={mapRef} />
 
       {/* Left Menu */}
@@ -174,8 +176,8 @@ export default function MainUILayout() {
         )}
       </div>
 
-      {/* Right Controls: 2D/3D + Zoom */}
-      <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[15px]">
+      {/* Right Controls */}
+      <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
         {/* 2D/3D Switch */}
         <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] h-[112px] overflow-hidden">
           <div
@@ -219,13 +221,21 @@ export default function MainUILayout() {
         </div>
       </div>
 
-      {/* SafeGIS AI Logo Button */}
+      {/* SafeGIS AI Chat */}
+      <SafeGISAIChat isVisible={showChat} />
+
+      {/* SafeGIS AI Logo Button (with active gradient) */}
       <button
-        className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center"
-        style={{ background: "linear-gradient(to bottom, #5A5C99, #232323)" }}
+        onClick={() => setShowChat((prev) => !prev)}
+        className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
+        style={{
+          background: showChat
+            ? "linear-gradient(to bottom, #6B6DCC, #2E2E2E)"
+            : "linear-gradient(to bottom, #5A5C99, #232323)",
+        }}
       >
         <img
-          src="/Images/Button-Images/SafeGIS-AI-Logo.png"
+          src="/Images/SafeGIS-AI-Logo.png"
           alt="SafeGIS AI Logo"
           className="w-12 h-12 -mt-[2.5px]"
         />
