@@ -127,3 +127,25 @@ body,
   margin: 0;
   padding: 0;
 }
+
+.scrollbar-rounded {
+  scrollbar-width: thin; /* For Firefox */
+  scrollbar-color: #5a5a5a transparent;
+}
+
+.scrollbar-rounded::-webkit-scrollbar {
+  width: 12px;
+}
+
+.scrollbar-rounded::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 12px;
+}
+
+.scrollbar-rounded::-webkit-scrollbar-thumb {
+  background-color: #5a5a5a;
+  border-radius: 12px;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  background-clip: content-box;
+}
