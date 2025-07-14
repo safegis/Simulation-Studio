@@ -11,7 +11,6 @@ import {
   Square,
   Box,
   ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -31,8 +30,8 @@ export default function MainUILayout() {
   const [showSelectMaps, setShowSelectMaps] = useState(false);
   const [showPathfinder, setShowPathfinder] = useState(false);
   const [showPlanningTools, setShowPlanningTools] = useState(false);
-  const [currentTime, setCurrentTime] = useState("");
   const [currentTimeFormatted, setCurrentTimeFormatted] = useState("");
+  const [showTimeOfDayDropdown, setShowTimeOfDayDropdown] = useState(false);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const mapRef = useRef<any>(null);
@@ -130,9 +129,7 @@ export default function MainUILayout() {
         second: "2-digit",
         hour12: true,
       });
-      const dayStr = now.toLocaleDateString(undefined, {
-        weekday: "short",
-      });
+      const dayStr = now.toLocaleDateString(undefined, { weekday: "short" });
       const dateStr = now.toLocaleDateString(undefined, {
         month: "long",
         day: "numeric",
@@ -141,9 +138,8 @@ export default function MainUILayout() {
       setCurrentTimeFormatted(`${timeStr} - ${dayStr} | ${dateStr}`);
     };
 
-    updateTime(); // initial call
+    updateTime();
     const interval = setInterval(updateTime, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -152,8 +148,6 @@ export default function MainUILayout() {
       <div className="flex items-center justify-center w-screen h-screen bg-[#1a1a1a] text-white text-center px-4">
         <div className="max-w-sm text-lg">
           🚫 This app is best viewed on a desktop or laptop.
-          <br />
-          Please switch to a larger screen for the best experience.
         </div>
       </div>
     );
@@ -165,11 +159,36 @@ export default function MainUILayout() {
 
       {/* Time of Day + Map Style */}
       <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
-        <div className="flex gap-[18px]">
-          <button className="h-[55px] px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium">
-            <span className="leading-none">Time of Day</span>
-            <ChevronDown size={22} />
-          </button>
+        <div className="flex gap-[18px] relative">
+          <div className="relative w-[170px]">
+            <button
+              onClick={() => setShowTimeOfDayDropdown((prev) => !prev)}
+              className="h-[55px] w-full px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
+            >
+              <span className="leading-none">Time of Day</span>
+              <ChevronDown size={22} />
+            </button>
+            {showTimeOfDayDropdown && (
+              <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
+                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
+                  Auto
+                </div>
+                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
+                  Morning
+                </div>
+                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
+                  Daytime
+                </div>
+                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
+                  Evening
+                </div>
+                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
+                  Nighttime
+                </div>
+              </div>
+            )}
+          </div>
+
           <button className="h-[55px] px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium">
             <span className="leading-none">Map Style</span>
             <ChevronDown size={22} />
