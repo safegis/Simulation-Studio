@@ -11,12 +11,15 @@ import {
   Square,
   Box,
   ChevronDown,
+  ChevronRight,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
 import MapComponent from "./Map";
 import SafeGISAIChat from "./SafeGIS-AI-Chat";
-import { useEffect, useRef, useState } from "react";
 import SelectMaps from "./controls/Maps/SelectMaps";
 import PathfinderControls from "./controls/Pathfinder/PathfinderControls";
+import SelectPlanningTools from "./controls/Planning Suite/SelectPlanningTools";
 
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
@@ -27,6 +30,10 @@ export default function MainUILayout() {
   const [showChat, setShowChat] = useState(false);
   const [showSelectMaps, setShowSelectMaps] = useState(false);
   const [showPathfinder, setShowPathfinder] = useState(false);
+  const [showPlanningTools, setShowPlanningTools] = useState(false);
+  const [currentTime, setCurrentTime] = useState("");
+  const [currentTimeFormatted, setCurrentTimeFormatted] = useState("");
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const mapRef = useRef<any>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -114,6 +121,32 @@ export default function MainUILayout() {
     }
   }, [highlightedIndex]);
 
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+      const dayStr = now.toLocaleDateString(undefined, {
+        weekday: "short",
+      });
+      const dateStr = now.toLocaleDateString(undefined, {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      setCurrentTimeFormatted(`${timeStr} - ${dayStr} | ${dateStr}`);
+    };
+
+    updateTime(); // initial call
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   if (!isDesktop) {
     return (
       <div className="flex items-center justify-center w-screen h-screen bg-[#1a1a1a] text-white text-center px-4">
@@ -130,7 +163,7 @@ export default function MainUILayout() {
     <div className="relative w-screen h-screen overflow-hidden">
       <MapComponent ref={mapRef} />
 
-      {/* Time of Day + Map Style Dropdowns */}
+      {/* Time of Day + Map Style */}
       <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
         <div className="flex gap-[18px]">
           <button className="h-[55px] px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium">
@@ -150,7 +183,10 @@ export default function MainUILayout() {
           onClick={() => {
             setShowSelectMaps((prev) => {
               const newState = !prev;
-              if (newState) setShowPathfinder(false);
+              if (newState) {
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+              }
               return newState;
             });
           }}
@@ -167,7 +203,10 @@ export default function MainUILayout() {
           onClick={() => {
             setShowPathfinder((prev) => {
               const newState = !prev;
-              if (newState) setShowSelectMaps(false);
+              if (newState) {
+                setShowSelectMaps(false);
+                setShowPlanningTools(false);
+              }
               return newState;
             });
           }}
@@ -180,17 +219,32 @@ export default function MainUILayout() {
           <MapPinned width={28} height={28} />
         </button>
 
-        {[ListTodo, OctagonAlert].map((Icon, i) => (
-          <button
-            key={i}
-            className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
-          >
-            <Icon width={28} height={28} />
-          </button>
-        ))}
+        <button
+          onClick={() => {
+            setShowPlanningTools((prev) => {
+              const newState = !prev;
+              if (newState) {
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+              }
+              return newState;
+            });
+          }}
+          className={`p-2 rounded-lg transition ${
+            showPlanningTools
+              ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
+              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+          }`}
+        >
+          <ListTodo width={28} height={28} />
+        </button>
+
+        <button className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition">
+          <OctagonAlert width={28} height={28} />
+        </button>
       </div>
 
-      {/* Search Bar or Pathfinder */}
+      {/* Search or Pathfinder */}
       {!showPathfinder ? (
         <div
           ref={searchContainerRef}
@@ -236,14 +290,19 @@ export default function MainUILayout() {
         </div>
       )}
 
-      {/* SelectMaps container */}
+      {/* Panels */}
       {showSelectMaps && (
         <div className="absolute left-[96px] top-[73px] w-96 z-40">
           <SelectMaps isVisible={true} />
         </div>
       )}
+      {showPlanningTools && (
+        <div className="absolute left-[96px] top-[73px] w-96 z-40">
+          <SelectPlanningTools isVisible={true} />
+        </div>
+      )}
 
-      {/* Right Controls */}
+      {/* Right Side Controls */}
       <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
         <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] h-[112px] overflow-hidden">
           <div
@@ -309,6 +368,23 @@ export default function MainUILayout() {
           className="w-12 h-12 -mt-[2.5px]"
         />
       </button>
+
+      <div className="absolute bottom-[18px] left-1/2 transform -translate-x-1/2 z-50">
+        <div
+          className="w-[470px] h-[73px] px-5 py-3 text-[#ffffff] flex flex-col items-center justify-center text-center"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(46,46,46,0.95) 0%, rgba(46,46,46,0.85) 30%, rgba(46,46,46,0.6) 55%, rgba(46,46,46,0.15) 88%, rgba(46,46,46,0.01) 100%)",
+          }}
+        >
+          <div className="text-[17px] font-medium tracking-wide">
+            {currentTimeFormatted}
+          </div>
+          <div className="text-[14px] mt-1 font-[600] bg-gradient-to-r from-[#9699FF] to-[#FFFFFF] bg-clip-text text-transparent">
+            ({timeZone})
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
