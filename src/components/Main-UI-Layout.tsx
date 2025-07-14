@@ -16,6 +16,7 @@ import MapComponent from "./Map";
 import SafeGISAIChat from "./SafeGIS-AI-Chat";
 import { useEffect, useRef, useState } from "react";
 import SelectMaps from "./controls/Maps/SelectMaps";
+import PathfinderControls from "./controls/Pathfinder/PathfinderControls";
 
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
@@ -25,6 +26,7 @@ export default function MainUILayout() {
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [showChat, setShowChat] = useState(false);
   const [showSelectMaps, setShowSelectMaps] = useState(false);
+  const [showPathfinder, setShowPathfinder] = useState(false);
 
   const mapRef = useRef<any>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -145,7 +147,13 @@ export default function MainUILayout() {
       {/* Left Menu */}
       <div className="absolute top-1/2 left-[18px] -translate-y-1/2 z-50 flex flex-col gap-4 bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px]">
         <button
-          onClick={() => setShowSelectMaps((prev) => !prev)}
+          onClick={() => {
+            setShowSelectMaps((prev) => {
+              const newState = !prev;
+              if (newState) setShowPathfinder(false);
+              return newState;
+            });
+          }}
           className={`p-2 rounded-lg transition ${
             showSelectMaps
               ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
@@ -155,7 +163,24 @@ export default function MainUILayout() {
           <Earth width={28} height={28} />
         </button>
 
-        {[MapPinned, ListTodo, OctagonAlert].map((Icon, i) => (
+        <button
+          onClick={() => {
+            setShowPathfinder((prev) => {
+              const newState = !prev;
+              if (newState) setShowSelectMaps(false);
+              return newState;
+            });
+          }}
+          className={`p-2 rounded-lg transition ${
+            showPathfinder
+              ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
+              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+          }`}
+        >
+          <MapPinned width={28} height={28} />
+        </button>
+
+        {[ListTodo, OctagonAlert].map((Icon, i) => (
           <button
             key={i}
             className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
@@ -165,45 +190,51 @@ export default function MainUILayout() {
         ))}
       </div>
 
-      {/* Search Bar */}
-      <div
-        ref={searchContainerRef}
-        className="absolute top-[18px] left-[96px] z-50 w-96"
-      >
-        <div className="bg-[#2E2E2E] h-[55px] flex items-center gap-3 px-4 py-2 rounded-xl shadow-md text-[#C7C7C7]">
-          <Search width={26} height={26} />
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Enter location..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="bg-transparent outline-none text-lg text-[#C7C7C7] placeholder-[#999] w-full"
-          />
-        </div>
+      {/* Search Bar or Pathfinder */}
+      {!showPathfinder ? (
+        <div
+          ref={searchContainerRef}
+          className="absolute top-[18px] left-[96px] z-50 w-96"
+        >
+          <div className="bg-[#2E2E2E] h-[55px] flex items-center gap-3 px-4 py-2 rounded-xl shadow-md text-[#C7C7C7]">
+            <Search width={26} height={26} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Enter location..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="bg-transparent outline-none text-md text-[#C7C7C7] placeholder-[#999] w-full"
+            />
+          </div>
 
-        {suggestions.length > 0 && (
-          <ul
-            ref={suggestionsRef}
-            className="scrollbar-rounded absolute top-full left-0 mt-2 w-full bg-[#2E2E2E] rounded-xl shadow-lg max-h-60 overflow-y-auto z-50"
-          >
-            {suggestions.map((place, index) => (
-              <li
-                key={index}
-                onClick={() => handleSuggestionSelect(place)}
-                className={`px-4 py-3 text-base cursor-pointer ${
-                  highlightedIndex === index
-                    ? "bg-[#3a3a3a] text-[#C7C7C7]"
-                    : "text-[#C7C7C7] hover:bg-[#3a3a3a]"
-                }`}
-              >
-                {place.properties.formatted}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          {suggestions.length > 0 && (
+            <ul
+              ref={suggestionsRef}
+              className="scrollbar-rounded absolute top-full left-0 mt-2 w-full bg-[#2E2E2E] rounded-xl shadow-lg max-h-60 overflow-y-auto z-50"
+            >
+              {suggestions.map((place, index) => (
+                <li
+                  key={index}
+                  onClick={() => handleSuggestionSelect(place)}
+                  className={`px-4 py-3 text-base cursor-pointer ${
+                    highlightedIndex === index
+                      ? "bg-[#3a3a3a] text-[#C7C7C7]"
+                      : "text-[#C7C7C7] hover:bg-[#3a3a3a]"
+                  }`}
+                >
+                  {place.properties.formatted}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <div className="absolute top-[18px] left-[96px] z-50">
+          <PathfinderControls />
+        </div>
+      )}
 
       {/* SelectMaps container */}
       {showSelectMaps && (
