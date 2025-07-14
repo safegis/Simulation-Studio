@@ -38,6 +38,7 @@ export default function MainUILayout() {
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLUListElement>(null);
+  const timeOfDayRef = useRef<HTMLDivElement>(null); // <-- new ref
 
   useEffect(() => {
     const checkSize = () => setIsDesktop(window.innerWidth >= 768);
@@ -76,6 +77,21 @@ export default function MainUILayout() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutsideTimeDropdown(event: MouseEvent) {
+      if (
+        timeOfDayRef.current &&
+        !timeOfDayRef.current.contains(event.target as Node)
+      ) {
+        setShowTimeOfDayDropdown(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutsideTimeDropdown);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutsideTimeDropdown);
   }, []);
 
   const handleSuggestionSelect = (place: any) => {
@@ -160,7 +176,7 @@ export default function MainUILayout() {
       {/* Time of Day + Map Style */}
       <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
         <div className="flex gap-[18px] relative">
-          <div className="relative w-[170px]">
+          <div ref={timeOfDayRef} className="relative w-[170px]">
             <button
               onClick={() => setShowTimeOfDayDropdown((prev) => !prev)}
               className="h-[55px] w-full px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
