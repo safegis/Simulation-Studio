@@ -30,7 +30,7 @@ export default function SelectMaps({ isVisible }: Props) {
           Select maps to include:
         </span>
         <button className="text-sm text-[#8183e5] hover:text-[#a7a9fa] flex items-center gap-1 transition">
-          Go to controls
+          Go to tool panel
           <ChevronRight size={16} />
         </button>
       </div>

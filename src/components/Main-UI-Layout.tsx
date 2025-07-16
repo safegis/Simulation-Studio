@@ -11,6 +11,10 @@ import {
   Square,
   Box,
   ChevronDown,
+  Sunrise,
+  Sun,
+  Sunset,
+  Moon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -19,6 +23,7 @@ import SafeGISAIChat from "./SafeGIS-AI-Chat";
 import SelectMaps from "./controls/Maps/SelectMaps";
 import PathfinderControls from "./controls/Pathfinder/PathfinderControls";
 import SelectPlanningTools from "./controls/Planning Suite/SelectPlanningTools";
+import SyncIcon from "@mui/icons-material/Sync";
 
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
@@ -186,21 +191,30 @@ export default function MainUILayout() {
             </button>
             {showTimeOfDayDropdown && (
               <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
-                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
-                  Auto
-                </div>
-                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
-                  Morning
-                </div>
-                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
-                  Daytime
-                </div>
-                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
-                  Evening
-                </div>
-                <div className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer">
-                  Nighttime
-                </div>
+                {["Auto", "Morning", "Daytime", "Evening", "Nighttime"].map(
+                  (label, idx) => (
+                    <div
+                      key={idx}
+                      className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer flex items-center gap-2"
+                    >
+                      {label === "Morning" ? (
+                        <Sunrise size={18} color="#C7C7C7" />
+                      ) : label === "Daytime" ? (
+                        <Sun size={18} color="#C7C7C7" />
+                      ) : label === "Evening" ? (
+                        <Sunset size={18} color="#C7C7C7" />
+                      ) : label === "Nighttime" ? (
+                        <Moon size={18} color="#C7C7C7" />
+                      ) : (
+                        <SyncIcon
+                          fontSize="small"
+                          style={{ color: "#C7C7C7" }}
+                        />
+                      )}
+                      {label}
+                    </div>
+                  )
+                )}
               </div>
             )}
           </div>
