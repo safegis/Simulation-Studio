@@ -16,7 +16,7 @@ import {
   Sunset,
   Moon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 import MapComponent from "./Map";
 import SafeGISAIChat from "./SafeGIS-AI-Chat";
@@ -38,7 +38,14 @@ export default function MainUILayout() {
   const [currentTimeFormatted, setCurrentTimeFormatted] = useState("");
   const [showTimeOfDayDropdown, setShowTimeOfDayDropdown] = useState(false);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [showMapStyleDropdown, setShowMapStyleDropdown] = useState(false);
+  const [autoLightingInterval, setAutoLightingInterval] =
+    useState<NodeJS.Timeout | null>(null);
+  const [selectedTimeOfDay, setSelectedTimeOfDay] = useState<string | null>(
+    null
+  );
 
+  const mapStyleRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -99,6 +106,21 @@ export default function MainUILayout() {
       document.removeEventListener("mousedown", handleClickOutsideTimeDropdown);
   }, []);
 
+  useEffect(() => {
+    function handleClickOutsideMapStyle(event: MouseEvent) {
+      if (
+        mapStyleRef.current &&
+        !mapStyleRef.current.contains(event.target as Node)
+      ) {
+        setShowMapStyleDropdown(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutsideMapStyle);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutsideMapStyle);
+  }, []);
+
   const handleSuggestionSelect = (place: any) => {
     setSearchText(place.properties.formatted);
     setSuggestions([]);
@@ -117,9 +139,35 @@ export default function MainUILayout() {
   };
 
   const switchTo3D = () => {
-    mapRef.current?.switchTo3D?.();
     setViewMode("3d");
+    handleTimeOfDayChange("Auto"); // trigger light sync before switching
+    mapRef.current?.switchTo3D?.();
   };
+
+  useEffect(() => {
+    const waitForMapAndSync = async () => {
+      let tries = 0;
+      while (
+        (!mapRef.current || !mapRef.current.setLightPreset) &&
+        tries < 10
+      ) {
+        await new Promise((r) => setTimeout(r, 300));
+        tries++;
+      }
+
+      if (mapRef.current?.setLightPreset) {
+        handleTimeOfDayChange("Auto");
+      }
+    };
+
+    waitForMapAndSync();
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === "3d") {
+      handleTimeOfDayChange("Auto");
+    }
+  }, [viewMode]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
@@ -164,6 +212,14 @@ export default function MainUILayout() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (autoLightingInterval) {
+        clearInterval(autoLightingInterval);
+      }
+    };
+  }, [autoLightingInterval]);
+
   if (!isDesktop) {
     return (
       <div className="flex items-center justify-center w-screen h-screen bg-[#1a1a1a] text-white text-center px-4">
@@ -174,6 +230,70 @@ export default function MainUILayout() {
     );
   }
 
+  const handleTimeOfDayChange = useCallback(
+    (label: string) => {
+      if (!mapRef.current) return;
+
+      if (autoLightingInterval) {
+        clearInterval(autoLightingInterval);
+        setAutoLightingInterval(null);
+      }
+
+      let preset: "dawn" | "day" | "dusk" | "night" | null = null;
+
+      switch (label) {
+        case "Morning":
+          preset = "dawn";
+          break;
+        case "Daytime":
+          preset = "day";
+          break;
+        case "Evening":
+          preset = "dusk";
+          break;
+        case "Nighttime":
+          preset = "night";
+          break;
+        case "Auto":
+          autoLightSync();
+          const interval = setInterval(autoLightSync, 60000);
+          setAutoLightingInterval(interval);
+          break;
+      }
+
+      if (preset && mapRef.current.setLightPreset) {
+        mapRef.current.setLightPreset(preset);
+      }
+
+      setSelectedTimeOfDay(label); // <--- Add this line
+      setShowTimeOfDayDropdown(false);
+    },
+    [autoLightingInterval]
+  );
+
+  const autoLightSync = (): "dawn" | "day" | "dusk" | "night" => {
+    const now = new Date();
+    const hour = now.getHours();
+
+    let preset: "dawn" | "day" | "dusk" | "night";
+
+    if (hour >= 5 && hour < 8) {
+      preset = "dawn";
+    } else if (hour >= 8 && hour < 17) {
+      preset = "day";
+    } else if (hour >= 17 && hour < 20) {
+      preset = "dusk";
+    } else {
+      preset = "night";
+    }
+
+    if (mapRef.current?.setLightPreset) {
+      mapRef.current.setLightPreset(preset);
+    }
+
+    return preset;
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       <MapComponent ref={mapRef} />
@@ -181,48 +301,100 @@ export default function MainUILayout() {
       {/* Time of Day + Map Style */}
       <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
         <div className="flex gap-[18px] relative">
-          <div ref={timeOfDayRef} className="relative w-[170px]">
+          {viewMode === "3d" && (
+            <div ref={timeOfDayRef} className="relative w-[190px]">
+              <button
+                onClick={() => setShowTimeOfDayDropdown((prev) => !prev)}
+                className="h-[55px] w-full px-5 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
+              >
+                <span className="leading-none">Time of Day</span>
+                <ChevronDown size={22} />
+              </button>
+
+              {showTimeOfDayDropdown && (
+                <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
+                  {["Auto", "Morning", "Daytime", "Evening", "Nighttime"].map(
+                    (label, idx) => {
+                      const isSelected = selectedTimeOfDay === label;
+
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => handleTimeOfDayChange(label)}
+                          className={`p-2 rounded-md cursor-pointer flex items-center gap-2 transition ${
+                            isSelected
+                              ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E] font-medium"
+                              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+                          }`}
+                        >
+                          {label === "Morning" ? (
+                            <Sunrise
+                              size={18}
+                              color={isSelected ? "#2E2E2E" : "#C7C7C7"}
+                            />
+                          ) : label === "Daytime" ? (
+                            <Sun
+                              size={18}
+                              color={isSelected ? "#2E2E2E" : "#C7C7C7"}
+                            />
+                          ) : label === "Evening" ? (
+                            <Sunset
+                              size={18}
+                              color={isSelected ? "#2E2E2E" : "#C7C7C7"}
+                            />
+                          ) : label === "Nighttime" ? (
+                            <Moon
+                              size={18}
+                              color={isSelected ? "#2E2E2E" : "#C7C7C7"}
+                            />
+                          ) : (
+                            <SyncIcon
+                              fontSize="small"
+                              style={{
+                                color: isSelected ? "#2E2E2E" : "#C7C7C7",
+                              }}
+                            />
+                          )}
+                          {label}
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div ref={mapStyleRef} className="relative w-[190px]">
             <button
-              onClick={() => setShowTimeOfDayDropdown((prev) => !prev)}
-              className="h-[55px] w-full px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
+              onClick={() => setShowMapStyleDropdown((prev) => !prev)}
+              className="h-[55px] w-full px-5 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
             >
-              <span className="leading-none">Time of Day</span>
+              <span className="leading-none">Map Style</span>
               <ChevronDown size={22} />
             </button>
-            {showTimeOfDayDropdown && (
+
+            {showMapStyleDropdown && (
               <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
-                {["Auto", "Morning", "Daytime", "Evening", "Nighttime"].map(
-                  (label, idx) => (
-                    <div
-                      key={idx}
-                      className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer flex items-center gap-2"
-                    >
-                      {label === "Morning" ? (
-                        <Sunrise size={18} color="#C7C7C7" />
-                      ) : label === "Daytime" ? (
-                        <Sun size={18} color="#C7C7C7" />
-                      ) : label === "Evening" ? (
-                        <Sunset size={18} color="#C7C7C7" />
-                      ) : label === "Nighttime" ? (
-                        <Moon size={18} color="#C7C7C7" />
-                      ) : (
-                        <SyncIcon
-                          fontSize="small"
-                          style={{ color: "#C7C7C7" }}
-                        />
-                      )}
-                      {label}
-                    </div>
-                  )
-                )}
+                {[
+                  "Default",
+                  "Satellite",
+                  "Outdoors",
+                  "Light",
+                  "Dark",
+                  "Navigation (Day)",
+                  "Navigation (Night)",
+                ].map((label, idx) => (
+                  <div
+                    key={idx}
+                    className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer"
+                  >
+                    {label}
+                  </div>
+                ))}
               </div>
             )}
           </div>
-
-          <button className="h-[55px] px-5 flex items-center justify-center gap-2 bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium">
-            <span className="leading-none">Map Style</span>
-            <ChevronDown size={22} />
-          </button>
         </div>
       </div>
 

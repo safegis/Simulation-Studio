@@ -26,7 +26,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
     mapInstance.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12", // Default flat 2D
+      style: "mapbox://styles/mapbox/streets-v12", // Default 2D style
       center: [0, 0],
       zoom: 2.5,
       pitch: 0,
@@ -50,7 +50,6 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
       is3DMode.current = false;
 
-      // Switch to flat 2D style
       map.setStyle("mapbox://styles/mapbox/streets-v12");
 
       map.once("style.load", () => {
@@ -63,11 +62,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
       is3DMode.current = true;
 
-      // Switch to 3D-ready style
       map.setStyle("mapbox://styles/mapbox/standard");
 
       map.once("style.load", () => {
-        // Enable 3D terrain
         map.addSource("mapbox-dem", {
           type: "raster-dem",
           url: "mapbox://mapbox.terrain-rgb",
@@ -77,9 +74,18 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
         map.setTerrain({ source: "mapbox-dem", exaggeration: 1.3 });
 
-        // Fly into a 3D view
         map.easeTo({ pitch: 60, bearing: 30, duration: 1000 });
       });
+    },
+    setLightPreset: (preset: "dawn" | "day" | "dusk" | "night") => {
+      const map = mapInstance.current;
+      if (!map) return;
+
+      try {
+        map.setConfigProperty("basemap", "lightPreset", preset);
+      } catch (e) {
+        console.warn("Failed to set light preset:", e);
+      }
     },
   }));
 
