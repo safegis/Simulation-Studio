@@ -15,6 +15,7 @@ import {
   Sun,
   Sunset,
   Moon,
+  CircleUser,
 } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 
@@ -44,6 +45,8 @@ export default function MainUILayout() {
   const [selectedTimeOfDay, setSelectedTimeOfDay] = useState<string | null>(
     null
   );
+  const [show3DControls, setShow3DControls] = useState(true);
+  const [selectedMapStyle, setSelectedMapStyle] = useState<string>("Default");
 
   const mapStyleRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -134,14 +137,14 @@ export default function MainUILayout() {
   };
 
   const switchTo2D = () => {
-    mapRef.current?.switchTo2D?.();
+    mapRef.current?.switchTo2D?.(selectedMapStyle);
     setViewMode("2d");
   };
 
   const switchTo3D = () => {
     setViewMode("3d");
-    handleTimeOfDayChange("Auto"); // trigger light sync before switching
-    mapRef.current?.switchTo3D?.();
+    handleTimeOfDayChange("Auto");
+    mapRef.current?.switchTo3D?.(selectedMapStyle);
   };
 
   useEffect(() => {
@@ -220,15 +223,78 @@ export default function MainUILayout() {
     };
   }, [autoLightingInterval]);
 
-  if (!isDesktop) {
-    return (
-      <div className="flex items-center justify-center w-screen h-screen bg-[#1a1a1a] text-white text-center px-4">
-        <div className="max-w-sm text-lg">
-          🚫 This app is best viewed on a desktop or laptop.
-        </div>
-      </div>
-    );
-  }
+  const handleMapStyleChange = (label: string) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    setSelectedMapStyle(label);
+    setShowMapStyleDropdown(false);
+
+    const disableLightingPresets = [
+      "Outdoors",
+      "Light",
+      "Dark",
+      "Navigation (Day)",
+      "Navigation (Night)",
+    ];
+
+    const supportsLighting = !disableLightingPresets.includes(label);
+
+    // Hide or show Time of Day + 3D controls
+    if (!supportsLighting) {
+      setSelectedTimeOfDay(null);
+      setShowTimeOfDayDropdown(false);
+      setShow3DControls(false);
+      setViewMode("2d"); // ✅ Forces internal state to 2D
+      mapRef.current?.switchTo2D?.(); // ✅ Actually switch the Mapbox view to 2D
+    } else {
+      setSelectedTimeOfDay("Auto");
+      setShow3DControls(true); // 👈 show 3D/2D switch again
+      if (viewMode === "3d") {
+        handleTimeOfDayChange("Auto");
+      }
+    }
+
+    // Handle visibility of the Time of Day button
+    if (disableLightingPresets.includes(label)) {
+      setSelectedTimeOfDay(null); // Hide button by clearing selection
+      setShowTimeOfDayDropdown(false); // Also close dropdown if open
+    } else {
+      setSelectedTimeOfDay("Auto"); // Enable and reset to Auto
+      if (viewMode === "3d") {
+        handleTimeOfDayChange("Auto"); // Sync light if in 3D mode
+      }
+    }
+
+    // Switch map style
+    switch (label) {
+      case "Default":
+        if (viewMode === "3d") {
+          map.setMapStyle("mapbox://styles/mapbox/standard");
+        } else {
+          map.setMapStyle("mapbox://styles/mapbox/streets-v12");
+        }
+        break;
+      case "Satellite":
+        map.setMapStyle("mapbox://styles/mapbox/standard-satellite");
+        break;
+      case "Outdoors":
+        map.setMapStyle("mapbox://styles/mapbox/outdoors-v12");
+        break;
+      case "Light":
+        map.setMapStyle("mapbox://styles/mapbox/light-v11");
+        break;
+      case "Dark":
+        map.setMapStyle("mapbox://styles/mapbox/dark-v11");
+        break;
+      case "Navigation (Day)":
+        map.setMapStyle("mapbox://styles/mapbox/navigation-day-v1");
+        break;
+      case "Navigation (Night)":
+        map.setMapStyle("mapbox://styles/mapbox/navigation-night-v1");
+        break;
+    }
+  };
 
   const handleTimeOfDayChange = useCallback(
     (label: string) => {
@@ -256,7 +322,7 @@ export default function MainUILayout() {
           break;
         case "Auto":
           autoLightSync();
-          const interval = setInterval(autoLightSync, 60000);
+          const interval = setInterval(autoLightSync, 5000);
           setAutoLightingInterval(interval);
           break;
       }
@@ -278,12 +344,16 @@ export default function MainUILayout() {
     let preset: "dawn" | "day" | "dusk" | "night";
 
     if (hour >= 5 && hour < 8) {
+      // 5 – 7:59 AM
       preset = "dawn";
     } else if (hour >= 8 && hour < 17) {
+      // 8 AM – 4:59 PM
       preset = "day";
-    } else if (hour >= 17 && hour < 20) {
+    } else if (hour >= 17 && hour < 19) {
+      // 5 – 6:59 PM
       preset = "dusk";
     } else {
+      // 7 PM – 4:59 AM
       preset = "night";
     }
 
@@ -296,316 +366,342 @@ export default function MainUILayout() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      <MapComponent ref={mapRef} />
+      {!isDesktop ? (
+        <div className="flex items-center justify-center w-screen h-screen bg-[#1a1a1a] text-white text-center px-4">
+          <div className="max-w-sm text-lg">
+            🚫 This app is best viewed on a desktop or laptop.
+          </div>
+        </div>
+      ) : (
+        <>
+          <MapComponent ref={mapRef} />
 
-      {/* Time of Day + Map Style */}
-      <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
-        <div className="flex gap-[18px] relative">
-          {viewMode === "3d" && (
-            <div ref={timeOfDayRef} className="relative w-[190px]">
-              <button
-                onClick={() => setShowTimeOfDayDropdown((prev) => !prev)}
-                className="h-[55px] w-full px-5 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
-              >
-                <span className="leading-none">Time of Day</span>
-                <ChevronDown size={22} />
-              </button>
+          {/* Time of Day + Map Style */}
+          <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
+            <div className="flex gap-[18px] relative">
+              {viewMode === "3d" && selectedTimeOfDay !== null && (
+                <div ref={timeOfDayRef} className="relative w-[190px]">
+                  <button
+                    onClick={() => setShowTimeOfDayDropdown((prev) => !prev)}
+                    className="h-[55px] w-full px-5 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
+                  >
+                    <span className="leading-none">Time of Day</span>
+                    <ChevronDown size={22} />
+                  </button>
 
-              {showTimeOfDayDropdown && (
-                <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
-                  {["Auto", "Morning", "Daytime", "Evening", "Nighttime"].map(
-                    (label, idx) => {
-                      const isSelected = selectedTimeOfDay === label;
+                  {showTimeOfDayDropdown && (
+                    <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
+                      {[
+                        "Auto",
+                        "Morning",
+                        "Daytime",
+                        "Evening",
+                        "Nighttime",
+                      ].map((label, idx) => {
+                        const isSelected = selectedTimeOfDay === label;
 
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => handleTimeOfDayChange(label)}
-                          className={`p-2 rounded-md cursor-pointer flex items-center gap-2 transition ${
-                            isSelected
-                              ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E] font-medium"
-                              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
-                          }`}
-                        >
-                          {label === "Morning" ? (
-                            <Sunrise
-                              size={18}
-                              color={isSelected ? "#2E2E2E" : "#C7C7C7"}
-                            />
-                          ) : label === "Daytime" ? (
-                            <Sun
-                              size={18}
-                              color={isSelected ? "#2E2E2E" : "#C7C7C7"}
-                            />
-                          ) : label === "Evening" ? (
-                            <Sunset
-                              size={18}
-                              color={isSelected ? "#2E2E2E" : "#C7C7C7"}
-                            />
-                          ) : label === "Nighttime" ? (
-                            <Moon
-                              size={18}
-                              color={isSelected ? "#2E2E2E" : "#C7C7C7"}
-                            />
-                          ) : (
-                            <SyncIcon
-                              fontSize="small"
-                              style={{
-                                color: isSelected ? "#2E2E2E" : "#C7C7C7",
-                              }}
-                            />
-                          )}
-                          {label}
-                        </div>
-                      );
-                    }
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => handleTimeOfDayChange(label)}
+                            className={`p-2 rounded-md cursor-pointer flex items-center gap-2 transition ${
+                              isSelected
+                                ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E] font-medium"
+                                : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+                            }`}
+                          >
+                            {label === "Morning" ? (
+                              <Sunrise
+                                size={18}
+                                color={isSelected ? "#2E2E2E" : "#C7C7C7"}
+                              />
+                            ) : label === "Daytime" ? (
+                              <Sun
+                                size={18}
+                                color={isSelected ? "#2E2E2E" : "#C7C7C7"}
+                              />
+                            ) : label === "Evening" ? (
+                              <Sunset
+                                size={18}
+                                color={isSelected ? "#2E2E2E" : "#C7C7C7"}
+                              />
+                            ) : label === "Nighttime" ? (
+                              <Moon
+                                size={18}
+                                color={isSelected ? "#2E2E2E" : "#C7C7C7"}
+                              />
+                            ) : (
+                              <SyncIcon
+                                fontSize="small"
+                                style={{
+                                  color: isSelected ? "#2E2E2E" : "#C7C7C7",
+                                }}
+                              />
+                            )}
+                            {label}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               )}
+
+              <div ref={mapStyleRef} className="relative w-[190px]">
+                <button
+                  onClick={() => setShowMapStyleDropdown((prev) => !prev)}
+                  className="h-[55px] w-full px-5 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
+                >
+                  <span className="leading-none">Map Style</span>
+                  <ChevronDown size={22} />
+                </button>
+
+                {showMapStyleDropdown && (
+                  <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
+                    {[
+                      "Default",
+                      "Satellite",
+                      "Outdoors",
+                      "Light",
+                      "Dark",
+                      "Navigation (Day)",
+                      "Navigation (Night)",
+                    ].map((label, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => handleMapStyleChange(label)} // <-- Make sure this is updated
+                        className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer"
+                      >
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Left Menu */}
+          <div className="absolute top-1/2 left-[18px] -translate-y-1/2 z-50 flex flex-col gap-4 bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px]">
+            <button
+              onClick={() => {
+                setShowSelectMaps((prev) => {
+                  const newState = !prev;
+                  if (newState) {
+                    setShowPathfinder(false);
+                    setShowPlanningTools(false);
+                  }
+                  return newState;
+                });
+              }}
+              className={`p-2 rounded-lg transition ${
+                showSelectMaps
+                  ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
+                  : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+              }`}
+            >
+              <Earth width={28} height={28} />
+            </button>
+
+            <button
+              onClick={() => {
+                setShowPathfinder((prev) => {
+                  const newState = !prev;
+                  if (newState) {
+                    setShowSelectMaps(false);
+                    setShowPlanningTools(false);
+                  }
+                  return newState;
+                });
+              }}
+              className={`p-2 rounded-lg transition ${
+                showPathfinder
+                  ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
+                  : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+              }`}
+            >
+              <MapPinned width={28} height={28} />
+            </button>
+
+            <button
+              onClick={() => {
+                setShowPlanningTools((prev) => {
+                  const newState = !prev;
+                  if (newState) {
+                    setShowSelectMaps(false);
+                    setShowPathfinder(false);
+                  }
+                  return newState;
+                });
+              }}
+              className={`p-2 rounded-lg transition ${
+                showPlanningTools
+                  ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
+                  : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+              }`}
+            >
+              <ListTodo width={28} height={28} />
+            </button>
+
+            <button className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition">
+              <OctagonAlert width={28} height={28} />
+            </button>
+          </div>
+
+          {/* Search or Pathfinder */}
+          {!showPathfinder ? (
+            <div
+              ref={searchContainerRef}
+              className="absolute top-[18px] left-[96px] z-50 w-96"
+            >
+              <div className="bg-[#2E2E2E] h-[55px] flex items-center gap-3 px-4 py-2 rounded-xl shadow-md text-[#C7C7C7]">
+                <Search width={26} height={26} />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Enter location..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="bg-transparent outline-none text-md text-[#C7C7C7] placeholder-[#999] w-full"
+                />
+              </div>
+
+              {suggestions.length > 0 && (
+                <ul
+                  ref={suggestionsRef}
+                  className="scrollbar-rounded absolute top-full left-0 mt-2 w-full bg-[#2E2E2E] rounded-xl shadow-lg max-h-60 overflow-y-auto z-50"
+                >
+                  {suggestions.map((place, index) => (
+                    <li
+                      key={index}
+                      onClick={() => handleSuggestionSelect(place)}
+                      className={`px-4 py-3 text-base cursor-pointer ${
+                        highlightedIndex === index
+                          ? "bg-[#3a3a3a] text-[#C7C7C7]"
+                          : "text-[#C7C7C7] hover:bg-[#3a3a3a]"
+                      }`}
+                    >
+                      {place.properties.formatted}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <div className="absolute top-[18px] left-[96px] z-50">
+              <PathfinderControls />
             </div>
           )}
 
-          <div ref={mapStyleRef} className="relative w-[190px]">
-            <button
-              onClick={() => setShowMapStyleDropdown((prev) => !prev)}
-              className="h-[55px] w-full px-5 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
-            >
-              <span className="leading-none">Map Style</span>
-              <ChevronDown size={22} />
-            </button>
+          {/* Panels */}
+          {showSelectMaps && (
+            <div className="absolute left-[96px] top-[73px] w-96 z-40">
+              <SelectMaps isVisible={true} />
+            </div>
+          )}
+          {showPlanningTools && (
+            <div className="absolute left-[96px] top-[73px] w-96 z-40">
+              <SelectPlanningTools isVisible={true} />
+            </div>
+          )}
 
-            {showMapStyleDropdown && (
-              <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
-                {[
-                  "Default",
-                  "Satellite",
-                  "Outdoors",
-                  "Light",
-                  "Dark",
-                  "Navigation (Day)",
-                  "Navigation (Night)",
-                ].map((label, idx) => (
-                  <div
-                    key={idx}
-                    className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer"
+          {/* User Icon Button at Bottom Left with 18px spacing */}
+          <div className="absolute bottom-[18px] left-[18px] z-50">
+            <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+              <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
+                <CircleUser size={28} />
+              </button>
+            </div>
+          </div>
+
+          {/* Right Side Controls */}
+          <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
+            {show3DControls && (
+              <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] h-[112px] overflow-hidden">
+                <div
+                  className="absolute w-[44px] h-[44px] left-2 rounded-lg bg-gradient-to-b from-[#9699FF] to-white transition-all duration-300 ease-in-out"
+                  style={{ top: viewMode === "2d" ? "8px" : "60px" }}
+                />
+                <div className="relative z-10 flex flex-col gap-2 items-center">
+                  <button
+                    onClick={switchTo2D}
+                    className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg transition-colors duration-300 ${
+                      viewMode === "2d" ? "text-[#2E2E2E]" : "text-[#C7C7C7]"
+                    }`}
                   >
-                    {label}
-                  </div>
-                ))}
+                    <Square width={26} height={26} />
+                  </button>
+                  <button
+                    onClick={switchTo3D}
+                    className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg transition-colors duration-300 ${
+                      viewMode === "3d" ? "text-[#2E2E2E]" : "text-[#C7C7C7]"
+                    }`}
+                  >
+                    <Box width={28} height={28} />
+                  </button>
+                </div>
               </div>
             )}
+
+            <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex flex-col gap-2">
+              <button
+                onClick={() => handleZoom(1)}
+                className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
+              >
+                <ZoomIn width={28} height={28} />
+              </button>
+              <button
+                onClick={() => handleZoom(-1)}
+                className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
+              >
+                <ZoomOut width={28} height={28} />
+              </button>
+            </div>
+
+            <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+              <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
+                ?
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Left Menu */}
-      <div className="absolute top-1/2 left-[18px] -translate-y-1/2 z-50 flex flex-col gap-4 bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px]">
-        <button
-          onClick={() => {
-            setShowSelectMaps((prev) => {
-              const newState = !prev;
-              if (newState) {
-                setShowPathfinder(false);
-                setShowPlanningTools(false);
-              }
-              return newState;
-            });
-          }}
-          className={`p-2 rounded-lg transition ${
-            showSelectMaps
-              ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
-              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
-          }`}
-        >
-          <Earth width={28} height={28} />
-        </button>
+          <SafeGISAIChat isVisible={showChat} />
 
-        <button
-          onClick={() => {
-            setShowPathfinder((prev) => {
-              const newState = !prev;
-              if (newState) {
-                setShowSelectMaps(false);
-                setShowPlanningTools(false);
-              }
-              return newState;
-            });
-          }}
-          className={`p-2 rounded-lg transition ${
-            showPathfinder
-              ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
-              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
-          }`}
-        >
-          <MapPinned width={28} height={28} />
-        </button>
-
-        <button
-          onClick={() => {
-            setShowPlanningTools((prev) => {
-              const newState = !prev;
-              if (newState) {
-                setShowSelectMaps(false);
-                setShowPathfinder(false);
-              }
-              return newState;
-            });
-          }}
-          className={`p-2 rounded-lg transition ${
-            showPlanningTools
-              ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
-              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
-          }`}
-        >
-          <ListTodo width={28} height={28} />
-        </button>
-
-        <button className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition">
-          <OctagonAlert width={28} height={28} />
-        </button>
-      </div>
-
-      {/* Search or Pathfinder */}
-      {!showPathfinder ? (
-        <div
-          ref={searchContainerRef}
-          className="absolute top-[18px] left-[96px] z-50 w-96"
-        >
-          <div className="bg-[#2E2E2E] h-[55px] flex items-center gap-3 px-4 py-2 rounded-xl shadow-md text-[#C7C7C7]">
-            <Search width={26} height={26} />
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Enter location..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="bg-transparent outline-none text-md text-[#C7C7C7] placeholder-[#999] w-full"
+          <button
+            onClick={() => setShowChat((prev) => !prev)}
+            className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
+            style={{
+              background: showChat
+                ? "linear-gradient(to bottom, #6B6DCC, #2E2E2E)"
+                : "linear-gradient(to bottom, #5A5C99, #232323)",
+            }}
+          >
+            <img
+              src="/Images/SafeGIS-AI-Logo.png"
+              alt="SafeGIS AI Logo"
+              className="w-12 h-12 -mt-[2.5px]"
             />
-          </div>
-
-          {suggestions.length > 0 && (
-            <ul
-              ref={suggestionsRef}
-              className="scrollbar-rounded absolute top-full left-0 mt-2 w-full bg-[#2E2E2E] rounded-xl shadow-lg max-h-60 overflow-y-auto z-50"
-            >
-              {suggestions.map((place, index) => (
-                <li
-                  key={index}
-                  onClick={() => handleSuggestionSelect(place)}
-                  className={`px-4 py-3 text-base cursor-pointer ${
-                    highlightedIndex === index
-                      ? "bg-[#3a3a3a] text-[#C7C7C7]"
-                      : "text-[#C7C7C7] hover:bg-[#3a3a3a]"
-                  }`}
-                >
-                  {place.properties.formatted}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : (
-        <div className="absolute top-[18px] left-[96px] z-50">
-          <PathfinderControls />
-        </div>
-      )}
-
-      {/* Panels */}
-      {showSelectMaps && (
-        <div className="absolute left-[96px] top-[73px] w-96 z-40">
-          <SelectMaps isVisible={true} />
-        </div>
-      )}
-      {showPlanningTools && (
-        <div className="absolute left-[96px] top-[73px] w-96 z-40">
-          <SelectPlanningTools isVisible={true} />
-        </div>
-      )}
-
-      {/* Right Side Controls */}
-      <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
-        <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] h-[112px] overflow-hidden">
-          <div
-            className="absolute w-[44px] h-[44px] left-2 rounded-lg bg-gradient-to-b from-[#9699FF] to-white transition-all duration-300 ease-in-out"
-            style={{ top: viewMode === "2d" ? "8px" : "60px" }}
-          />
-          <div className="relative z-10 flex flex-col gap-2 items-center">
-            <button
-              onClick={switchTo2D}
-              className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg transition-colors duration-300 ${
-                viewMode === "2d" ? "text-[#2E2E2E]" : "text-[#C7C7C7]"
-              }`}
-            >
-              <Square width={26} height={26} />
-            </button>
-            <button
-              onClick={switchTo3D}
-              className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg transition-colors duration-300 ${
-                viewMode === "3d" ? "text-[#2E2E2E]" : "text-[#C7C7C7]"
-              }`}
-            >
-              <Box width={26} height={26} />
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex flex-col gap-2">
-          <button
-            onClick={() => handleZoom(1)}
-            className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
-          >
-            <ZoomIn width={28} height={28} />
           </button>
-          <button
-            onClick={() => handleZoom(-1)}
-            className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
-          >
-            <ZoomOut width={28} height={28} />
-          </button>
-        </div>
 
-        <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
-          <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
-            ?
-          </button>
-        </div>
-      </div>
-
-      <SafeGISAIChat isVisible={showChat} />
-
-      <button
-        onClick={() => setShowChat((prev) => !prev)}
-        className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
-        style={{
-          background: showChat
-            ? "linear-gradient(to bottom, #6B6DCC, #2E2E2E)"
-            : "linear-gradient(to bottom, #5A5C99, #232323)",
-        }}
-      >
-        <img
-          src="/Images/SafeGIS-AI-Logo.png"
-          alt="SafeGIS AI Logo"
-          className="w-12 h-12 -mt-[2.5px]"
-        />
-      </button>
-
-      <div className="absolute bottom-[18px] left-1/2 transform -translate-x-1/2 z-50">
-        <div
-          className="w-[470px] h-[73px] px-5 py-3 text-[#ffffff] flex flex-col items-center justify-center text-center"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(46,46,46,0.95) 0%, rgba(46,46,46,0.85) 30%, rgba(46,46,46,0.6) 55%, rgba(46,46,46,0.15) 88%, rgba(46,46,46,0.01) 100%)",
-          }}
-        >
-          <div className="text-[17px] font-medium tracking-wide">
-            {currentTimeFormatted}
+          <div className="absolute bottom-[18px] left-1/2 transform -translate-x-1/2 z-50">
+            <div
+              className="w-[470px] h-[73px] px-5 py-3 text-[#ffffff] flex flex-col items-center justify-center text-center"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(46,46,46,0.95) 0%, rgba(46,46,46,0.85) 30%, rgba(46,46,46,0.6) 55%, rgba(46,46,46,0.15) 88%, rgba(46,46,46,0.01) 100%)",
+              }}
+            >
+              <div className="text-[17px] font-medium tracking-wide">
+                {currentTimeFormatted}
+              </div>
+              <div className="text-[14px] mt-1 font-[600] bg-gradient-to-r from-[#9699FF] to-[#FFFFFF] bg-clip-text text-transparent">
+                ({timeZone})
+              </div>
+            </div>
           </div>
-          <div className="text-[14px] mt-1 font-[600] bg-gradient-to-r from-[#9699FF] to-[#FFFFFF] bg-clip-text text-transparent">
-            ({timeZone})
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

@@ -44,48 +44,100 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     getZoom: () => {
       return mapInstance.current?.getZoom?.() ?? 0;
     },
-    switchTo2D: () => {
+    switchTo2D: (label: string) => {
       const map = mapInstance.current;
       if (!map || !is3DMode.current) return;
 
       is3DMode.current = false;
 
-      map.setStyle("mapbox://styles/mapbox/streets-v12");
+      let style = "mapbox://styles/mapbox/streets-v12"; // fallback
+
+      switch (label) {
+        case "Satellite":
+          style = "mapbox://styles/mapbox/standard-satellite";
+          break;
+        case "Outdoors":
+          style = "mapbox://styles/mapbox/outdoors-v12";
+          break;
+        case "Light":
+          style = "mapbox://styles/mapbox/light-v11";
+          break;
+        case "Dark":
+          style = "mapbox://styles/mapbox/dark-v11";
+          break;
+        case "Navigation (Day)":
+          style = "mapbox://styles/mapbox/navigation-day-v1";
+          break;
+        case "Navigation (Night)":
+          style = "mapbox://styles/mapbox/navigation-night-v1";
+          break;
+        case "Default":
+        default:
+          style = "mapbox://styles/mapbox/streets-v12";
+          break;
+      }
+
+      map.setStyle(style);
 
       map.once("style.load", () => {
+        map.setTerrain(null);
         map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
       });
     },
-    switchTo3D: () => {
+
+    switchTo3D: (label: string) => {
       const map = mapInstance.current;
       if (!map || is3DMode.current) return;
 
       is3DMode.current = true;
 
-      map.setStyle("mapbox://styles/mapbox/standard");
+      let style = "mapbox://styles/mapbox/standard"; // fallback
+
+      switch (label) {
+        case "Satellite":
+          style = "mapbox://styles/mapbox/standard-satellite";
+          break;
+        default:
+          style = "mapbox://styles/mapbox/standard";
+          break;
+      }
+
+      map.setStyle(style);
 
       map.once("style.load", () => {
-        map.addSource("mapbox-dem", {
-          type: "raster-dem",
-          url: "mapbox://mapbox.terrain-rgb",
-          tileSize: 512,
-          maxzoom: 14,
-        });
-
-        map.setTerrain({ source: "mapbox-dem", exaggeration: 1.3 });
-
+        addTerrainOnly(map);
         map.easeTo({ pitch: 60, bearing: 30, duration: 1000 });
       });
     },
+
     setLightPreset: (preset: "dawn" | "day" | "dusk" | "night") => {
       const map = mapInstance.current;
-      if (!map) return;
+
+      // ✅ Only apply lighting preset in 3D mode
+      if (!map || !is3DMode.current) return;
 
       try {
         map.setConfigProperty("basemap", "lightPreset", preset);
       } catch (e) {
         console.warn("Failed to set light preset:", e);
       }
+    },
+
+    setMapStyle: (style: string) => {
+      const map = mapInstance.current;
+      if (!map) return;
+
+      map.setStyle(style);
+
+      map.once("style.load", () => {
+        if (is3DMode.current && style.includes("standard")) {
+          addTerrainOnly(map);
+          map.easeTo({ pitch: 60, bearing: 30, duration: 1000 });
+        } else {
+          map.setTerrain(null);
+          map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+        }
+      });
     },
   }));
 
@@ -95,3 +147,17 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 });
 
 export default MapComponent;
+
+// ✅ Terrain only (no 3D buildings)
+const addTerrainOnly = (map: mapboxgl.Map) => {
+  if (!map.getSource("mapbox-dem")) {
+    map.addSource("mapbox-dem", {
+      type: "raster-dem",
+      url: "mapbox://mapbox.terrain-rgb",
+      tileSize: 512,
+      maxzoom: 14,
+    });
+  }
+
+  map.setTerrain({ source: "mapbox-dem", exaggeration: 1.3 });
+};
