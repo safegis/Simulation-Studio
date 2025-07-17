@@ -51,6 +51,9 @@ export default function MainUILayout() {
   const [selectedMapStyle, setSelectedMapStyle] = useState<string>("Default");
   const [showToolPanel, setShowToolPanel] = useState(false);
   const [selectedMaps, setSelectedMaps] = useState<string[]>([]);
+  const [selectedPlanningTools, setSelectedPlanningTools] = useState<string[]>(
+    []
+  );
 
   const mapStyleRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -558,28 +561,31 @@ export default function MainUILayout() {
             </div>
 
             {/* PanelLeft Button in Separate Container */}
-            <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
-              <button
-                onClick={() => {
-                  setShowToolPanel((prev) => {
-                    const newState = !prev;
-                    if (newState) {
-                      setShowSelectMaps(false);
-                      setShowPathfinder(false);
-                      setShowPlanningTools(false);
-                    }
-                    return newState;
-                  });
-                }}
-                className={`p-2 rounded-lg transition ${
-                  showToolPanel
-                    ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
-                    : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
-                }`}
-              >
-                <PanelLeft width={28} height={28} />
-              </button>
-            </div>
+            {/* PanelLeft Button in Separate Container */}
+            {(selectedMaps.length > 0 || selectedPlanningTools.length > 0) && (
+              <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+                <button
+                  onClick={() => {
+                    setShowToolPanel((prev) => {
+                      const newState = !prev;
+                      if (newState) {
+                        setShowSelectMaps(false);
+                        setShowPathfinder(false);
+                        setShowPlanningTools(false);
+                      }
+                      return newState;
+                    });
+                  }}
+                  className={`p-2 rounded-lg transition ${
+                    showToolPanel
+                      ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
+                      : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+                  }`}
+                >
+                  <PanelLeft width={28} height={28} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Search or Pathfinder */}
@@ -633,6 +639,7 @@ export default function MainUILayout() {
             <div className="absolute left-[96px] top-[73px] w-96 z-40">
               <SelectMaps
                 isVisible={true}
+                selectedMaps={selectedMaps}
                 onGoToToolPanel={() => {
                   setShowToolPanel(true);
                   setShowSelectMaps(false);
@@ -646,12 +653,26 @@ export default function MainUILayout() {
 
           {showPlanningTools && (
             <div className="absolute left-[96px] top-[73px] w-96 z-40">
-              <SelectPlanningTools isVisible={true} />
+              <SelectPlanningTools
+                isVisible={true}
+                selectedPlanningTools={selectedPlanningTools}
+                onGoToToolPanel={() => {
+                  setShowToolPanel(true);
+                  setShowSelectMaps(false);
+                  setShowPathfinder(false);
+                  setShowPlanningTools(false);
+                }}
+                onSelectedPlanningToolsChange={setSelectedPlanningTools}
+              />
             </div>
           )}
           {showToolPanel && (
             <div className="absolute left-[96px] top-[73px] w-96 z-40">
-              <ToolPanel isVisible={true} selectedMaps={selectedMaps} />
+              <ToolPanel
+                isVisible={true}
+                selectedMaps={selectedMaps}
+                selectedPlanningTools={selectedPlanningTools}
+              />
             </div>
           )}
 

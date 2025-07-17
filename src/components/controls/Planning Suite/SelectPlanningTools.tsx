@@ -1,13 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface Props {
   isVisible: boolean;
+  selectedPlanningTools: string[];
+  onGoToToolPanel: () => void;
+  onSelectedPlanningToolsChange: (tools: string[]) => void;
 }
 
-export default function SelectPlanningTools({ isVisible }: Props) {
+export default function SelectPlanningTools({
+  isVisible,
+  selectedPlanningTools,
+  onGoToToolPanel,
+  onSelectedPlanningToolsChange,
+}: Props) {
   if (!isVisible) return null;
 
   const toolOptions = [
@@ -17,6 +26,13 @@ export default function SelectPlanningTools({ isVisible }: Props) {
     "Medical Response Planner",
     "Communication & Alert Planner", // ✅ Added this line
   ];
+
+  const handleToggle = (label: string) => {
+    const updated = selectedPlanningTools.includes(label)
+      ? selectedPlanningTools.filter((item) => item !== label)
+      : [...selectedPlanningTools, label];
+    onSelectedPlanningToolsChange(updated);
+  };
 
   return (
     <div
@@ -30,7 +46,17 @@ export default function SelectPlanningTools({ isVisible }: Props) {
         <span className="text-[15px] font-medium text-[#C7C7C7]">
           Select tools to include:
         </span>
-        <button className="text-sm text-[#8183e5] hover:text-[#a7a9fa] flex items-center gap-1 transition">
+        <button
+          onClick={
+            selectedPlanningTools.length === 0 ? undefined : onGoToToolPanel
+          }
+          disabled={selectedPlanningTools.length === 0}
+          className={`text-sm flex items-center gap-1 transition ${
+            selectedPlanningTools.length === 0
+              ? "text-[#555] cursor-not-allowed"
+              : "text-[#8183e5] hover:text-[#a7a9fa]"
+          }`}
+        >
           Go to tool panel
           <ChevronRight size={16} />
         </button>
@@ -43,7 +69,11 @@ export default function SelectPlanningTools({ isVisible }: Props) {
             key={i}
             className="bg-[#3a3a3a] h-[147px] px-4 py-3 rounded-lg hover:bg-[#4a4a4a] transition flex items-center"
           >
-            <Checkbox className="mr-4 w-[18px] h-[18px]" />
+            <Checkbox
+              checked={selectedPlanningTools.includes(label)}
+              onCheckedChange={() => handleToggle(label)}
+              className="mr-4 w-[18px] h-[18px]"
+            />
             <div className="text-[17px] font-medium">{label}</div>
           </div>
         ))}

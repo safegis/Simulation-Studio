@@ -4,32 +4,31 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 interface Props {
   isVisible: boolean;
+  selectedMaps: string[];
   onGoToToolPanel: () => void;
   onSelectedMapsChange: (maps: string[]) => void;
 }
 
 export default function SelectMaps({
   isVisible,
+  selectedMaps,
   onGoToToolPanel,
   onSelectedMapsChange,
 }: Props) {
-  const [selected, setSelected] = useState<string[]>([]);
-
   if (!isVisible) return null;
 
   const mapOptions = [
-    "Hazard Maps",
-    "Exposure Maps",
-    "Vulnerability Maps",
-    "Critical Facility Maps",
+    "Hazard Map",
+    "Exposure Map",
+    "Vulnerability Map",
+    "Critical Facility Map",
   ];
 
   const handleToggle = (label: string) => {
-    const updated = selected.includes(label)
-      ? selected.filter((item) => item !== label)
-      : [...selected, label];
-    setSelected(updated);
-    onSelectedMapsChange(updated); // notify parent
+    const updated = selectedMaps.includes(label)
+      ? selectedMaps.filter((item) => item !== label)
+      : [...selectedMaps, label];
+    onSelectedMapsChange(updated);
   };
 
   return (
@@ -42,8 +41,13 @@ export default function SelectMaps({
           Select maps to include:
         </span>
         <button
-          onClick={onGoToToolPanel}
-          className="text-sm text-[#8183e5] hover:text-[#a7a9fa] flex items-center gap-1 transition"
+          onClick={selectedMaps.length === 0 ? undefined : onGoToToolPanel}
+          disabled={selectedMaps.length === 0}
+          className={`text-sm flex items-center gap-1 transition ${
+            selectedMaps.length === 0
+              ? "text-[#555] cursor-not-allowed"
+              : "text-[#8183e5] hover:text-[#a7a9fa]"
+          }`}
         >
           Go to tool panel
           <ChevronRight size={16} />
@@ -57,7 +61,7 @@ export default function SelectMaps({
             className="bg-[#3a3a3a] h-[187px] px-4 py-3 rounded-lg hover:bg-[#4a4a4a] transition flex items-center"
           >
             <Checkbox
-              checked={selected.includes(label)}
+              checked={selectedMaps.includes(label)}
               onCheckedChange={() => handleToggle(label)}
               className="mr-4 w-[18px] h-[18px]"
             />
