@@ -1,7 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import {
+  ChevronDown,
+  Droplet,
+  Mountain,
+  TrafficCone,
+  Wind,
+  Flame,
+  PersonStanding,
+  Sprout,
+  Building2,
+  BriefcaseMedical,
+  LandPlot,
+  ShoppingCart,
+  BusFront,
+  Siren,
+} from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Props {
   isVisible: boolean;
@@ -24,6 +40,30 @@ const displayNamePlanningTools: Record<string, string> = {
   "Communication & Alert Planner": "Communication & Alert Planner",
 };
 
+const populationCheckboxItems = ["Urban", "Rural", "Vulnerable Population"];
+
+const biologicalCheckboxItems = [
+  "Forest Cover",
+  "Agro-Ecosystem",
+  "Mangrove Areas",
+  "National Parks",
+  "Critical Habitats",
+  "Wetlands / Water Bodies",
+];
+
+const nonBiologicalCheckboxItems = [
+  "Road Networks",
+  "Bridges",
+  "Medical Facilities",
+  "Schools / Universities",
+  "Active Evacuation Areas",
+  "National / Local Gov’t Offices",
+  "Power / Energy Plants",
+  "Telecommunication Towers",
+  "Water Supply Infrastructure",
+  "Residential Buildings",
+];
+
 export default function ToolPanel({
   isVisible,
   selectedMaps,
@@ -32,6 +72,21 @@ export default function ToolPanel({
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
   );
+
+  const [populationExpanded, setPopulationExpanded] = useState(false);
+  const [populationCheckedItems, setPopulationCheckedItems] = useState<
+    string[]
+  >([]);
+
+  const [biologicalExpanded, setBiologicalExpanded] = useState(false);
+  const [nonBiologicalExpanded, setNonBiologicalExpanded] = useState(false);
+
+  const [biologicalCheckedItems, setBiologicalCheckedItems] = useState<
+    string[]
+  >([]);
+  const [nonBiologicalCheckedItems, setNonBiologicalCheckedItems] = useState<
+    string[]
+  >([]);
 
   if (!isVisible) return null;
 
@@ -42,13 +97,28 @@ export default function ToolPanel({
     }));
   };
 
+  const togglePopulationItem = (item: string) => {
+    setPopulationCheckedItems((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+    );
+  };
+
+  const toggleBiologicalItem = (item: string) => {
+    setBiologicalCheckedItems((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+    );
+  };
+
+  const toggleNonBiologicalItem = (item: string) => {
+    setNonBiologicalCheckedItems((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+    );
+  };
+
   return (
     <div
       className="mt-[18px] w-full bg-transparent rounded-xl shadow-md text-[#C7C7C7] flex flex-col overflow-y-auto scrollbar-rounded"
-      style={{
-        maxHeight: "calc(100vh - 91px - 18px)",
-        padding: "0px",
-      }}
+      style={{ maxHeight: "calc(100vh - 91px - 18px)", padding: "0px" }}
     >
       {[...selectedMaps, ...selectedPlanningTools].map((label, index, arr) => {
         const isMap = label in displayNameMap;
@@ -63,11 +133,7 @@ export default function ToolPanel({
             <button
               onClick={() => togglePanel(key)}
               className="flex justify-between items-center px-4 w-full rounded-xl"
-              style={{
-                height: "50px",
-                backgroundColor: "#454545",
-                border: "2.5px solid #999999",
-              }}
+              style={{ height: "50px", backgroundColor: "#454545" }}
             >
               <span className="text-base font-medium text-white">
                 {displayName}
@@ -81,42 +147,171 @@ export default function ToolPanel({
             </button>
 
             {isExpanded && (
-              <div
-                className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2"
-                style={{
-                  border: "2.5px solid #999999",
-                  borderTop: "none",
-                }}
-              >
+              <div className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2">
                 {label === "Hazard Map" ? (
                   <>
-                    <TransparentButton label="Hydro-Meteorological" />
-                    <TransparentButton label="Geological" />
-                    <TransparentButton label="Traffic Incidents" />
-                    <TransparentButton label="Air Quality Index (AQI)" />
-                    <TransparentButton label="Active Fires" />
+                    <TransparentButton
+                      label="Hydro-Meteorological"
+                      icon={<Droplet size={20} />}
+                    />
+                    <TransparentButton
+                      label="Geological"
+                      icon={<Mountain size={20} />}
+                    />
+                    <TransparentButton
+                      label="Traffic Incidents"
+                      icon={<TrafficCone size={20} />}
+                    />
+                    <TransparentButton
+                      label="Air Quality Index (AQI)"
+                      icon={<Wind size={20} />}
+                    />
+                    <TransparentButton
+                      label="Active Fires"
+                      icon={<Flame size={20} />}
+                    />
                   </>
                 ) : label === "Exposure Map" ? (
                   <>
-                    <TransparentButton label="Population" />
-                    <TransparentButton label="Biological" />
-                    <TransparentButton label="Non-Biological" />
+                    {/* Population */}
+                    <button
+                      onClick={() => setPopulationExpanded((prev) => !prev)}
+                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <PersonStanding size={20} />
+                        <span className="text-base font-medium">
+                          Population
+                        </span>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-white transition-transform duration-200 ${
+                          populationExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {populationExpanded && (
+                      <div className="pl-7 pt-2 pb-2 space-y-2">
+                        {populationCheckboxItems.map((item) => (
+                          <div key={item} className="flex items-center">
+                            <Checkbox
+                              className="mr-3 w-[18px] h-[18px]"
+                              checked={populationCheckedItems.includes(item)}
+                              onCheckedChange={() => togglePopulationItem(item)}
+                            />
+                            <span className="text-base">{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Biological */}
+                    <button
+                      onClick={() => setBiologicalExpanded((prev) => !prev)}
+                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Sprout size={20} />
+                        <span className="text-base font-medium">
+                          Biological
+                        </span>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-white transition-transform duration-200 ${
+                          biologicalExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {biologicalExpanded && (
+                      <div className="pl-7 pt-2 pb-2 space-y-2">
+                        {biologicalCheckboxItems.map((item) => (
+                          <div key={item} className="flex items-center">
+                            <Checkbox
+                              className="mr-3 w-[18px] h-[18px]"
+                              checked={biologicalCheckedItems.includes(item)}
+                              onCheckedChange={() => toggleBiologicalItem(item)}
+                            />
+                            <span className="text-base">{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Non-Biological */}
+                    <button
+                      onClick={() => setNonBiologicalExpanded((prev) => !prev)}
+                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Building2 size={20} />
+                        <span className="text-base font-medium">
+                          Non-Biological
+                        </span>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-white transition-transform duration-200 ${
+                          nonBiologicalExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {nonBiologicalExpanded && (
+                      <div className="pl-7 pt-2 pb-2 space-y-2">
+                        {nonBiologicalCheckboxItems.map((item) => (
+                          <div key={item} className="flex items-center">
+                            <Checkbox
+                              className="mr-3 w-[18px] h-[18px]"
+                              checked={nonBiologicalCheckedItems.includes(item)}
+                              onCheckedChange={() =>
+                                toggleNonBiologicalItem(item)
+                              }
+                            />
+                            <span className="text-base">{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </>
                 ) : label === "Vulnerability Map" ? (
                   <>
-                    <TransparentButton label="Population" />
-                    <TransparentButton label="Biological" />
-                    <TransparentButton label="Non-Biological" />
+                    <TransparentButton
+                      label="Population"
+                      icon={<PersonStanding size={20} />}
+                    />
+                    <TransparentButton
+                      label="Biological"
+                      icon={<Sprout size={20} />}
+                    />
+                    <TransparentButton
+                      label="Non-Biological"
+                      icon={<Building2 size={20} />}
+                    />
                   </>
                 ) : label === "Critical Facility Map" ? (
                   <>
-                    <TransparentButton label="Active Evacuation Areas" />
-                    <TransparentButton label="Medical Facilities" />
-                    <TransparentButton label="Supply Hubs" />
-                    <TransparentButton label="Public Transport Stations" />
-                    <TransparentButton label="Police Stations" />
-                    <TransparentButton label="Fire Stations" />
-                    <TransparentButton label="Local Government Offices" />
+                    <TransparentButton
+                      label="Active Evacuation Area"
+                      icon={<LandPlot size={20} />}
+                    />
+                    <TransparentButton
+                      label="Medical / Health"
+                      icon={<BriefcaseMedical size={20} />}
+                    />
+                    <TransparentButton
+                      label="Supply Hub / Store"
+                      icon={<ShoppingCart size={20} />}
+                    />
+                    <TransparentButton
+                      label="Public Transport"
+                      icon={<BusFront size={20} />}
+                    />
+                    <TransparentButton
+                      label="Command & Response"
+                      icon={<Siren size={20} />}
+                    />
                   </>
                 ) : (
                   <p>
@@ -132,10 +327,19 @@ export default function ToolPanel({
   );
 }
 
-function TransparentButton({ label }: { label: string }) {
+function TransparentButton({
+  label,
+  icon,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+}) {
   return (
     <button className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition">
-      <span className="text-base font-medium">{label}</span>
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-base font-medium">{label}</span>
+      </div>
       <ChevronDown size={18} className="text-white" />
     </button>
   );
