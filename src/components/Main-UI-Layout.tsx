@@ -247,40 +247,33 @@ export default function MainUILayout() {
 
     const supportsLighting = !disableLightingPresets.includes(label);
 
-    // Hide or show Time of Day + 3D controls
     if (!supportsLighting) {
+      // Force to 2D and hide time-of-day & 3D controls
       setSelectedTimeOfDay(null);
       setShowTimeOfDayDropdown(false);
       setShow3DControls(false);
-      setViewMode("2d"); // ✅ Forces internal state to 2D
-      mapRef.current?.switchTo2D?.(); // ✅ Actually switch the Mapbox view to 2D
+      setViewMode("2d");
+      map.switchTo2D?.();
     } else {
-      setSelectedTimeOfDay("Auto");
-      setShow3DControls(true); // 👈 show 3D/2D switch again
+      // Enable 3D controls
+      setShow3DControls(true);
+      setSelectedTimeOfDay("Auto"); // Update state so the dropdown shows "Auto"
+      setShowTimeOfDayDropdown(true);
+
+      // ⚠️ ACTUALLY TRIGGER TIME-OF-DAY CHANGE HERE
       if (viewMode === "3d") {
         handleTimeOfDayChange("Auto");
       }
     }
 
-    // Handle visibility of the Time of Day button
-    if (disableLightingPresets.includes(label)) {
-      setSelectedTimeOfDay(null); // Hide button by clearing selection
-      setShowTimeOfDayDropdown(false); // Also close dropdown if open
-    } else {
-      setSelectedTimeOfDay("Auto"); // Enable and reset to Auto
-      if (viewMode === "3d") {
-        handleTimeOfDayChange("Auto"); // Sync light if in 3D mode
-      }
-    }
-
-    // Switch map style
+    // ✅ Apply the correct Mapbox style
     switch (label) {
       case "Default":
-        if (viewMode === "3d") {
-          map.setMapStyle("mapbox://styles/mapbox/standard");
-        } else {
-          map.setMapStyle("mapbox://styles/mapbox/streets-v12");
-        }
+        map.setMapStyle(
+          viewMode === "3d"
+            ? "mapbox://styles/mapbox/standard"
+            : "mapbox://styles/mapbox/streets-v12"
+        );
         break;
       case "Satellite":
         map.setMapStyle("mapbox://styles/mapbox/standard-satellite");
@@ -473,15 +466,23 @@ export default function MainUILayout() {
                       "Dark",
                       "Navigation (Day)",
                       "Navigation (Night)",
-                    ].map((label, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => handleMapStyleChange(label)} // <-- Make sure this is updated
-                        className="hover:bg-[#3a3a3a] p-2 rounded-md cursor-pointer"
-                      >
-                        {label}
-                      </div>
-                    ))}
+                    ].map((label, idx) => {
+                      const isSelected = selectedMapStyle === label;
+
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => handleMapStyleChange(label)}
+                          className={`p-2 rounded-md cursor-pointer transition flex items-center gap-2 ${
+                            isSelected
+                              ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E] font-medium"
+                              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+                          }`}
+                        >
+                          {label}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

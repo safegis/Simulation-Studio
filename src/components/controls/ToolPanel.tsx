@@ -44,10 +44,10 @@ export default function ToolPanel({
 
   return (
     <div
-      className="mt-[18px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] flex flex-col overflow-y-auto scrollbar-rounded"
+      className="mt-[18px] w-full bg-transparent rounded-xl shadow-md text-[#C7C7C7] flex flex-col overflow-y-auto scrollbar-rounded"
       style={{
         maxHeight: "calc(100vh - 91px - 18px)",
-        padding: "8px", // equal top, bottom, left, and right padding
+        padding: "0px",
       }}
     >
       {[...selectedMaps, ...selectedPlanningTools].map((label, index, arr) => {
@@ -59,18 +59,14 @@ export default function ToolPanel({
         const isExpanded = expandedPanels[key];
 
         return (
-          <div
-            key={key}
-            className={index !== arr.length - 1 ? "mb-3" : ""} // remove margin from last item
-          >
+          <div key={key} className={index !== arr.length - 1 ? "mb-3" : ""}>
             <button
               onClick={() => togglePanel(key)}
-              className="flex justify-between items-center px-4 w-full"
+              className="flex justify-between items-center px-4 w-full rounded-xl"
               style={{
                 height: "50px",
                 backgroundColor: "#454545",
                 border: "2.5px solid #999999",
-                borderRadius: "8px",
               }}
             >
               <span className="text-base font-medium text-white">
@@ -86,21 +82,61 @@ export default function ToolPanel({
 
             {isExpanded && (
               <div
-                className="bg-[#3A3A3A] text-sm text-white p-4 rounded-b-xl mt-2"
+                className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2"
                 style={{
                   border: "2.5px solid #999999",
                   borderTop: "none",
-                  borderRadius: "0 0 8px 8px",
                 }}
               >
-                <p>
-                  This is the panel for <strong>{displayName}</strong>.
-                </p>
+                {label === "Hazard Map" ? (
+                  <>
+                    <TransparentButton label="Hydro-Meteorological" />
+                    <TransparentButton label="Geological" />
+                    <TransparentButton label="Traffic Incidents" />
+                    <TransparentButton label="Air Quality Index (AQI)" />
+                    <TransparentButton label="Active Fires" />
+                  </>
+                ) : label === "Exposure Map" ? (
+                  <>
+                    <TransparentButton label="Population" />
+                    <TransparentButton label="Biological" />
+                    <TransparentButton label="Non-Biological" />
+                  </>
+                ) : label === "Vulnerability Map" ? (
+                  <>
+                    <TransparentButton label="Population" />
+                    <TransparentButton label="Biological" />
+                    <TransparentButton label="Non-Biological" />
+                  </>
+                ) : label === "Critical Facility Map" ? (
+                  <>
+                    <TransparentButton label="Active Evacuation Areas" />
+                    <TransparentButton label="Medical Facilities" />
+                    <TransparentButton label="Supply Hubs" />
+                    <TransparentButton label="Public Transport Stations" />
+                    <TransparentButton label="Police Stations" />
+                    <TransparentButton label="Fire Stations" />
+                    <TransparentButton label="Local Government Offices" />
+                  </>
+                ) : (
+                  <p>
+                    This is the panel for <strong>{displayName}</strong>.
+                  </p>
+                )}
               </div>
             )}
           </div>
         );
       })}
     </div>
+  );
+}
+
+function TransparentButton({ label }: { label: string }) {
+  return (
+    <button className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition">
+      <span className="text-base font-medium">{label}</span>
+      <ChevronDown size={18} className="text-white" />
+    </button>
   );
 }
