@@ -64,6 +64,14 @@ const nonBiologicalCheckboxItems = [
   "Residential Buildings",
 ];
 
+const hydroMeteorologicalCheckboxItems = [
+  "Live Weather",
+  "Storm Surge",
+  "Flood",
+  "Tsunami",
+  "Landslide (Rain-induced)",
+];
+
 export default function ToolPanel({
   isVisible,
   selectedMaps,
@@ -88,6 +96,9 @@ export default function ToolPanel({
     string[]
   >([]);
 
+  const [hydroExpanded, setHydroExpanded] = useState(false);
+  const [hydroCheckedItems, setHydroCheckedItems] = useState<string[]>([]);
+
   if (!isVisible) return null;
 
   const togglePanel = (key: string) => {
@@ -111,6 +122,12 @@ export default function ToolPanel({
 
   const toggleNonBiologicalItem = (item: string) => {
     setNonBiologicalCheckedItems((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+    );
+  };
+
+  const toggleHydroItem = (item: string) => {
+    setHydroCheckedItems((prev) =>
       prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
     );
   };
@@ -150,10 +167,39 @@ export default function ToolPanel({
               <div className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2">
                 {label === "Hazard Map" ? (
                   <>
-                    <TransparentButton
-                      label="Hydro-Meteorological"
-                      icon={<Droplet size={20} />}
-                    />
+                    <button
+                      onClick={() => setHydroExpanded((prev) => !prev)}
+                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Droplet size={20} />
+                        <span className="text-base font-medium">
+                          Hydro-Meteorological
+                        </span>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-white transition-transform duration-200 ${
+                          hydroExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {hydroExpanded && (
+                      <div className="pl-7 pt-2 pb-2 space-y-2">
+                        {hydroMeteorologicalCheckboxItems.map((item) => (
+                          <div key={item} className="flex items-center">
+                            <Checkbox
+                              className="mr-3 w-[18px] h-[18px]"
+                              checked={hydroCheckedItems.includes(item)}
+                              onCheckedChange={() => toggleHydroItem(item)}
+                            />
+                            <span className="text-base">{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <TransparentButton
                       label="Geological"
                       icon={<Mountain size={20} />}
@@ -167,7 +213,11 @@ export default function ToolPanel({
                       icon={<Wind size={20} />}
                     />
                     <TransparentButton
-                      label="Active Fires"
+                      label="Active Fire"
+                      icon={<Flame size={20} />}
+                    />
+                    <TransparentButton
+                      label="Infectious Disease"
                       icon={<Flame size={20} />}
                     />
                   </>
