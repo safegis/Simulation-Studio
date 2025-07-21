@@ -65,7 +65,7 @@ const nonBiologicalCheckboxItems = [
 ];
 
 const hydroMeteorologicalCheckboxItems = [
-  "Live Weather",
+  "Weather",
   "Storm Surge",
   "Flood",
   "Tsunami",
