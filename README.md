@@ -1,6 +1,6 @@
-<div class="items-center">
-  <h1>SafeGIS - Simulation Studio<h1/>
-<div/>
+<div align="center">
+  <h1>SafeGIS - Simulation Studio</h1>
+</div>
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
