@@ -1,5 +1,5 @@
-<div class="items-center">
-  SafeGIS - Simulation Studio
+<div class="justify-center">
+  <h1>SafeGIS - Simulation Studio<h1/>
 <div/>
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
