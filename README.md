@@ -1,4 +1,4 @@
-<div class="justify-center">
+<div class="items-center">
   <h1>SafeGIS - Simulation Studio<h1/>
 <div/>
 
