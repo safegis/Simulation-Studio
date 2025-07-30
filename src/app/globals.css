@@ -149,3 +149,8 @@ body,
   border-bottom: 6px solid transparent;
   background-clip: content-box;
 }
+
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib {
+  display: none !important;
+}

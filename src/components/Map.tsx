@@ -21,13 +21,14 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
   const is3DMode = useRef<boolean>(false);
+  const latestRoutesGeoJSON = useRef<GeoJSON.FeatureCollection | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
     mapInstance.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12", // Default 2D style
+      style: "mapbox://styles/mapbox/streets-v12",
       center: [0, 0],
       zoom: 2.5,
       pitch: 0,
@@ -35,11 +36,68 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       antialias: true,
     });
 
-    return () => mapInstance.current?.remove();
+    return () => {
+      mapInstance.current?.remove();
+      locationMarkerRef.current?.remove();
+      startMarkerRef.current?.remove();
+      destinationMarkerRef.current?.remove();
+    };
   }, []);
 
   const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const destinationMarkerRef = useRef<mapboxgl.Marker | null>(null);
+
+  const reDrawRoutesIfAny = () => {
+    if (latestRoutesGeoJSON.current && mapInstance.current) {
+      setTimeout(() => {
+        drawRoutes(latestRoutesGeoJSON.current!);
+      }, 300); // slight delay ensures style is fully ready
+    }
+  };
+
+  const drawRoutes = (geojson: GeoJSON.FeatureCollection) => {
+    const map = mapInstance.current;
+    if (!map) return;
+
+    latestRoutesGeoJSON.current = geojson;
+
+    // Remove old routes
+    const layers = map.getStyle().layers;
+    layers?.forEach((layer) => {
+      if (layer.id.startsWith("route-")) {
+        if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+        if (map.getSource(layer.id)) map.removeSource(layer.id);
+      }
+    });
+
+    geojson.features.forEach((feature, index) => {
+      const id = `route-${index}`;
+
+      map.addSource(id, {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [feature],
+        },
+      });
+
+      map.addLayer({
+        id,
+        type: "line",
+        source: id,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#9699FF",
+          "line-width": 4,
+          "line-opacity": 0.7,
+        },
+      });
+    });
+  };
 
   useImperativeHandle(ref, () => ({
     flyTo: (opts: FlyToOptions) => {
@@ -49,14 +107,11 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     addLocationMarker: (lng: number, lat: number) => {
       if (!mapInstance.current) return;
 
-      // 🔥 Remove the start marker if it exists
       startMarkerRef.current?.remove();
       startMarkerRef.current = null;
 
-      // 🔄 Remove old location marker
       locationMarkerRef.current?.remove();
 
-      // ➕ Add new location marker (blue)
       const marker = new mapboxgl.Marker({ color: "#9699FF" })
         .setLngLat([lng, lat])
         .addTo(mapInstance.current);
@@ -67,14 +122,11 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     addStartMarker: (lng: number, lat: number) => {
       if (!mapInstance.current) return;
 
-      // 🔥 Remove the location marker if it exists
       locationMarkerRef.current?.remove();
       locationMarkerRef.current = null;
 
-      // 🔄 Remove old start marker
       startMarkerRef.current?.remove();
 
-      // ➕ Add new start marker (green)
       const marker = new mapboxgl.Marker({ color: "#00FF00" })
         .setLngLat([lng, lat])
         .addTo(mapInstance.current);
@@ -82,16 +134,52 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       startMarkerRef.current = marker;
     },
 
+    addDestinationMarker: (lng: number, lat: number) => {
+      if (!mapInstance.current) return;
+
+      destinationMarkerRef.current?.remove();
+
+      const marker = new mapboxgl.Marker({ color: "#FF4C4C" })
+        .setLngLat([lng, lat])
+        .addTo(mapInstance.current);
+
+      destinationMarkerRef.current = marker;
+    },
+
+    fitBoundsToMarkers: () => {
+      if (
+        !mapInstance.current ||
+        !startMarkerRef.current ||
+        !destinationMarkerRef.current
+      )
+        return;
+
+      const bounds = new mapboxgl.LngLatBounds();
+
+      const startLngLat = startMarkerRef.current.getLngLat();
+      const destinationLngLat = destinationMarkerRef.current.getLngLat();
+
+      bounds.extend([startLngLat.lng, startLngLat.lat]);
+      bounds.extend([destinationLngLat.lng, destinationLngLat.lat]);
+
+      mapInstance.current.fitBounds(bounds, {
+        padding: 100,
+        maxZoom: 16,
+        duration: 1000,
+      });
+    },
+
     getZoom: () => {
       return mapInstance.current?.getZoom?.() ?? 0;
     },
+
     switchTo2D: (label: string) => {
       const map = mapInstance.current;
       if (!map || !is3DMode.current) return;
 
       is3DMode.current = false;
 
-      let style = "mapbox://styles/mapbox/streets-v12"; // fallback
+      let style = "mapbox://styles/mapbox/streets-v12";
 
       switch (label) {
         case "Satellite":
@@ -112,10 +200,6 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         case "Navigation (Night)":
           style = "mapbox://styles/mapbox/navigation-night-v1";
           break;
-        case "Default":
-        default:
-          style = "mapbox://styles/mapbox/streets-v12";
-          break;
       }
 
       map.setStyle(style);
@@ -123,6 +207,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       map.once("style.load", () => {
         map.setTerrain(null);
         map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+        reDrawRoutesIfAny();
       });
     },
 
@@ -132,15 +217,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
       is3DMode.current = true;
 
-      let style = "mapbox://styles/mapbox/standard"; // fallback
-
-      switch (label) {
-        case "Satellite":
-          style = "mapbox://styles/mapbox/standard-satellite";
-          break;
-        default:
-          style = "mapbox://styles/mapbox/standard";
-          break;
+      let style = "mapbox://styles/mapbox/standard";
+      if (label === "Satellite") {
+        style = "mapbox://styles/mapbox/standard-satellite";
       }
 
       map.setStyle(style);
@@ -148,13 +227,12 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       map.once("style.load", () => {
         addTerrainOnly(map);
         map.easeTo({ pitch: 60, bearing: 30, duration: 1000 });
+        reDrawRoutesIfAny();
       });
     },
 
     setLightPreset: (preset: "dawn" | "day" | "dusk" | "night") => {
       const map = mapInstance.current;
-
-      // ✅ Only apply lighting preset in 3D mode
       if (!map || !is3DMode.current) return;
 
       try {
@@ -178,8 +256,11 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           map.setTerrain(null);
           map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
         }
+        reDrawRoutesIfAny();
       });
     },
+
+    drawRoutes,
   }));
 
   return (
@@ -189,7 +270,6 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
 export default MapComponent;
 
-// ✅ Terrain only (no 3D buildings)
 const addTerrainOnly = (map: mapboxgl.Map) => {
   if (!map.getSource("mapbox-dem")) {
     map.addSource("mapbox-dem", {
