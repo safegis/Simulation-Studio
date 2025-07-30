@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -37,10 +38,50 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     return () => mapInstance.current?.remove();
   }, []);
 
+  const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
+
   useImperativeHandle(ref, () => ({
     flyTo: (opts: FlyToOptions) => {
       mapInstance.current?.flyTo(opts);
     },
+
+    addLocationMarker: (lng: number, lat: number) => {
+      if (!mapInstance.current) return;
+
+      // 🔥 Remove the start marker if it exists
+      startMarkerRef.current?.remove();
+      startMarkerRef.current = null;
+
+      // 🔄 Remove old location marker
+      locationMarkerRef.current?.remove();
+
+      // ➕ Add new location marker (blue)
+      const marker = new mapboxgl.Marker({ color: "#9699FF" })
+        .setLngLat([lng, lat])
+        .addTo(mapInstance.current);
+
+      locationMarkerRef.current = marker;
+    },
+
+    addStartMarker: (lng: number, lat: number) => {
+      if (!mapInstance.current) return;
+
+      // 🔥 Remove the location marker if it exists
+      locationMarkerRef.current?.remove();
+      locationMarkerRef.current = null;
+
+      // 🔄 Remove old start marker
+      startMarkerRef.current?.remove();
+
+      // ➕ Add new start marker (green)
+      const marker = new mapboxgl.Marker({ color: "#00FF00" })
+        .setLngLat([lng, lat])
+        .addTo(mapInstance.current);
+
+      startMarkerRef.current = marker;
+    },
+
     getZoom: () => {
       return mapInstance.current?.getZoom?.() ?? 0;
     },

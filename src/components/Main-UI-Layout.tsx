@@ -136,6 +136,7 @@ export default function MainUILayout() {
     setSuggestions([]);
     const { lat, lon } = place.properties;
     mapRef.current?.flyTo({ center: [lon, lat], zoom: 14 });
+    mapRef.current?.addLocationMarker(lon, lat);
   };
 
   const handleZoom = (increment: number) => {
@@ -631,7 +632,7 @@ export default function MainUILayout() {
             </div>
           ) : (
             <div className="absolute top-[18px] left-[96px] z-50">
-              <PathfinderControls />
+              <PathfinderControls mapRef={mapRef} />
             </div>
           )}
 
