@@ -52,6 +52,9 @@ export default function PathfinderControls({
     {}
   );
 
+  const startItemRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const destinationItemRefs = useRef<(HTMLLIElement | null)[]>([]);
+
   useEffect(() => {
     if (!startText.trim()) {
       setStartSuggestions([]);
@@ -152,14 +155,10 @@ export default function PathfinderControls({
       // ---- TOMTOM FETCH (driving, motorcycle, walking) ----
       if (["driving", "motorcycle", "walking"].includes(profile)) {
         let travelMode = "car"; // default
+        if (profile === "motorcycle") travelMode = "motorcycle";
+        if (profile === "walking") travelMode = "pedestrian";
 
-        if (profile === "motorcycle") {
-          travelMode = "motorcycle";
-        } else if (profile === "walking") {
-          travelMode = "pedestrian";
-        }
-
-        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${start.lat},${start.lon}:${destination.lat},${destination.lon}/json?key=${process.env.NEXT_PUBLIC_TOMTOM_API_KEY}&travelMode=${travelMode}&routeType=fastest&traffic=true&maxAlternatives=5`;
+        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${start.lat},${start.lon}:${destination.lat},${destination.lon}/json?key=${process.env.NEXT_PUBLIC_TOMTOM_API_KEY}&travelMode=${travelMode}&routeType=fastest&traffic=true&maxAlternatives=5&instructionsType=text`;
 
         try {
           const res = await fetch(tomtomUrl);
@@ -270,6 +269,30 @@ export default function PathfinderControls({
     return parts.join(", ");
   }
 
+  useEffect(() => {
+    if (
+      startHighlightedIndex >= 0 &&
+      startItemRefs.current[startHighlightedIndex]
+    ) {
+      startItemRefs.current[startHighlightedIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [startHighlightedIndex]);
+
+  useEffect(() => {
+    if (
+      destinationHighlightedIndex >= 0 &&
+      destinationItemRefs.current[destinationHighlightedIndex]
+    ) {
+      destinationItemRefs.current[destinationHighlightedIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [destinationHighlightedIndex]);
+
   return (
     <div
       className="w-96 bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] flex flex-col p-4 scrollbar-rounded relative"
@@ -344,6 +367,9 @@ export default function PathfinderControls({
                   {startSuggestions.map((place, index) => (
                     <li
                       key={index}
+                      ref={(el) => {
+                        startItemRefs.current[index] = el;
+                      }}
                       onClick={() => handleSuggestionSelect(place)}
                       className={`px-4 py-3 text-base cursor-pointer ${
                         startHighlightedIndex === index
@@ -417,6 +443,9 @@ export default function PathfinderControls({
                   {destinationSuggestions.map((place, index) => (
                     <li
                       key={index}
+                      ref={(el) => {
+                        destinationItemRefs.current[index] = el;
+                      }}
                       onClick={() => handleDestinationSelect(place)}
                       className={`px-4 py-3 text-base cursor-pointer ${
                         destinationHighlightedIndex === index
@@ -537,7 +566,7 @@ export default function PathfinderControls({
 
               <div className="scrollbar-rounded max-h-160 overflow-y-auto bg-[#1E1E1E] p-3 rounded-xl space-y-4">
                 {routesData.map((route, idx) => {
-                  const routeKey = `${route.profile}-${route.index}`;
+                  const routeKey = `${route.profile}-${route.source}-${route.index}`;
                   return (
                     <div
                       key={idx}

@@ -82,6 +82,23 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         },
       });
 
+      // White outline (bottom layer)
+      map.addLayer({
+        id: `${id}-outline`,
+        type: "line",
+        source: id,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#9699FF",
+          "line-width": 10, // Increased outline thickness
+          "line-opacity": 0.9,
+        },
+      });
+
+      // Colored route (top layer)
       map.addLayer({
         id,
         type: "line",
@@ -91,9 +108,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#9699FF",
-          "line-width": 4,
-          "line-opacity": 0.7,
+          "line-color": "#ffffff", // original color
+          "line-width": 6, // Increased line width (from 4)
+          "line-opacity": 0.85,
         },
       });
     });
