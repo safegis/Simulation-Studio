@@ -100,8 +100,8 @@ export default function PathfinderControls({
         setDestinationSuggestions([]);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
   }, []);
 
   const fetchAndDrawRoutes = async (
@@ -189,6 +189,23 @@ export default function PathfinderControls({
         ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E]"
         : "hover:bg-[#3A3A3A] text-[#C7C7C7]"
     }`;
+
+  function formatDuration(durationSeconds: number): string {
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const seconds = Math.round(durationSeconds % 60);
+
+    const parts: string[] = [];
+
+    if (hours > 0) parts.push(`${hours} hour${hours > 1 ? "s" : ""}`);
+    if (minutes > 0) parts.push(`${minutes} min${minutes > 1 ? "s" : ""}`);
+    if (hours === 0 && minutes === 0 && seconds > 0)
+      parts.push(`${seconds} sec${seconds > 1 ? "s" : ""}`);
+    if (hours === 0 && minutes > 0 && seconds > 0)
+      parts.push(`${seconds} sec${seconds > 1 ? "s" : ""}`);
+
+    return parts.join(", ");
+  }
 
   return (
     <div
@@ -442,9 +459,23 @@ export default function PathfinderControls({
           {/* Routes & Steps */}
           {routesData.length > 0 && (
             <>
-              <p className="text-white text-sm font-semibold mt-2">
-                Available Routes:
-              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <p className="text-white text-sm font-semibold">
+                  Available Routes
+                </p>
+                <div className="bg-[#5A5A5A] text-[#00FF7B] text-[14px] font-semibold w-6 h-7 rounded-lg shadow-md flex items-center justify-center">
+                  {
+                    routesData.filter((r) =>
+                      selectedMode === "all"
+                        ? true
+                        : selectedMode === "motorcycle"
+                        ? r.profile === "driving"
+                        : r.profile === selectedMode
+                    ).length
+                  }
+                </div>
+              </div>
+
               <div className="scrollbar-rounded max-h-160 overflow-y-auto bg-[#1E1E1E] p-3 rounded-xl space-y-4">
                 {routesData.map((route, idx) => {
                   const routeKey = `${route.profile}-${route.index}`;
@@ -453,38 +484,64 @@ export default function PathfinderControls({
                       key={idx}
                       className="border border-[#3A3A3A] rounded-lg p-3 text-sm text-[#C7C7C7]"
                     >
-                      <p className="font-semibold capitalize mb-2 text-white">
-                        {route.profile} route
-                      </p>
-                      <p>Distance: {(route.distance / 1000).toFixed(2)} km</p>
-                      <p>Duration: {(route.duration / 60).toFixed(1)} mins</p>
-                      <div className="mt-2 space-y-1">
-                        <button
-                          onClick={() =>
-                            setShowStepsMap((prev) => ({
-                              ...prev,
-                              [routeKey]: !prev[routeKey],
-                            }))
-                          }
-                          className="flex items-center gap-1 text-xs text-[#AAAAAA] hover:underline transition"
-                        >
-                          <ChevronDown
-                            className={`transition-transform duration-300 ${
-                              showStepsMap[routeKey] ? "rotate-180" : ""
-                            }`}
-                            size={14}
-                          />
-                          {showStepsMap[routeKey] ? "Hide" : "Show"} Steps
-                        </button>
+                      <div className="flex items-center">
+                        {/* Left: Icon and Time */}
+                        <div className="flex flex-col items-center justify-center px-4">
+                          {route.profile === "driving" && (
+                            <Car className="text-white" size={30} />
+                          )}
+                          {route.profile === "cycling" && (
+                            <Bike className="text-white" size={30} />
+                          )}
+                          {route.profile === "walking" && (
+                            <Footprints className="text-white" size={30} />
+                          )}
+                          <span className="w-[55px] text-center text-[13px] text-[#AAAAAA] mt-2 inline-block">
+                            {formatDuration(route.duration)}
+                          </span>
+                        </div>
 
-                        {showStepsMap[routeKey] && (
-                          <ol className="list-decimal text-xs text-[#AAAAAA] pl-6 space-y-1">
-                            {route.steps.map((step: any, i: number) => (
-                              <li key={i}>{step.maneuver.instruction}</li>
-                            ))}
-                          </ol>
-                        )}
+                        {/* Divider */}
+                        <div className="w-px h-[70px] bg-[#555] mx-2" />
+
+                        {/* Right: Title, Distance, Button */}
+                        <div className="flex flex-col justify-center pl-4 flex-1">
+                          <p className="font-semibold capitalize text-white">
+                            {route.profile} route
+                          </p>
+                          <p className="text-sm mt-1">
+                            {(route.distance / 1000).toFixed(2)} km
+                          </p>
+
+                          <button
+                            onClick={() =>
+                              setShowStepsMap((prev) => ({
+                                ...prev,
+                                [routeKey]: !prev[routeKey],
+                              }))
+                            }
+                            className="flex items-center gap-1 text-[13px] text-transparent bg-gradient-to-r from-[#9699FF] to-white bg-clip-text hover:underline transition mt-3 w-fit"
+                          >
+                            <ChevronDown
+                              className={`transition-transform duration-300 text-[#9699FF] ${
+                                showStepsMap[routeKey] ? "rotate-180" : ""
+                              }`}
+                              size={14}
+                            />
+                            {showStepsMap[routeKey] ? "Hide" : "Show"}{" "}
+                            Directions
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Steps */}
+                      {showStepsMap[routeKey] && (
+                        <ol className="list-decimal text-xs text-[#AAAAAA] pl-6 space-y-1 mt-[25px]">
+                          {route.steps.map((step: any, i: number) => (
+                            <li key={i}>{step.maneuver.instruction}</li>
+                          ))}
+                        </ol>
+                      )}
                     </div>
                   );
                 })}
