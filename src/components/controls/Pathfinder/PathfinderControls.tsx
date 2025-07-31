@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
@@ -190,7 +191,10 @@ export default function PathfinderControls({
     }`;
 
   return (
-    <div className="w-96 bg-[#2E2E2E] rounded-xl shadow-md p-4 text-[#C7C7C7] flex flex-col">
+    <div
+      className="w-96 bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] flex flex-col p-4 scrollbar-rounded relative"
+      style={{ maxHeight: "calc(100vh - 36px)", overflowY: "auto" }}
+    >
       <Tabs defaultValue="destination" className="w-full flex flex-col gap-4">
         <TabsList className="bg-[#5A5A5A] rounded-xl w-full grid grid-cols-2 p-[6px] h-[48px]">
           <TabsTrigger
@@ -236,26 +240,43 @@ export default function PathfinderControls({
                 className="bg-transparent outline-none text-md text-[#C7C7C7] placeholder-[#999] w-full h-full"
               />
             </div>
-            {startSuggestions.length > 0 && (
-              <ul
-                ref={startSuggestionsRef}
-                className="absolute z-50 top-full mt-2 w-full bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto text-[#2E2E2E] scrollbar-rounded"
-              >
-                {startSuggestions.map((place, index) => (
-                  <li
-                    key={index}
-                    onClick={() => handleSuggestionSelect(place)}
-                    className={`px-4 py-3 text-base cursor-pointer ${
-                      startHighlightedIndex === index
-                        ? "bg-[#5A5A5A] text-white"
-                        : "hover:bg-[#eeeeee]"
-                    }`}
-                  >
-                    {place.properties.formatted}
-                  </li>
-                ))}
-              </ul>
-            )}
+            {startSuggestions.length > 0 &&
+              ReactDOM.createPortal(
+                <ul
+                  ref={startSuggestionsRef}
+                  className="absolute z-[999] mt-2 w-[384px] bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto text-[#2E2E2E] scrollbar-rounded"
+                  style={{
+                    top: startContainerRef.current
+                      ? startContainerRef.current.getBoundingClientRect()
+                          .bottom +
+                        window.scrollY +
+                        4
+                      : 0,
+                    left: startContainerRef.current
+                      ? startContainerRef.current.getBoundingClientRect().left
+                      : 0,
+                    width: startContainerRef.current
+                      ? startContainerRef.current.getBoundingClientRect().width
+                      : undefined,
+                    position: "absolute",
+                  }}
+                >
+                  {startSuggestions.map((place, index) => (
+                    <li
+                      key={index}
+                      onClick={() => handleSuggestionSelect(place)}
+                      className={`px-4 py-3 text-base cursor-pointer ${
+                        startHighlightedIndex === index
+                          ? "bg-[#5A5A5A] text-white"
+                          : "hover:bg-[#eeeeee]"
+                      }`}
+                    >
+                      {place.properties.formatted}
+                    </li>
+                  ))}
+                </ul>,
+                document.body
+              )}
           </div>
 
           <div className="relative" ref={destinationContainerRef}>
@@ -290,26 +311,45 @@ export default function PathfinderControls({
                 className="bg-transparent outline-none text-md text-[#C7C7C7] placeholder-[#999] w-full h-full"
               />
             </div>
-            {destinationSuggestions.length > 0 && (
-              <ul
-                ref={destinationSuggestionsRef}
-                className="absolute z-50 top-full mt-2 w-full bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto text-[#2E2E2E] scrollbar-rounded"
-              >
-                {destinationSuggestions.map((place, index) => (
-                  <li
-                    key={index}
-                    onClick={() => handleDestinationSelect(place)}
-                    className={`px-4 py-3 text-base cursor-pointer ${
-                      destinationHighlightedIndex === index
-                        ? "bg-[#5A5A5A] text-white"
-                        : "hover:bg-[#eeeeee]"
-                    }`}
-                  >
-                    {place.properties.formatted}
-                  </li>
-                ))}
-              </ul>
-            )}
+            {destinationSuggestions.length > 0 &&
+              ReactDOM.createPortal(
+                <ul
+                  ref={destinationSuggestionsRef}
+                  className="absolute z-[999] mt-2 w-[384px] bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto text-[#2E2E2E] scrollbar-rounded"
+                  style={{
+                    top: destinationContainerRef.current
+                      ? destinationContainerRef.current.getBoundingClientRect()
+                          .bottom +
+                        window.scrollY +
+                        4
+                      : 0,
+                    left: destinationContainerRef.current
+                      ? destinationContainerRef.current.getBoundingClientRect()
+                          .left
+                      : 0,
+                    width: destinationContainerRef.current
+                      ? destinationContainerRef.current.getBoundingClientRect()
+                          .width
+                      : undefined,
+                    position: "absolute",
+                  }}
+                >
+                  {destinationSuggestions.map((place, index) => (
+                    <li
+                      key={index}
+                      onClick={() => handleDestinationSelect(place)}
+                      className={`px-4 py-3 text-base cursor-pointer ${
+                        destinationHighlightedIndex === index
+                          ? "bg-[#5A5A5A] text-white"
+                          : "hover:bg-[#eeeeee]"
+                      }`}
+                    >
+                      {place.properties.formatted}
+                    </li>
+                  ))}
+                </ul>,
+                document.body
+              )}
           </div>
 
           {/* Transport Buttons */}
@@ -405,7 +445,7 @@ export default function PathfinderControls({
               <p className="text-white text-sm font-semibold mt-2">
                 Available Routes:
               </p>
-              <div className="scrollbar-rounded max-h-100 overflow-y-auto bg-[#1E1E1E] p-3 rounded-xl space-y-4">
+              <div className="scrollbar-rounded max-h-160 overflow-y-auto bg-[#1E1E1E] p-3 rounded-xl space-y-4">
                 {routesData.map((route, idx) => {
                   const routeKey = `${route.profile}-${route.index}`;
                   return (
