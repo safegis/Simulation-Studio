@@ -107,38 +107,101 @@ export default function PathfinderControls({
   const fetchAndDrawRoutes = async (
     start: { lat: number; lon: number },
     destination: { lat: number; lon: number },
-    mode: "driving" | "walking" | "cycling" | "all" = "all"
+    mode: "driving" | "walking" | "cycling" | "motorcycle" | "all" = "all"
   ) => {
-    const modes = mode === "all" ? ["driving", "walking", "cycling"] : [mode];
+    const modes =
+      mode === "all" ? ["driving", "walking", "cycling", "motorcycle"] : [mode];
     let allRoutes: GeoJSON.Feature[] = [];
     let allRouteData: any[] = [];
 
     for (const profile of modes) {
-      const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${start.lon},${start.lat};${destination.lon},${destination.lat}?geometries=geojson&alternatives=true&steps=true&overview=full&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      // ---- MAPBOX FETCH (driving, walking, cycling only) ----
+      if (profile !== "motorcycle") {
+        const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${start.lon},${start.lat};${destination.lon},${destination.lat}?geometries=geojson&alternatives=true&steps=true&overview=full&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`;
+        const res = await fetch(url);
+        const data = await res.json();
 
-      if (data.routes?.length) {
-        const routeInfo = data.routes.map((route: any, index: number) => ({
-          profile,
-          distance: route.distance,
-          duration: route.duration,
-          steps: route.legs?.[0]?.steps ?? [],
-          index,
-        }));
-        allRouteData.push(...routeInfo);
-
-        const geojsonRoutes = data.routes.map((route: any, index: number) => ({
-          type: "Feature",
-          geometry: route.geometry,
-          properties: {
+        if (data.routes?.length) {
+          const routeInfo = data.routes.map((route: any, index: number) => ({
             profile,
+            source: "mapbox",
             distance: route.distance,
             duration: route.duration,
+            steps: route.legs?.[0]?.steps ?? [],
             index,
-          },
-        }));
-        allRoutes.push(...geojsonRoutes);
+          }));
+          allRouteData.push(...routeInfo);
+
+          const geojsonRoutes = data.routes.map(
+            (route: any, index: number) => ({
+              type: "Feature",
+              geometry: route.geometry,
+              properties: {
+                profile,
+                source: "mapbox",
+                distance: route.distance,
+                duration: route.duration,
+                index,
+              },
+            })
+          );
+          allRoutes.push(...geojsonRoutes);
+        }
+      }
+
+      // ---- TOMTOM FETCH (driving, motorcycle, walking) ----
+      if (["driving", "motorcycle", "walking"].includes(profile)) {
+        let travelMode = "car"; // default
+
+        if (profile === "motorcycle") {
+          travelMode = "motorcycle";
+        } else if (profile === "walking") {
+          travelMode = "pedestrian";
+        }
+
+        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${start.lat},${start.lon}:${destination.lat},${destination.lon}/json?key=${process.env.NEXT_PUBLIC_TOMTOM_API_KEY}&travelMode=${travelMode}&routeType=fastest&traffic=true&maxAlternatives=5`;
+
+        try {
+          const res = await fetch(tomtomUrl);
+          const data = await res.json();
+
+          if (data.routes?.length) {
+            const routeInfo = data.routes.map((route: any, index: number) => ({
+              profile,
+              source: "tomtom",
+              distance: route.summary.lengthInMeters,
+              duration: route.summary.travelTimeInSeconds,
+              steps:
+                route.guidance?.instructions?.map((step: any) => ({
+                  maneuver: { instruction: step.message },
+                })) || [],
+              index,
+            }));
+            allRouteData.push(...routeInfo);
+
+            const geojsonRoutes = data.routes.map(
+              (route: any, index: number) => ({
+                type: "Feature",
+                geometry: {
+                  type: "LineString",
+                  coordinates: route.legs.flatMap((leg: any) =>
+                    leg.points.map((p: any) => [p.longitude, p.latitude])
+                  ),
+                },
+                properties: {
+                  profile,
+                  source: "tomtom",
+                  distance: route.summary.lengthInMeters,
+                  duration: route.summary.travelTimeInSeconds,
+                  index,
+                },
+              })
+            );
+            allRoutes.push(...geojsonRoutes);
+          }
+        } catch (err) {
+          console.error(`TomTom ${profile} route fetch failed:`, err);
+        }
       }
     }
 
@@ -407,7 +470,7 @@ export default function PathfinderControls({
                     fetchAndDrawRoutes(
                       startCoords,
                       destinationCoords,
-                      "driving"
+                      "motorcycle" // <-- Correct mode
                     );
                     setSelectedMode("motorcycle");
                   }
@@ -466,11 +529,7 @@ export default function PathfinderControls({
                 <div className="bg-[#5A5A5A] text-[#00FF7B] text-[14px] font-semibold w-6 h-7 rounded-lg shadow-md flex items-center justify-center">
                   {
                     routesData.filter((r) =>
-                      selectedMode === "all"
-                        ? true
-                        : selectedMode === "motorcycle"
-                        ? r.profile === "driving"
-                        : r.profile === selectedMode
+                      selectedMode === "all" ? true : r.profile === selectedMode
                     ).length
                   }
                 </div>
@@ -495,6 +554,11 @@ export default function PathfinderControls({
                           )}
                           {route.profile === "walking" && (
                             <Footprints className="text-white" size={30} />
+                          )}
+                          {route.profile === "motorcycle" && (
+                            <TwoWheelerIcon
+                              style={{ fontSize: 30, color: "white" }}
+                            />
                           )}
                           <span className="w-[55px] text-center text-[13px] text-[#AAAAAA] mt-2 inline-block">
                             {formatDuration(route.duration)}
