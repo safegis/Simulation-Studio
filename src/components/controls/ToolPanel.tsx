@@ -23,6 +23,7 @@ interface Props {
   isVisible: boolean;
   selectedMaps: string[];
   selectedPlanningTools: string[];
+  mapRef: React.RefObject<any>;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -82,6 +83,7 @@ export default function ToolPanel({
   isVisible,
   selectedMaps,
   selectedPlanningTools,
+  mapRef,
 }: Props) {
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
@@ -143,10 +145,31 @@ export default function ToolPanel({
     );
   };
 
-  const toggleGeologicalItem = (item: string) => {
-    setGeologicalCheckedItems((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
-    );
+  const toggleGeologicalItem = async (item: string) => {
+    const newItems = geologicalCheckedItems.includes(item)
+      ? geologicalCheckedItems.filter((i) => i !== item)
+      : [...geologicalCheckedItems, item];
+
+    setGeologicalCheckedItems(newItems);
+
+    // If "Ground Shaking" is toggled ON
+    if (item === "Ground Shaking" && !geologicalCheckedItems.includes(item)) {
+      try {
+        const res = await fetch(
+          "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+        );
+        const data = await res.json();
+        const features = data.features;
+
+        // Send features to map
+        mapRef.current?.drawEarthquakeDots(features);
+      } catch (err) {
+        console.error("Failed to fetch earthquake data:", err);
+      }
+    } else if (item === "Ground Shaking") {
+      // If unchecked, remove dots
+      mapRef.current?.drawEarthquakeDots([]);
+    }
   };
 
   return (

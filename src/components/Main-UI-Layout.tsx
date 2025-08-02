@@ -674,6 +674,7 @@ export default function MainUILayout() {
                 isVisible={true}
                 selectedMaps={selectedMaps}
                 selectedPlanningTools={selectedPlanningTools}
+                mapRef={mapRef}
               />
             </div>
           )}

@@ -154,3 +154,36 @@ body,
 .mapboxgl-ctrl-attrib {
   display: none !important;
 }
+
+.mapboxgl-popup {
+  z-index: 9999 !important;
+  pointer-events: auto;
+}
+
+.earthquake-dot {
+  z-index: 10;
+}
+
+.mapboxgl-popup.earthquake-popup {
+  max-width: 250px;
+  padding: 0;
+}
+
+.mapboxgl-popup.earthquake-popup .mapboxgl-popup-content {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.mapboxgl-popup.earthquake-popup .mapboxgl-popup-close-button {
+  top: 6px;
+  right: 8px;
+  font-size: 16px;
+  color: #333;
+}
+
+.mapboxgl-popup.earthquake-popup .mapboxgl-popup-close-button:hover {
+  background: none !important;
+  color: inherit !important;
+  cursor: pointer !important;
+}

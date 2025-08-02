@@ -278,6 +278,49 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
 
     drawRoutes,
+
+    drawEarthquakeDots: (features: any[]) => {
+      const map = mapInstance.current;
+      if (!map) return;
+
+      // Remove old markers
+      document.querySelectorAll(".earthquake-dot").forEach((el) => el.remove());
+
+      features.forEach((feature) => {
+        const [lng, lat] = feature.geometry.coordinates;
+        const { mag, place, time } = feature.properties;
+
+        const el = document.createElement("div");
+        el.className = "earthquake-dot";
+        const size = Math.max(8, mag * 4); // minimum size 8px, scales with magnitude
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+
+        el.style.borderRadius = "50%";
+        el.style.backgroundColor = "red";
+        el.style.border = "2px solid white";
+        el.style.cursor = "pointer";
+        el.style.boxShadow = "0 0 4px white";
+
+        const popup = new mapboxgl.Popup({
+          offset: [0, -size / 2], // offset upward based on marker size
+          closeButton: true,
+          closeOnClick: false,
+          className: "earthquake-popup", // optional for extra styling
+        }).setHTML(`
+  <div style="min-width: 160px;">
+    <strong>${place}</strong><br/>
+    <span>Magnitude: ${mag}</span><br/>
+    <span>${new Date(time).toLocaleString()}</span>
+  </div>
+`);
+
+        new mapboxgl.Marker(el)
+          .setLngLat([lng, lat])
+          .setPopup(popup)
+          .addTo(map);
+      });
+    },
   }));
 
   return (
