@@ -287,7 +287,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       document.querySelectorAll(".earthquake-dot").forEach((el) => el.remove());
 
       features.forEach((feature) => {
-        const [lng, lat] = feature.geometry.coordinates;
+        const [lng, lat, depth] = feature.geometry.coordinates;
         const { mag, place, time } = feature.properties;
 
         const el = document.createElement("div");
@@ -303,14 +303,15 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         el.style.boxShadow = "0 0 4px white";
 
         const popup = new mapboxgl.Popup({
-          offset: [0, -size / 2], // offset upward based on marker size
+          offset: [0, -size / 2],
           closeButton: true,
           closeOnClick: false,
-          className: "earthquake-popup", // optional for extra styling
+          className: "earthquake-popup",
         }).setHTML(`
   <div style="min-width: 160px;">
     <strong>${place}</strong><br/>
     <span>Magnitude: ${mag}</span><br/>
+    <span>Depth: ${depth.toFixed(1)} km</span><br/>
     <span>${new Date(time).toLocaleString()}</span>
   </div>
 `);

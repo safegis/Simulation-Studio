@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   ChevronDown,
   Droplet,
@@ -42,7 +42,6 @@ const displayNamePlanningTools: Record<string, string> = {
 };
 
 const populationCheckboxItems = ["Urban", "Rural", "Vulnerable Population"];
-
 const biologicalCheckboxItems = [
   "Forest Cover",
   "Agro-Ecosystem",
@@ -51,7 +50,6 @@ const biologicalCheckboxItems = [
   "Critical Habitats",
   "Wetlands / Water Bodies",
 ];
-
 const nonBiologicalCheckboxItems = [
   "Road Networks",
   "Bridges",
@@ -64,7 +62,6 @@ const nonBiologicalCheckboxItems = [
   "Water Supply Infrastructure",
   "Residential Buildings",
 ];
-
 const hydroMeteorologicalCheckboxItems = [
   "Weather",
   "Storm Surge",
@@ -72,7 +69,6 @@ const hydroMeteorologicalCheckboxItems = [
   "Tsunami",
   "Landslide (Rain-induced)",
 ];
-
 const geologicalCheckboxItems = [
   "Ground Shaking",
   "Volcano",
@@ -88,29 +84,26 @@ export default function ToolPanel({
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
   );
-
   const [populationExpanded, setPopulationExpanded] = useState(false);
   const [populationCheckedItems, setPopulationCheckedItems] = useState<
     string[]
   >([]);
-
   const [biologicalExpanded, setBiologicalExpanded] = useState(false);
   const [nonBiologicalExpanded, setNonBiologicalExpanded] = useState(false);
-
   const [biologicalCheckedItems, setBiologicalCheckedItems] = useState<
     string[]
   >([]);
   const [nonBiologicalCheckedItems, setNonBiologicalCheckedItems] = useState<
     string[]
   >([]);
-
   const [hydroExpanded, setHydroExpanded] = useState(false);
   const [hydroCheckedItems, setHydroCheckedItems] = useState<string[]>([]);
-
   const [geologicalExpanded, setGeologicalExpanded] = useState(false);
   const [geologicalCheckedItems, setGeologicalCheckedItems] = useState<
     string[]
   >([]);
+
+  const earthquakeInterval = useRef<NodeJS.Timeout | null>(null);
 
   if (!isVisible) return null;
 
@@ -145,32 +138,60 @@ export default function ToolPanel({
     );
   };
 
-  const toggleGeologicalItem = async (item: string) => {
-    const newItems = geologicalCheckedItems.includes(item)
-      ? geologicalCheckedItems.filter((i) => i !== item)
-      : [...geologicalCheckedItems, item];
-
-    setGeologicalCheckedItems(newItems);
-
-    // If "Ground Shaking" is toggled ON
-    if (item === "Ground Shaking" && !geologicalCheckedItems.includes(item)) {
+  const startEarthquakePolling = () => {
+    if (earthquakeInterval.current) return;
+    earthquakeInterval.current = setInterval(async () => {
       try {
         const res = await fetch(
           "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
         );
         const data = await res.json();
-        const features = data.features;
-
-        // Send features to map
-        mapRef.current?.drawEarthquakeDots(features);
+        mapRef.current?.drawEarthquakeDots(data.features);
       } catch (err) {
-        console.error("Failed to fetch earthquake data:", err);
+        console.error("Error polling earthquake data:", err);
       }
-    } else if (item === "Ground Shaking") {
-      // If unchecked, remove dots
-      mapRef.current?.drawEarthquakeDots([]);
+    }, 60000);
+  };
+
+  const stopEarthquakePolling = () => {
+    if (earthquakeInterval.current) {
+      clearInterval(earthquakeInterval.current);
+      earthquakeInterval.current = null;
     }
   };
+
+  const toggleGeologicalItem = async (item: string) => {
+    const isAlreadyChecked = geologicalCheckedItems.includes(item);
+    const newItems = isAlreadyChecked
+      ? geologicalCheckedItems.filter((i) => i !== item)
+      : [...geologicalCheckedItems, item];
+
+    setGeologicalCheckedItems(newItems);
+
+    if (item === "Ground Shaking") {
+      if (!isAlreadyChecked) {
+        try {
+          const res = await fetch(
+            "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+          );
+          const data = await res.json();
+          mapRef.current?.drawEarthquakeDots(data.features);
+        } catch (err) {
+          console.error("Failed to fetch initial earthquake data:", err);
+        }
+        startEarthquakePolling();
+      } else {
+        mapRef.current?.drawEarthquakeDots([]);
+        stopEarthquakePolling();
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopEarthquakePolling(); // Cleanup on unmount
+    };
+  }, []);
 
   return (
     <div
@@ -205,8 +226,9 @@ export default function ToolPanel({
 
             {isExpanded && (
               <div className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2">
-                {label === "Hazard Map" ? (
+                {label === "Hazard Map" && (
                   <>
+                    {/* Hydro */}
                     <button
                       onClick={() => setHydroExpanded((prev) => !prev)}
                       className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
@@ -224,7 +246,6 @@ export default function ToolPanel({
                         }`}
                       />
                     </button>
-
                     {hydroExpanded && (
                       <div className="pl-7 pt-2 pb-2 space-y-2">
                         {hydroMeteorologicalCheckboxItems.map((item) => (
@@ -240,6 +261,7 @@ export default function ToolPanel({
                       </div>
                     )}
 
+                    {/* Geological */}
                     <button
                       onClick={() => setGeologicalExpanded((prev) => !prev)}
                       className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
@@ -257,7 +279,6 @@ export default function ToolPanel({
                         }`}
                       />
                     </button>
-
                     {geologicalExpanded && (
                       <div className="pl-7 pt-2 pb-2 space-y-2">
                         {geologicalCheckboxItems.map((item) => (
@@ -290,111 +311,41 @@ export default function ToolPanel({
                       icon={<Flame size={20} />}
                     />
                   </>
-                ) : label === "Exposure Map" ? (
+                )}
+
+                {label === "Exposure Map" && (
                   <>
-                    {/* Population */}
-                    <button
-                      onClick={() => setPopulationExpanded((prev) => !prev)}
-                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <PersonStanding size={20} />
-                        <span className="text-base font-medium">
-                          Population
-                        </span>
-                      </div>
-                      <ChevronDown
-                        size={18}
-                        className={`text-white transition-transform duration-200 ${
-                          populationExpanded ? "rotate-180" : ""
-                        }`}
-                      />
-                    </button>
-
-                    {populationExpanded && (
-                      <div className="pl-7 pt-2 pb-2 space-y-2">
-                        {populationCheckboxItems.map((item) => (
-                          <div key={item} className="flex items-center">
-                            <Checkbox
-                              className="mr-3 w-[18px] h-[18px]"
-                              checked={populationCheckedItems.includes(item)}
-                              onCheckedChange={() => togglePopulationItem(item)}
-                            />
-                            <span className="text-base">{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Biological */}
-                    <button
-                      onClick={() => setBiologicalExpanded((prev) => !prev)}
-                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Sprout size={20} />
-                        <span className="text-base font-medium">
-                          Biological
-                        </span>
-                      </div>
-                      <ChevronDown
-                        size={18}
-                        className={`text-white transition-transform duration-200 ${
-                          biologicalExpanded ? "rotate-180" : ""
-                        }`}
-                      />
-                    </button>
-                    {biologicalExpanded && (
-                      <div className="pl-7 pt-2 pb-2 space-y-2">
-                        {biologicalCheckboxItems.map((item) => (
-                          <div key={item} className="flex items-center">
-                            <Checkbox
-                              className="mr-3 w-[18px] h-[18px]"
-                              checked={biologicalCheckedItems.includes(item)}
-                              onCheckedChange={() => toggleBiologicalItem(item)}
-                            />
-                            <span className="text-base">{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Non-Biological */}
-                    <button
-                      onClick={() => setNonBiologicalExpanded((prev) => !prev)}
-                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Building2 size={20} />
-                        <span className="text-base font-medium">
-                          Non-Biological
-                        </span>
-                      </div>
-                      <ChevronDown
-                        size={18}
-                        className={`text-white transition-transform duration-200 ${
-                          nonBiologicalExpanded ? "rotate-180" : ""
-                        }`}
-                      />
-                    </button>
-                    {nonBiologicalExpanded && (
-                      <div className="pl-7 pt-2 pb-2 space-y-2">
-                        {nonBiologicalCheckboxItems.map((item) => (
-                          <div key={item} className="flex items-center">
-                            <Checkbox
-                              className="mr-3 w-[18px] h-[18px]"
-                              checked={nonBiologicalCheckedItems.includes(item)}
-                              onCheckedChange={() =>
-                                toggleNonBiologicalItem(item)
-                              }
-                            />
-                            <span className="text-base">{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <PanelToggle
+                      title="Population"
+                      icon={<PersonStanding size={20} />}
+                      expanded={populationExpanded}
+                      onToggle={() => setPopulationExpanded((prev) => !prev)}
+                      items={populationCheckboxItems}
+                      checkedItems={populationCheckedItems}
+                      onCheck={togglePopulationItem}
+                    />
+                    <PanelToggle
+                      title="Biological"
+                      icon={<Sprout size={20} />}
+                      expanded={biologicalExpanded}
+                      onToggle={() => setBiologicalExpanded((prev) => !prev)}
+                      items={biologicalCheckboxItems}
+                      checkedItems={biologicalCheckedItems}
+                      onCheck={toggleBiologicalItem}
+                    />
+                    <PanelToggle
+                      title="Non-Biological"
+                      icon={<Building2 size={20} />}
+                      expanded={nonBiologicalExpanded}
+                      onToggle={() => setNonBiologicalExpanded((prev) => !prev)}
+                      items={nonBiologicalCheckboxItems}
+                      checkedItems={nonBiologicalCheckedItems}
+                      onCheck={toggleNonBiologicalItem}
+                    />
                   </>
-                ) : label === "Vulnerability Map" ? (
+                )}
+
+                {label === "Vulnerability Map" && (
                   <>
                     <TransparentButton
                       label="Population"
@@ -409,7 +360,9 @@ export default function ToolPanel({
                       icon={<Building2 size={20} />}
                     />
                   </>
-                ) : label === "Critical Facility Map" ? (
+                )}
+
+                {label === "Critical Facility Map" && (
                   <>
                     <TransparentButton
                       label="Active Evacuation Area"
@@ -432,10 +385,6 @@ export default function ToolPanel({
                       icon={<Siren size={20} />}
                     />
                   </>
-                ) : (
-                  <p>
-                    This is the panel for <strong>{displayName}</strong>.
-                  </p>
                 )}
               </div>
             )}
@@ -461,5 +410,57 @@ function TransparentButton({
       </div>
       <ChevronDown size={18} className="text-white" />
     </button>
+  );
+}
+
+function PanelToggle({
+  title,
+  icon,
+  expanded,
+  onToggle,
+  items,
+  checkedItems,
+  onCheck,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  expanded: boolean;
+  onToggle: () => void;
+  items: string[];
+  checkedItems: string[];
+  onCheck: (item: string) => void;
+}) {
+  return (
+    <>
+      <button
+        onClick={onToggle}
+        className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-base font-medium">{title}</span>
+        </div>
+        <ChevronDown
+          size={18}
+          className={`text-white transition-transform duration-200 ${
+            expanded ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+      {expanded && (
+        <div className="pl-7 pt-2 pb-2 space-y-2">
+          {items.map((item) => (
+            <div key={item} className="flex items-center">
+              <Checkbox
+                className="mr-3 w-[18px] h-[18px]"
+                checked={checkedItems.includes(item)}
+                onCheckedChange={() => onCheck(item)}
+              />
+              <span className="text-base">{item}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
