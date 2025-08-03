@@ -164,6 +164,10 @@ body,
   z-index: 10;
 }
 
+.volcano-dot {
+  z-index: 10;
+}
+
 .mapboxgl-popup.earthquake-popup {
   max-width: 250px;
   padding: 0;

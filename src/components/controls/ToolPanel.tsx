@@ -185,6 +185,22 @@ export default function ToolPanel({
         stopEarthquakePolling();
       }
     }
+
+    if (item === "Volcano") {
+      if (!isAlreadyChecked) {
+        try {
+          const res = await fetch(
+            "https://volcanoes.usgs.gov/vsc/api/volcanoApi/volcanoesGVP"
+          );
+          const data = await res.json();
+          mapRef.current?.drawVolcanoDots(data);
+        } catch (err) {
+          console.error("Failed to fetch volcano data:", err);
+        }
+      } else {
+        mapRef.current?.drawVolcanoDots([]); // remove volcano dots when unchecked
+      }
+    }
   };
 
   useEffect(() => {

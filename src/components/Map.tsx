@@ -20,13 +20,20 @@ type FlyToOptions = {
 const MapComponent = forwardRef(function MapComponent(_, ref) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
+  const mapIsLoaded = useRef<boolean>(false);
   const is3DMode = useRef<boolean>(false);
   const latestRoutesGeoJSON = useRef<GeoJSON.FeatureCollection | null>(null);
+  const latestVolcanoes = useRef<any[]>([]);
+  const latestEarthquakes = useRef<any[]>([]);
+
+  const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const destinationMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    mapInstance.current = new mapboxgl.Map({
+    const map = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/streets-v12",
       center: [0, 0],
@@ -36,33 +43,178 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       antialias: true,
     });
 
+    mapInstance.current = map;
+
+    map.on("load", () => {
+      mapIsLoaded.current = true;
+    });
+
     return () => {
-      mapInstance.current?.remove();
+      map.remove();
+      mapIsLoaded.current = false;
       locationMarkerRef.current?.remove();
       startMarkerRef.current?.remove();
       destinationMarkerRef.current?.remove();
     };
   }, []);
 
-  const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const destinationMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const drawVolcanoDots = (volcanoes: any[]) => {
+    const map = mapInstance.current;
+    if (!map || !mapIsLoaded.current) return;
+
+    latestVolcanoes.current = volcanoes;
+
+    const sourceId = "volcanoes";
+    const layerId = "volcanoes-layer";
+
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+    const geojson: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: volcanoes.map((v) => ({
+        type: "Feature",
+        properties: {
+          name: v.vName,
+          country: v.country,
+          elevation: v.elevation_m,
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [v.longitude, v.latitude],
+        },
+      })),
+    };
+
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+
+    map.addLayer({
+      id: layerId,
+      type: "circle",
+      source: sourceId,
+      paint: {
+        "circle-radius": 6,
+        "circle-color": "orange",
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "white",
+      },
+    });
+
+    map.on("click", layerId, (e) => {
+      const props = e.features?.[0].properties!;
+      const popupHTML = `
+        <div style="min-width: 180px;">
+          <strong>${props.name}</strong><br/>
+          <span>Country: ${props.country}</span><br/>
+          <span>Elevation: ${props.elevation} m</span>
+        </div>
+      `;
+      new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(popupHTML).addTo(map);
+    });
+
+    map.on("mouseenter", layerId, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", layerId, () => {
+      map.getCanvas().style.cursor = "";
+    });
+  };
+
+  const drawEarthquakeDots = (features: any[]) => {
+    const map = mapInstance.current;
+    if (!map || !mapIsLoaded.current) return;
+
+    latestEarthquakes.current = features;
+
+    const sourceId = "earthquakes";
+    const layerId = "earthquakes-layer";
+
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+    const geojson: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: features.map((f: any) => ({
+        type: "Feature",
+        properties: {
+          mag: f.properties.mag,
+          place: f.properties.place,
+          time: f.properties.time,
+          depth: f.geometry.coordinates[2],
+        },
+        geometry: {
+          type: "Point",
+          coordinates: f.geometry.coordinates.slice(0, 2),
+        },
+      })),
+    };
+
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+
+    map.addLayer({
+      id: layerId,
+      type: "circle",
+      source: sourceId,
+      paint: {
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["get", "mag"],
+          0,
+          6,
+          8,
+          18,
+        ],
+        "circle-color": "red",
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "white",
+      },
+    });
+
+    map.on("click", layerId, (e) => {
+      const props = e.features?.[0].properties!;
+      const popupHTML = `
+        <div style="min-width: 160px;">
+          <strong>${props.place}</strong><br/>
+          <span>Magnitude: ${props.mag}</span><br/>
+          <span>Depth: ${Number(props.depth).toFixed(1)} km</span><br/>
+          <span>${new Date(Number(props.time)).toLocaleString()}</span>
+        </div>
+      `;
+      new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(popupHTML).addTo(map);
+    });
+
+    map.on("mouseenter", layerId, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", layerId, () => {
+      map.getCanvas().style.cursor = "";
+    });
+  };
 
   const reDrawRoutesIfAny = () => {
     if (latestRoutesGeoJSON.current && mapInstance.current) {
       setTimeout(() => {
         drawRoutes(latestRoutesGeoJSON.current!);
-      }, 300); // slight delay ensures style is fully ready
+      }, 300);
+    }
+  };
+
+  const reDrawVolcanoesAndQuakes = () => {
+    if (latestVolcanoes.current.length > 0) {
+      drawVolcanoDots(latestVolcanoes.current);
+    }
+    if (latestEarthquakes.current.length > 0) {
+      drawEarthquakeDots(latestEarthquakes.current);
     }
   };
 
   const drawRoutes = (geojson: GeoJSON.FeatureCollection) => {
     const map = mapInstance.current;
-    if (!map) return;
+    if (!map || !mapIsLoaded.current) return;
 
     latestRoutesGeoJSON.current = geojson;
 
-    // Remove old routes
     const layers = map.getStyle().layers;
     layers?.forEach((layer) => {
       if (layer.id.startsWith("route-")) {
@@ -82,7 +234,6 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         },
       });
 
-      // White outline (bottom layer)
       map.addLayer({
         id: `${id}-outline`,
         type: "line",
@@ -93,12 +244,11 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         },
         paint: {
           "line-color": "#9699FF",
-          "line-width": 10, // Increased outline thickness
+          "line-width": 10,
           "line-opacity": 0.9,
         },
       });
 
-      // Colored route (top layer)
       map.addLayer({
         id,
         type: "line",
@@ -108,8 +258,8 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#ffffff", // original color
-          "line-width": 6, // Increased line width (from 4)
+          "line-color": "#ffffff",
+          "line-width": 6,
           "line-opacity": 0.85,
         },
       });
@@ -118,15 +268,14 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
   useImperativeHandle(ref, () => ({
     flyTo: (opts: FlyToOptions) => {
+      if (!mapIsLoaded.current) return;
       mapInstance.current?.flyTo(opts);
     },
 
     addLocationMarker: (lng: number, lat: number) => {
-      if (!mapInstance.current) return;
-
+      if (!mapInstance.current || !mapIsLoaded.current) return;
       startMarkerRef.current?.remove();
       startMarkerRef.current = null;
-
       locationMarkerRef.current?.remove();
 
       const marker = new mapboxgl.Marker({ color: "#9699FF" })
@@ -137,11 +286,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
 
     addStartMarker: (lng: number, lat: number) => {
-      if (!mapInstance.current) return;
-
+      if (!mapInstance.current || !mapIsLoaded.current) return;
       locationMarkerRef.current?.remove();
       locationMarkerRef.current = null;
-
       startMarkerRef.current?.remove();
 
       const marker = new mapboxgl.Marker({ color: "#00FF00" })
@@ -152,8 +299,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
 
     addDestinationMarker: (lng: number, lat: number) => {
-      if (!mapInstance.current) return;
-
+      if (!mapInstance.current || !mapIsLoaded.current) return;
       destinationMarkerRef.current?.remove();
 
       const marker = new mapboxgl.Marker({ color: "#FF4C4C" })
@@ -166,18 +312,15 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     fitBoundsToMarkers: () => {
       if (
         !mapInstance.current ||
+        !mapIsLoaded.current ||
         !startMarkerRef.current ||
         !destinationMarkerRef.current
       )
         return;
 
       const bounds = new mapboxgl.LngLatBounds();
-
-      const startLngLat = startMarkerRef.current.getLngLat();
-      const destinationLngLat = destinationMarkerRef.current.getLngLat();
-
-      bounds.extend([startLngLat.lng, startLngLat.lat]);
-      bounds.extend([destinationLngLat.lng, destinationLngLat.lat]);
+      bounds.extend(startMarkerRef.current.getLngLat().toArray());
+      bounds.extend(destinationMarkerRef.current.getLngLat().toArray());
 
       mapInstance.current.fitBounds(bounds, {
         padding: 100,
@@ -192,12 +335,10 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
     switchTo2D: (label: string) => {
       const map = mapInstance.current;
-      if (!map || !is3DMode.current) return;
-
+      if (!map || !mapIsLoaded.current || !is3DMode.current) return;
       is3DMode.current = false;
 
       let style = "mapbox://styles/mapbox/streets-v12";
-
       switch (label) {
         case "Satellite":
           style = "mapbox://styles/mapbox/standard-satellite";
@@ -220,18 +361,17 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       }
 
       map.setStyle(style);
-
       map.once("style.load", () => {
         map.setTerrain(null);
         map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
         reDrawRoutesIfAny();
+        reDrawVolcanoesAndQuakes();
       });
     },
 
     switchTo3D: (label: string) => {
       const map = mapInstance.current;
-      if (!map || is3DMode.current) return;
-
+      if (!map || !mapIsLoaded.current || is3DMode.current) return;
       is3DMode.current = true;
 
       let style = "mapbox://styles/mapbox/standard";
@@ -240,18 +380,17 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       }
 
       map.setStyle(style);
-
       map.once("style.load", () => {
         addTerrainOnly(map);
         map.easeTo({ pitch: 60, bearing: 30, duration: 1000 });
         reDrawRoutesIfAny();
+        reDrawVolcanoesAndQuakes();
       });
     },
 
     setLightPreset: (preset: "dawn" | "day" | "dusk" | "night") => {
       const map = mapInstance.current;
-      if (!map || !is3DMode.current) return;
-
+      if (!map || !mapIsLoaded.current || !is3DMode.current) return;
       try {
         map.setConfigProperty("basemap", "lightPreset", preset);
       } catch (e) {
@@ -261,10 +400,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
     setMapStyle: (style: string) => {
       const map = mapInstance.current;
-      if (!map) return;
+      if (!map || !mapIsLoaded.current) return;
 
       map.setStyle(style);
-
       map.once("style.load", () => {
         if (is3DMode.current && style.includes("standard")) {
           addTerrainOnly(map);
@@ -274,54 +412,13 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
         }
         reDrawRoutesIfAny();
+        reDrawVolcanoesAndQuakes();
       });
     },
 
     drawRoutes,
-
-    drawEarthquakeDots: (features: any[]) => {
-      const map = mapInstance.current;
-      if (!map) return;
-
-      // Remove old markers
-      document.querySelectorAll(".earthquake-dot").forEach((el) => el.remove());
-
-      features.forEach((feature) => {
-        const [lng, lat, depth] = feature.geometry.coordinates;
-        const { mag, place, time } = feature.properties;
-
-        const el = document.createElement("div");
-        el.className = "earthquake-dot";
-        const size = Math.max(8, mag * 4); // minimum size 8px, scales with magnitude
-        el.style.width = `${size}px`;
-        el.style.height = `${size}px`;
-
-        el.style.borderRadius = "50%";
-        el.style.backgroundColor = "red";
-        el.style.border = "2px solid white";
-        el.style.cursor = "pointer";
-        el.style.boxShadow = "0 0 4px white";
-
-        const popup = new mapboxgl.Popup({
-          offset: [0, -size / 2],
-          closeButton: true,
-          closeOnClick: false,
-          className: "earthquake-popup",
-        }).setHTML(`
-  <div style="min-width: 160px;">
-    <strong>${place}</strong><br/>
-    <span>Magnitude: ${mag}</span><br/>
-    <span>Depth: ${depth.toFixed(1)} km</span><br/>
-    <span>${new Date(time).toLocaleString()}</span>
-  </div>
-`);
-
-        new mapboxgl.Marker(el)
-          .setLngLat([lng, lat])
-          .setPopup(popup)
-          .addTo(map);
-      });
-    },
+    drawVolcanoDots,
+    drawEarthquakeDots,
   }));
 
   return (
