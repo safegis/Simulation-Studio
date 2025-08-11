@@ -113,106 +113,15 @@ export default function PathfinderControls({
     destination: { lat: number; lon: number },
     mode: "driving" | "walking" | "cycling" | "motorcycle" | "all" = "all"
   ) => {
-    const modes =
-      mode === "all" ? ["driving", "walking", "cycling", "motorcycle"] : [mode];
-    let allRoutes: GeoJSON.Feature[] = [];
-    let allRouteData: any[] = [];
+    const res = await fetch(
+      `http://localhost:8000/routes?start_lat=${start.lat}&start_lon=${start.lon}&dest_lat=${destination.lat}&dest_lon=${destination.lon}&mode=${mode}`
+    );
+    const data = await res.json();
 
-    for (const profile of modes) {
-      // ---- MAPBOX FETCH (driving, walking, cycling only) ----
-      if (profile !== "motorcycle") {
-        const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${start.lon},${start.lat};${destination.lon},${destination.lat}?geometries=geojson&alternatives=true&steps=true&overview=full&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`;
-        const res = await fetch(url);
-        const data = await res.json();
+    setRoutesData(data.routesData);
 
-        if (data.routes?.length) {
-          const routeInfo = data.routes.map((route: any, index: number) => ({
-            profile,
-            source: "mapbox",
-            distance: route.distance,
-            duration: route.duration,
-            steps: route.legs?.[0]?.steps ?? [],
-            index,
-          }));
-          allRouteData.push(...routeInfo);
-
-          const geojsonRoutes = data.routes.map(
-            (route: any, index: number) => ({
-              type: "Feature",
-              geometry: route.geometry,
-              properties: {
-                profile,
-                source: "mapbox",
-                distance: route.distance,
-                duration: route.duration,
-                index,
-              },
-            })
-          );
-          allRoutes.push(...geojsonRoutes);
-        }
-      }
-
-      // ---- TOMTOM FETCH (driving, motorcycle, walking) ----
-      if (["driving", "motorcycle", "walking"].includes(profile)) {
-        let travelMode = "car"; // default
-        if (profile === "motorcycle") travelMode = "motorcycle";
-        if (profile === "walking") travelMode = "pedestrian";
-
-        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${start.lat},${start.lon}:${destination.lat},${destination.lon}/json?key=${process.env.NEXT_PUBLIC_TOMTOM_API_KEY}&travelMode=${travelMode}&routeType=fastest&traffic=true&maxAlternatives=5&instructionsType=text`;
-
-        try {
-          const res = await fetch(tomtomUrl);
-          const data = await res.json();
-
-          if (data.routes?.length) {
-            const routeInfo = data.routes.map((route: any, index: number) => ({
-              profile,
-              source: "tomtom",
-              distance: route.summary.lengthInMeters,
-              duration: route.summary.travelTimeInSeconds,
-              steps:
-                route.guidance?.instructions?.map((step: any) => ({
-                  maneuver: { instruction: step.message },
-                })) || [],
-              index,
-            }));
-            allRouteData.push(...routeInfo);
-
-            const geojsonRoutes = data.routes.map(
-              (route: any, index: number) => ({
-                type: "Feature",
-                geometry: {
-                  type: "LineString",
-                  coordinates: route.legs.flatMap((leg: any) =>
-                    leg.points.map((p: any) => [p.longitude, p.latitude])
-                  ),
-                },
-                properties: {
-                  profile,
-                  source: "tomtom",
-                  distance: route.summary.lengthInMeters,
-                  duration: route.summary.travelTimeInSeconds,
-                  index,
-                },
-              })
-            );
-            allRoutes.push(...geojsonRoutes);
-          }
-        } catch (err) {
-          console.error(`TomTom ${profile} route fetch failed:`, err);
-        }
-      }
-    }
-
-    setRoutesData(allRouteData);
-
-    if (allRoutes.length) {
-      const geojson: GeoJSON.FeatureCollection = {
-        type: "FeatureCollection",
-        features: allRoutes,
-      };
-      mapRef.current?.drawRoutes(geojson);
+    if (data.geojson?.features?.length) {
+      mapRef.current?.drawRoutes(data.geojson);
     }
   };
 
