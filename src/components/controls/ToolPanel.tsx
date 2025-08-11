@@ -142,9 +142,8 @@ export default function ToolPanel({
     if (earthquakeInterval.current) return;
     earthquakeInterval.current = setInterval(async () => {
       try {
-        const res = await fetch(
-          "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
-        );
+        const res = await fetch("http://localhost:8000/hazards/earthquakes");
+
         const data = await res.json();
         mapRef.current?.drawEarthquakeDots(data.features);
       } catch (err) {
@@ -171,9 +170,8 @@ export default function ToolPanel({
     if (item === "Ground Shaking") {
       if (!isAlreadyChecked) {
         try {
-          const res = await fetch(
-            "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
-          );
+          const res = await fetch("http://localhost:8000/hazards/earthquakes");
+
           const data = await res.json();
           mapRef.current?.drawEarthquakeDots(data.features);
         } catch (err) {
@@ -189,9 +187,8 @@ export default function ToolPanel({
     if (item === "Volcano") {
       if (!isAlreadyChecked) {
         try {
-          const res = await fetch(
-            "https://volcanoes.usgs.gov/vsc/api/volcanoApi/volcanoesGVP"
-          );
+          const res = await fetch("http://localhost:8000/hazards/volcanoes");
+
           const data = await res.json();
           mapRef.current?.drawVolcanoDots(data);
         } catch (err) {
