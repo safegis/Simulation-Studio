@@ -76,9 +76,9 @@ export default function MainUILayout() {
     }
 
     const delayDebounce = setTimeout(async () => {
-      const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(
+      const url = `http://localhost:8000/geocode/autocomplete?text=${encodeURIComponent(
         searchText
-      )}&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
+      )}`;
       const res = await fetch(url);
       const data = await res.json();
       setSuggestions(data.features || []);

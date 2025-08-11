@@ -62,10 +62,11 @@ export default function PathfinderControls({
     }
     const delay = setTimeout(async () => {
       const res = await fetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(
+        `http://localhost:8000/geocode/autocomplete?text=${encodeURIComponent(
           startText
-        )}&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`
+        )}`
       );
+
       const data = await res.json();
       setStartSuggestions(data.features || []);
       setStartHighlightedIndex(-1);
@@ -80,9 +81,9 @@ export default function PathfinderControls({
     }
     const delay = setTimeout(async () => {
       const res = await fetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(
+        `http://localhost:8000/geocode/autocomplete?text=${encodeURIComponent(
           destinationText
-        )}&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`
+        )}`
       );
       const data = await res.json();
       setDestinationSuggestions(data.features || []);
