@@ -228,7 +228,7 @@ export default function PathfinderControls({
           {/* Inputs */}
           <div className="relative" ref={startContainerRef}>
             <div className="bg-[#5A5A5A] h-[48px] flex items-center gap-3 px-4 rounded-xl shadow-md">
-              <MapPin width={25} height={25} color="#FF9494" />
+              <MapPin width={25} height={25} color="#75F7A9" />
               <input
                 ref={startRef}
                 type="text"
@@ -297,7 +297,7 @@ export default function PathfinderControls({
 
           <div className="relative" ref={destinationContainerRef}>
             <div className="bg-[#5A5A5A] h-[48px] flex items-center gap-3 px-4 rounded-xl shadow-md">
-              <MapPin width={25} height={25} color="#75F7A9" />
+              <MapPin width={25} height={25} color="#FF9494" />
               <input
                 ref={destinationRef}
                 type="text"
@@ -553,6 +553,44 @@ export default function PathfinderControls({
           )}
         </div>
       </Tabs>
+
+      {/* Floating top-right summary box */}
+      {routesData.length > 0 && (
+        <div className="fixed top-[18px] right-[18px] bg-[#2E2E2E] rounded-xl shadow-md text-white p-4 z-[1000] min-w-[230px] max-w-[290px] min-h-[230px]">
+          <p className="text-center font-semibold">Route Hazards</p>
+          <hr className="border-gray-500 my-2" />
+
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Obstructions</span>
+              <span>3</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Congestion</span>
+              <span>5</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Road Closure</span>
+              <span>1</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Lane Closure</span>
+              <span>2</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Flooded Points</span>
+              <span>4</span>
+            </div>
+
+            {/* More info button */}
+            <div className="mt-2 text-center">
+              <button className="text-sm text-blue-400 hover:text-blue-300">
+                More info
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
