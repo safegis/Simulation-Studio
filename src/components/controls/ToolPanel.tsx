@@ -75,6 +75,19 @@ const geologicalCheckboxItems = [
   "Landslide (Earthquake-triggered)",
 ];
 
+// Helper to parse datetime string from scraper "10 August 2024 - 06:03 AM"
+function parseCustomDatetime(datetimeStr: string): string {
+  // Remove " - " and replace with space, e.g. "10 August 2024 06:03 AM"
+  const cleaned = datetimeStr.replace(" - ", " ");
+  const dt = new Date(cleaned);
+
+  if (!isNaN(dt.getTime())) {
+    return dt.toLocaleString(); // local readable string
+  }
+  // Fallback to original string if invalid date
+  return datetimeStr;
+}
+
 export default function ToolPanel({
   isVisible,
   selectedMaps,
@@ -138,17 +151,68 @@ export default function ToolPanel({
     );
   };
 
+  // Combined fetch function to get and merge earthquake data from both APIs
+  const fetchCombinedEarthquakeData = async () => {
+    try {
+      // Fetch USGS data
+      const resUSGS = await fetch("http://localhost:8000/hazards/earthquakes");
+      const dataUSGS = await resUSGS.json();
+
+      // Fetch scraper data
+      const resScraper = await fetch(
+        "http://localhost:8001/earthquakes/latest"
+      );
+      const dataScraper = await resScraper.json();
+
+      // Convert scraper's earthquakes to GeoJSON-like features with fixed parsing
+      const scraperFeatures = (dataScraper.earthquakes || []).map(
+        (quake: any) => {
+          const mag = parseFloat(quake.Magnitude);
+          const depth = parseFloat(quake["Depth (km)"]);
+
+          // Parse datetime string "10 August 2024 - 06:03 AM" to timestamp (ms)
+          let time = Date.parse(quake["Date & Time (PHT)"].replace(" - ", " "));
+          if (isNaN(time)) {
+            time = Date.now();
+          }
+
+          return {
+            type: "Feature",
+            properties: {
+              mag: isNaN(mag) ? null : mag,
+              time: time,
+              place: quake.Location || "Unknown location",
+            },
+            geometry: {
+              type: "Point",
+              coordinates: [
+                parseFloat(quake["Longitude (°E)"]) || 0,
+                parseFloat(quake["Latitude (°N)"]) || 0,
+                isNaN(depth) ? null : depth,
+              ],
+            },
+          };
+        }
+      );
+
+      // Combine features arrays
+      const combinedFeatures = [
+        ...(dataUSGS.features || []),
+        ...scraperFeatures,
+      ];
+
+      return combinedFeatures;
+    } catch (err) {
+      console.error("Error fetching combined earthquake data:", err);
+      return [];
+    }
+  };
+
   const startEarthquakePolling = () => {
     if (earthquakeInterval.current) return;
     earthquakeInterval.current = setInterval(async () => {
-      try {
-        const res = await fetch("http://localhost:8000/hazards/earthquakes");
-
-        const data = await res.json();
-        mapRef.current?.drawEarthquakeDots(data.features);
-      } catch (err) {
-        console.error("Error polling earthquake data:", err);
-      }
+      const combinedFeatures = await fetchCombinedEarthquakeData();
+      mapRef.current?.drawEarthquakeDots(combinedFeatures);
     }, 60000);
   };
 
@@ -169,14 +233,8 @@ export default function ToolPanel({
 
     if (item === "Ground Shaking") {
       if (!isAlreadyChecked) {
-        try {
-          const res = await fetch("http://localhost:8000/hazards/earthquakes");
-
-          const data = await res.json();
-          mapRef.current?.drawEarthquakeDots(data.features);
-        } catch (err) {
-          console.error("Failed to fetch initial earthquake data:", err);
-        }
+        const combinedFeatures = await fetchCombinedEarthquakeData();
+        mapRef.current?.drawEarthquakeDots(combinedFeatures);
         startEarthquakePolling();
       } else {
         mapRef.current?.drawEarthquakeDots([]);
@@ -188,7 +246,6 @@ export default function ToolPanel({
       if (!isAlreadyChecked) {
         try {
           const res = await fetch("http://localhost:8000/hazards/volcanoes");
-
           const data = await res.json();
           mapRef.current?.drawVolcanoDots(data);
         } catch (err) {
