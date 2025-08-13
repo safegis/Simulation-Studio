@@ -25,6 +25,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestRoutesGeoJSON = useRef<GeoJSON.FeatureCollection | null>(null);
   const latestVolcanoes = useRef<any[]>([]);
   const latestEarthquakes = useRef<any[]>([]);
+  const latestActiveFaults = useRef<GeoJSON.FeatureCollection | null>(null);
 
   const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
@@ -67,8 +68,12 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     const sourceId = "volcanoes";
     const layerId = "volcanoes-layer";
 
-    if (map.getLayer(layerId)) map.removeLayer(layerId);
-    if (map.getSource(sourceId)) map.removeSource(sourceId);
+    try {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    } catch (e) {
+      console.warn(`Layer/source cleanup failed for ${layerId}:`, e);
+    }
 
     const geojson: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
@@ -129,8 +134,12 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     const sourceId = "earthquakes";
     const layerId = "earthquakes-layer";
 
-    if (map.getLayer(layerId)) map.removeLayer(layerId);
-    if (map.getSource(sourceId)) map.removeSource(sourceId);
+    try {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    } catch (e) {
+      console.warn(`Layer/source cleanup failed for ${layerId}:`, e);
+    }
 
     const geojson: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
@@ -215,8 +224,10 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
     latestRoutesGeoJSON.current = geojson;
 
-    const layers = map.getStyle().layers;
-    layers?.forEach((layer) => {
+    const style = map.getStyle();
+    if (!style?.layers) return; // ✅ guard before accessing layers
+
+    style.layers.forEach((layer) => {
       if (layer.id.startsWith("route-")) {
         if (map.getLayer(layer.id)) map.removeLayer(layer.id);
         if (map.getSource(layer.id)) map.removeSource(layer.id);
@@ -270,12 +281,18 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     const map = mapInstance.current;
     if (!map || !mapIsLoaded.current) return;
 
+    latestActiveFaults.current = geojson; // store for redraw
+
     const sourceId = "active-faults";
     const layerId = "active-faults-layer";
 
     // Remove existing
-    if (map.getLayer(layerId)) map.removeLayer(layerId);
-    if (map.getSource(sourceId)) map.removeSource(sourceId);
+    try {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    } catch (e) {
+      console.warn(`Layer/source cleanup failed for ${layerId}:`, e);
+    }
 
     if (!geojson) return; // null means "clear the layer"
 
@@ -310,6 +327,12 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
       new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
     });
+  };
+
+  const reDrawActiveFaultsIfAny = () => {
+    if (latestActiveFaults.current) {
+      drawActiveFaults(latestActiveFaults.current);
+    }
   };
 
   useImperativeHandle(ref, () => ({
@@ -365,8 +388,11 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         return;
 
       const bounds = new mapboxgl.LngLatBounds();
-      bounds.extend(startMarkerRef.current.getLngLat().toArray());
-      bounds.extend(destinationMarkerRef.current.getLngLat().toArray());
+      const startLngLat = startMarkerRef.current.getLngLat();
+      bounds.extend([startLngLat.lng, startLngLat.lat]);
+
+      const destLngLat = destinationMarkerRef.current.getLngLat();
+      bounds.extend([destLngLat.lng, destLngLat.lat]);
 
       mapInstance.current.fitBounds(bounds, {
         padding: 100,
@@ -410,8 +436,15 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       map.once("style.load", () => {
         map.setTerrain(null);
         map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
-        reDrawRoutesIfAny();
-        reDrawVolcanoesAndQuakes();
+        // ✅ Call draw functions only here with stored data
+        if (latestRoutesGeoJSON.current)
+          drawRoutes(latestRoutesGeoJSON.current);
+        if (latestVolcanoes.current.length > 0)
+          drawVolcanoDots(latestVolcanoes.current);
+        if (latestEarthquakes.current.length > 0)
+          drawEarthquakeDots(latestEarthquakes.current);
+        if (latestActiveFaults.current)
+          drawActiveFaults(latestActiveFaults.current);
       });
     },
 
@@ -429,8 +462,15 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       map.once("style.load", () => {
         addTerrainOnly(map);
         map.easeTo({ pitch: 60, bearing: 30, duration: 1000 });
-        reDrawRoutesIfAny();
-        reDrawVolcanoesAndQuakes();
+        // ✅ Call draw functions only here with stored data
+        if (latestRoutesGeoJSON.current)
+          drawRoutes(latestRoutesGeoJSON.current);
+        if (latestVolcanoes.current.length > 0)
+          drawVolcanoDots(latestVolcanoes.current);
+        if (latestEarthquakes.current.length > 0)
+          drawEarthquakeDots(latestEarthquakes.current);
+        if (latestActiveFaults.current)
+          drawActiveFaults(latestActiveFaults.current);
       });
     },
 
@@ -457,8 +497,15 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           map.setTerrain(null);
           map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
         }
-        reDrawRoutesIfAny();
-        reDrawVolcanoesAndQuakes();
+        // ✅ Call draw functions only here with stored data
+        if (latestRoutesGeoJSON.current)
+          drawRoutes(latestRoutesGeoJSON.current);
+        if (latestVolcanoes.current.length > 0)
+          drawVolcanoDots(latestVolcanoes.current);
+        if (latestEarthquakes.current.length > 0)
+          drawEarthquakeDots(latestEarthquakes.current);
+        if (latestActiveFaults.current)
+          drawActiveFaults(latestActiveFaults.current);
       });
     },
 
@@ -476,6 +523,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 export default MapComponent;
 
 const addTerrainOnly = (map: mapboxgl.Map) => {
+  const style = map.getStyle();
+  if (!style?.sources) return; // ✅ guard for unloaded style
+
   if (!map.getSource("mapbox-dem")) {
     map.addSource("mapbox-dem", {
       type: "raster-dem",
