@@ -10,6 +10,7 @@ import {
   Bike,
   Footprints,
   ChevronDown,
+  X,
 } from "lucide-react";
 import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
 
@@ -51,6 +52,7 @@ export default function PathfinderControls({
   const [showStepsMap, setShowStepsMap] = useState<{ [key: string]: boolean }>(
     {}
   );
+  const [showModal, setShowModal] = useState(false);
 
   const startItemRefs = useRef<(HTMLLIElement | null)[]>([]);
   const destinationItemRefs = useRef<(HTMLLIElement | null)[]>([]);
@@ -584,9 +586,80 @@ export default function PathfinderControls({
 
             {/* More info button */}
             <div className="mt-2 text-center">
-              <button className="text-sm text-blue-400 hover:text-blue-300">
+              <button
+                onClick={() => setShowModal(true)}
+                className="text-sm text-[#8183e5] hover:text-[#a7a9fa]"
+              >
                 More info
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[2000]">
+          <div className="bg-[#2E2E2E] rounded-xl shadow-lg p-6 max-w-md w-full relative">
+            {/* Close Icon Button */}
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-[#8183e5]"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Heading */}
+            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              Route Hazards →
+              <span className="font-normal text-gray-300">Safest Route</span>
+            </h2>
+            <hr className="border-gray-500 mb-4" />
+
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center gap-x-4 text-sm">
+                <span className="w-32">Obstructions</span>
+                <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
+                  3
+                </span>
+              </div>
+              <div className="flex items-center gap-x-4 text-sm">
+                <span className="w-32">Congestion</span>
+                <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
+                  5
+                </span>
+              </div>
+              <div className="flex items-center gap-x-4 text-sm">
+                <span className="w-32">Road Closure</span>
+                <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
+                  1
+                </span>
+              </div>
+              <div className="flex items-center gap-x-4 text-sm">
+                <span className="w-32">Lane Closure</span>
+                <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
+                  2
+                </span>
+              </div>
+
+              {/* Flooded Points */}
+              <div className="flex items-start gap-x-4 text-sm">
+                <span className="w-32">Flooded Points</span>
+                <div className="flex flex-col space-y-1">
+                  <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
+                    Point 3 (14.5995, 120.9842) -1.2m
+                  </span>
+                  <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
+                    Point 5 (14.6010, 120.9820) - 1.2m
+                  </span>
+                  <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
+                    Point 6 (14.6025, 120.9805) - 3.0m
+                  </span>
+                  <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
+                    Point 7 (14.6040, 120.9790) - 3.0m
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
