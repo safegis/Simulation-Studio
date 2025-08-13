@@ -266,6 +266,52 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     });
   };
 
+  const drawActiveFaults = (geojson: GeoJSON.FeatureCollection | null) => {
+    const map = mapInstance.current;
+    if (!map || !mapIsLoaded.current) return;
+
+    const sourceId = "active-faults";
+    const layerId = "active-faults-layer";
+
+    // Remove existing
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+    if (!geojson) return; // null means "clear the layer"
+
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+
+    map.addLayer({
+      id: layerId,
+      type: "line",
+      source: sourceId,
+      paint: {
+        "line-color": "#FF0000",
+        "line-width": 2,
+      },
+    });
+
+    map.on("mouseenter", layerId, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", layerId, () => {
+      map.getCanvas().style.cursor = "";
+    });
+
+    // Popup with ALL properties
+    map.on("click", layerId, (e) => {
+      const props = e.features?.[0].properties || {};
+
+      let html = "<div style='min-width:180px;'>";
+      for (const key in props) {
+        html += `<div><strong>${key}:</strong> ${props[key]}</div>`;
+      }
+      html += "</div>";
+
+      new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+    });
+  };
+
   useImperativeHandle(ref, () => ({
     flyTo: (opts: FlyToOptions) => {
       if (!mapIsLoaded.current) return;
@@ -419,6 +465,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     drawRoutes,
     drawVolcanoDots,
     drawEarthquakeDots,
+    drawActiveFaults,
   }));
 
   return (

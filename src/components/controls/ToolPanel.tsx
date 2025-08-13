@@ -73,6 +73,7 @@ const geologicalCheckboxItems = [
   "Ground Shaking",
   "Volcano",
   "Landslide (Earthquake-triggered)",
+  "Active Faults",
 ];
 
 // Helper to parse datetime string from scraper "10 August 2024 - 06:03 AM"
@@ -253,6 +254,22 @@ export default function ToolPanel({
         }
       } else {
         mapRef.current?.drawVolcanoDots([]); // remove volcano dots when unchecked
+      }
+    }
+
+    if (item === "Active Faults") {
+      if (!isAlreadyChecked) {
+        try {
+          const res = await fetch(
+            "http://localhost:8000/hazards/active-faults"
+          );
+          const data = await res.json();
+          mapRef.current?.drawActiveFaults(data);
+        } catch (err) {
+          console.error("Failed to fetch Active Faults data:", err);
+        }
+      } else {
+        mapRef.current?.drawActiveFaults(null); // remove faults when unchecked
       }
     }
   };
