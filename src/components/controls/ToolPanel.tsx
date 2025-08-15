@@ -70,7 +70,7 @@ const hydroMeteorologicalCheckboxItems = [
   "Landslide (Rain-induced)",
 ];
 const geologicalCheckboxItems = [
-  "Ground Shaking",
+  "Earthquakes",
   "Volcano",
   "Landslide (Earthquake-triggered)",
   "Active Faults",
@@ -232,7 +232,7 @@ export default function ToolPanel({
 
     setGeologicalCheckedItems(newItems);
 
-    if (item === "Ground Shaking") {
+    if (item === "Earthquakes") {
       if (!isAlreadyChecked) {
         const combinedFeatures = await fetchCombinedEarthquakeData();
         mapRef.current?.drawEarthquakeDots(combinedFeatures);
