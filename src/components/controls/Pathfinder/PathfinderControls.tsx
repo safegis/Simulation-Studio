@@ -10,9 +10,11 @@ import {
   Bike,
   Footprints,
   ChevronDown,
+  ChevronUp,
   X,
 } from "lucide-react";
 import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
+import { sortRoutesFastest } from "./SortRoutes-Fastest";
 
 export default function PathfinderControls({
   mapRef,
@@ -52,10 +54,38 @@ export default function PathfinderControls({
   const [showStepsMap, setShowStepsMap] = useState<{ [key: string]: boolean }>(
     {}
   );
+
+  // REPLACE selectedRouteIndex with a stable string key that you already compute in the UI.
+  // routeKey -> e.g. "driving-src-3" (matches how you build it in render)
+  const [selectedRouteKey, setSelectedRouteKey] = useState<string | null>(null);
+
+  // map routeKey => geojson feature index (the number used by Map.tsx when it names layers `route-<featureIndex>`)
+  const [routeKeyToFeatureIndex, setRouteKeyToFeatureIndex] = useState<
+    Record<string, number>
+  >({});
+
   const [showModal, setShowModal] = useState(false);
+
+  const [selectedSort, setSelectedSort] = useState<string>("Best balance");
+  const [showSortDropdown, setShowSortDropdown] = useState<boolean>(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   const startItemRefs = useRef<(HTMLLIElement | null)[]>([]);
   const destinationItemRefs = useRef<(HTMLLIElement | null)[]>([]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        sortDropdownRef.current &&
+        !sortDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowSortDropdown(false);
+      }
+    };
+
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
 
   useEffect(() => {
     if (!startText.trim()) {
@@ -123,9 +153,82 @@ export default function PathfinderControls({
     setRoutesData(data.routesData);
 
     if (data.geojson?.features?.length) {
+      // Draw routes on the map (layers will be named route-<featureIndex>)
       mapRef.current?.drawRoutes(data.geojson);
+
+      // Build a mapping: routeKey => featureIndex
+      const mapObj: Record<string, number> = {};
+      // assume data.routesData and data.geojson.features are in the same order
+      for (let i = 0; i < (data.routesData || []).length; i++) {
+        const r = data.routesData[i];
+        const key = `${r.profile}-${r.source}-${r.index}`;
+        mapObj[key] = i; // feature index used in drawRoutes
+      }
+      setRouteKeyToFeatureIndex(mapObj);
+
+      // choose the first visible route (respecting selectedMode & selectedSort)
+      const visibleList =
+        selectedSort === "Fastest"
+          ? sortRoutesFastest(data.routesData)
+          : data.routesData;
+
+      const filteredVisible = visibleList.filter((r: any) =>
+        selectedMode === "all" ? true : r.profile === selectedMode
+      );
+
+      if (filteredVisible.length > 0) {
+        const first = filteredVisible[0];
+        const firstKey = `${first.profile}-${first.source}-${first.index}`;
+        setSelectedRouteKey(firstKey);
+        const featureIdx = mapObj[firstKey];
+        mapRef.current?.highlightRouteByFeatureIndex(
+          typeof featureIdx === "number" ? featureIdx : null
+        );
+      } else {
+        setSelectedRouteKey(null);
+        mapRef.current?.highlightRouteByFeatureIndex(null);
+      }
     }
   };
+
+  // ensure the first visible route becomes selected when routesData, mode or sort change
+  useEffect(() => {
+    if (!routesData || routesData.length === 0) {
+      setSelectedRouteKey(null);
+      mapRef.current?.highlightRouteByFeatureIndex(null);
+      return;
+    }
+
+    const visibleList =
+      selectedSort === "Fastest" ? sortRoutesFastest(routesData) : routesData;
+
+    const filteredVisible = visibleList.filter((r: any) =>
+      selectedMode === "all" ? true : r.profile === selectedMode
+    );
+
+    if (filteredVisible.length === 0) {
+      setSelectedRouteKey(null);
+      mapRef.current?.highlightRouteByFeatureIndex(null);
+      return;
+    }
+
+    const first = filteredVisible[0];
+    const firstKey = `${first.profile}-${first.source}-${first.index}`;
+
+    // If new selection is same as current, do nothing
+    if (firstKey === selectedRouteKey) return;
+
+    setSelectedRouteKey(firstKey);
+
+    // lookup feature index and call map method
+    const featureIdx = routeKeyToFeatureIndex[firstKey];
+    mapRef.current?.highlightRouteByFeatureIndex(
+      typeof featureIdx === "number" ? featureIdx : null
+    );
+    // we intentionally do not include routeKeyToFeatureIndex in deps to avoid loop;
+    // it is set alongside routesData in fetchAndDrawRoutes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routesData, selectedMode, selectedSort]);
 
   const handleSuggestionSelect = (place: any) => {
     setStartText(place.properties.formatted);
@@ -474,15 +577,75 @@ export default function PathfinderControls({
                     ).length
                   }
                 </div>
+
+                {/* Sorting Dropdown */}
+                <div className="relative ml-auto" ref={sortDropdownRef}>
+                  <button
+                    onClick={() => setShowSortDropdown((prev) => !prev)}
+                    className="flex items-center justify-between gap-1 bg-[#5A5A5A] text-white text-sm px-3 py-1 rounded-lg hover:bg-[#6A6A6A] transition w-[140px]"
+                  >
+                    {selectedSort}
+                    {showSortDropdown ? (
+                      <ChevronUp size={16} />
+                    ) : (
+                      <ChevronDown size={16} />
+                    )}
+                  </button>
+
+                  {showSortDropdown && (
+                    <div className="absolute right-0 mt-1 w-[140px] bg-[#5A5A5A] rounded-lg shadow-lg text-sm text-white z-50">
+                      {["Best balance", "Safest", "Fastest"].map(
+                        (option, index) => (
+                          <div
+                            key={option}
+                            onClick={() => {
+                              setSelectedSort(option);
+                              setShowSortDropdown(false);
+                            }}
+                            className={`px-4 py-1 cursor-pointer hover:bg-[#6A6A6A] 
+            ${
+              selectedSort === option
+                ? "bg-gradient-to-r from-[#9699FF] to-white text-black"
+                : ""
+            }
+            ${index === 0 ? "rounded-t-lg" : ""}
+            ${index === 2 ? "rounded-b-lg" : ""}
+          `}
+                          >
+                            {option}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="scrollbar-rounded max-h-160 overflow-y-auto bg-[#1E1E1E] p-3 rounded-xl space-y-4">
-                {routesData.map((route, idx) => {
+                {(selectedSort === "Fastest"
+                  ? sortRoutesFastest(routesData)
+                  : routesData
+                ).map((route, idx) => {
                   const routeKey = `${route.profile}-${route.source}-${route.index}`;
+                  const isSelected = selectedRouteKey === routeKey;
+                  const featureIdx = routeKeyToFeatureIndex[routeKey];
+
                   return (
                     <div
                       key={idx}
-                      className="border border-[#3A3A3A] rounded-lg p-3 text-sm text-[#C7C7C7]"
+                      onClick={() => {
+                        setSelectedRouteKey(routeKey);
+                        // if mapping exists, ask map to highlight that feature index
+                        mapRef.current?.highlightRouteByFeatureIndex(
+                          typeof featureIdx === "number" ? featureIdx : null
+                        );
+                      }}
+                      className={`border rounded-lg p-3 text-sm text-[#C7C7C7] cursor-pointer transition
+                          ${
+                            isSelected
+                              ? "border-[#9699FF] shadow-lg"
+                              : "border-[#3A3A3A]"
+                          }`}
                     >
                       <div className="flex items-center">
                         {/* Left: Icon and Time */}

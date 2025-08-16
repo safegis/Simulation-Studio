@@ -27,6 +27,30 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestEarthquakes = useRef<any[]>([]);
   const latestActiveFaults = useRef<GeoJSON.FeatureCollection | null>(null);
 
+  const selectedFeatureIndexRef = useRef<number | null>(null);
+
+  // NEW: bring the route-<i>-outline and route-<i> layers to the top of the layer stack
+  const bringRouteToFront = (featureIndex: number | null) => {
+    const map = mapInstance.current;
+    if (!map || featureIndex === null) return;
+
+    const routeId = `route-${featureIndex}`;
+    const outlineId = `${routeId}-outline`;
+
+    try {
+      // Move outline first, then inner line — moving without the 'beforeId' param
+      // will place the layer at the top of the stack.
+      if (map.getLayer(outlineId)) map.moveLayer(outlineId);
+    } catch (e) {
+      // ignore - may happen if layer not yet added
+    }
+    try {
+      if (map.getLayer(routeId)) map.moveLayer(routeId);
+    } catch (e) {
+      // ignore
+    }
+  };
+
   const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const destinationMarkerRef = useRef<mapboxgl.Marker | null>(null);
@@ -245,6 +269,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         },
       });
 
+      // decide whether this route is the selected one
+      const isSelected = selectedFeatureIndexRef.current === index;
+
       map.addLayer({
         id: `${id}-outline`,
         type: "line",
@@ -254,6 +281,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           "line-cap": "round",
         },
         paint: {
+          // outline stays purple
           "line-color": "#9699FF",
           "line-width": 10,
           "line-opacity": 0.9,
@@ -269,12 +297,18 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#ffffff",
+          // inner line is purple when selected, otherwise white (unchanged behavior)
+          "line-color": isSelected ? "#9699FF" : "#ffffff",
           "line-width": 6,
           "line-opacity": 0.85,
         },
       });
     });
+
+    // NEW: after creating/updating all route layers, make sure the selected route (if any) is on top
+    if (selectedFeatureIndexRef.current !== null) {
+      bringRouteToFront(selectedFeatureIndexRef.current);
+    }
   };
 
   const drawActiveFaults = (geojson: GeoJSON.FeatureCollection | null) => {
@@ -510,6 +544,45 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
 
     drawRoutes,
+
+    // new: highlight by geojson feature index (the same index drawRoutes used)
+    highlightRouteByFeatureIndex: (featureIndex: number | null) => {
+      const map = mapInstance.current;
+      selectedFeatureIndexRef.current = featureIndex;
+
+      if (!map || !mapIsLoaded.current) return;
+
+      try {
+        // set each inner route layer to white except the selected featureIndex -> purple
+        const style = map.getStyle();
+        if (!style?.layers) return;
+
+        style.layers.forEach((layer) => {
+          // inner layer has id `route-<i>` and there's also route-<i>-outline
+          const m = layer.id.match(/^route-(\d+)$/);
+          if (!m) return;
+          const idx = Number(m[1]);
+          const layerId = `route-${idx}`;
+          try {
+            map.setPaintProperty(
+              layerId,
+              "line-color",
+              idx === featureIndex ? "#9699FF" : "#ffffff"
+            );
+          } catch (e) {
+            // ignore missing layers / race conditions
+          }
+        });
+
+        // NEW: bring selected route layers to top so they're not visually occluded
+        if (featureIndex !== null) {
+          bringRouteToFront(featureIndex);
+        }
+      } catch (e) {
+        console.warn("highlightRouteByFeatureIndex failed", e);
+      }
+    },
+
     drawVolcanoDots,
     drawEarthquakeDots,
     drawActiveFaults,
