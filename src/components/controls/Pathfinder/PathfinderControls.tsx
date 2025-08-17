@@ -16,6 +16,13 @@ import {
 import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
 import { sortRoutesFastest } from "./SortRoutes-Fastest";
 
+// ✅ helper function (place this at the top of your component or in a utils file)
+const getOrdinal = (n: number) => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+
 export default function PathfinderControls({
   mapRef,
 }: {
@@ -649,7 +656,7 @@ export default function PathfinderControls({
                     >
                       <div className="flex items-center">
                         {/* Left: Icon and Time */}
-                        <div className="flex flex-col items-center justify-center px-4">
+                        <div className="flex flex-col items-center justify-center px-1">
                           {route.profile === "driving" && (
                             <Car className="text-white" size={30} />
                           )}
@@ -673,10 +680,26 @@ export default function PathfinderControls({
                         <div className="w-px h-[70px] bg-[#555] mx-2" />
 
                         {/* Right: Title, Distance, Button */}
-                        <div className="flex flex-col justify-center pl-4 flex-1">
+                        <div className="flex flex-col justify-center pl-2 flex-1">
                           <p className="font-semibold capitalize text-white">
-                            {route.profile} route
+                            {selectedSort === "Fastest" ? (
+                              <>
+                                {idx === 0 &&
+                                  `Fastest - ${route.profile} Route`}
+                                {idx === 1 &&
+                                  `2nd Fastest - ${route.profile} Route`}
+                                {idx === 2 &&
+                                  `3rd Fastest - ${route.profile} Route`}
+                                {idx > 2 &&
+                                  `${getOrdinal(idx + 1)} - ${
+                                    route.profile
+                                  } Route`}
+                              </>
+                            ) : (
+                              `${route.profile} Route`
+                            )}
                           </p>
+
                           <p className="text-sm mt-1">
                             {(route.distance / 1000).toFixed(2)} km
                           </p>

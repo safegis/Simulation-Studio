@@ -242,15 +242,26 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     }
   };
 
+  // find a good beforeId once per style load
+  const getTopSymbolLayerId = (map: mapboxgl.Map) => {
+    const layers = map.getStyle()?.layers || [];
+    for (let i = layers.length - 1; i >= 0; i--) {
+      if (layers[i].type === "symbol") {
+        return layers[i].id; // return the last symbol layer
+      }
+    }
+    return undefined;
+  };
+
   const drawRoutes = (geojson: GeoJSON.FeatureCollection) => {
     const map = mapInstance.current;
     if (!map || !mapIsLoaded.current) return;
 
     latestRoutesGeoJSON.current = geojson;
 
+    // cleanup old
     const style = map.getStyle();
-    if (!style?.layers) return; // ✅ guard before accessing layers
-
+    if (!style?.layers) return;
     style.layers.forEach((layer) => {
       if (layer.id.startsWith("route-")) {
         if (map.getLayer(layer.id)) map.removeLayer(layer.id);
@@ -258,54 +269,48 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       }
     });
 
+    const beforeId = getTopSymbolLayerId(map);
+
     geojson.features.forEach((feature, index) => {
       const id = `route-${index}`;
+      const isSelected = selectedFeatureIndexRef.current === index;
 
       map.addSource(id, {
         type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: [feature],
-        },
+        data: { type: "FeatureCollection", features: [feature] },
       });
 
-      // decide whether this route is the selected one
-      const isSelected = selectedFeatureIndexRef.current === index;
+      map.addLayer(
+        {
+          id: `${id}-outline`,
+          type: "line",
+          source: id,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#9699FF",
+            "line-width": 10,
+            "line-opacity": 0.9,
+          },
+        },
+        beforeId // 👈 ensure above roads/labels
+      );
 
-      map.addLayer({
-        id: `${id}-outline`,
-        type: "line",
-        source: id,
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
+      map.addLayer(
+        {
+          id,
+          type: "line",
+          source: id,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": isSelected ? "#9699FF" : "#ffffff",
+            "line-width": 6,
+            "line-opacity": 0.85,
+          },
         },
-        paint: {
-          // outline stays purple
-          "line-color": "#9699FF",
-          "line-width": 10,
-          "line-opacity": 0.9,
-        },
-      });
-
-      map.addLayer({
-        id,
-        type: "line",
-        source: id,
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
-        },
-        paint: {
-          // inner line is purple when selected, otherwise white (unchanged behavior)
-          "line-color": isSelected ? "#9699FF" : "#ffffff",
-          "line-width": 6,
-          "line-opacity": 0.85,
-        },
-      });
+        beforeId
+      );
     });
 
-    // NEW: after creating/updating all route layers, make sure the selected route (if any) is on top
     if (selectedFeatureIndexRef.current !== null) {
       bringRouteToFront(selectedFeatureIndexRef.current);
     }
