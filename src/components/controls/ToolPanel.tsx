@@ -76,6 +76,13 @@ const geologicalCheckboxItems = [
   "Active Faults",
 ];
 
+const trafficCheckboxItems = [
+  "Congestion",
+  "Road Closure",
+  "Lane Closure",
+  "Construction Zones",
+];
+
 // Helper to parse datetime string from scraper "10 August 2024 - 06:03 AM"
 function parseCustomDatetime(datetimeStr: string): string {
   // Remove " - " and replace with space, e.g. "10 August 2024 06:03 AM"
@@ -117,7 +124,22 @@ export default function ToolPanel({
     string[]
   >([]);
 
+  const [trafficExpanded, setTrafficExpanded] = useState(false);
+  const [trafficCheckedItems, setTrafficCheckedItems] = useState<string[]>([]);
+
   const earthquakeInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // debounce timer for bounds updates
+  const roadClosureTimerRef = useRef<number | null>(null);
+  // store the registered callback so we can unregister later
+  const registeredBoundsCallbackRef = useRef<
+    ((bbox: [number, number, number, number]) => void) | null
+  >(null);
+
+  const laneClosureTimerRef = useRef<number | null>(null);
+  const registeredLaneCallbackRef = useRef<
+    ((bbox: [number, number, number, number]) => void) | null
+  >(null);
 
   if (!isVisible) return null;
 
@@ -151,6 +173,351 @@ export default function ToolPanel({
       prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
     );
   };
+
+  // --- helpers: place near other helpers in ToolPanel.tsx ---
+
+  /** clamp value between min and max */
+  const clamp = (v: number, a: number, b: number) =>
+    Math.max(a, Math.min(b, v));
+
+  /**
+   * Limit a bbox so its approximate surface area <= maxKm2.
+   * bbox: [minLon,minLat,maxLon,maxLat]
+   * returns a new bbox of same aspect ratio (centered on original center).
+   */
+  function limitBBoxToMaxArea(
+    bbox: [number, number, number, number],
+    maxKm2 = 10000
+  ): [number, number, number, number] {
+    const [minLon, minLat, maxLon, maxLat] = bbox;
+    const centerLon = (minLon + maxLon) / 2;
+    const centerLat = (minLat + maxLat) / 2;
+
+    // degrees span
+    const halfWidthDeg = (maxLon - minLon) / 2;
+    const halfHeightDeg = (maxLat - minLat) / 2;
+
+    // approximate km per degree
+    const kmPerDegLat = 111.32; // ~111.32 km per degree latitude
+    const kmPerDegLon = 111.32 * Math.cos((centerLat * Math.PI) / 180); // varies with lat
+
+    const widthKm = halfWidthDeg * 2 * kmPerDegLon;
+    const heightKm = halfHeightDeg * 2 * kmPerDegLat;
+    const areaKm2 = Math.abs(widthKm * heightKm);
+
+    if (areaKm2 <= maxKm2) {
+      // current bbox is OK
+      return [minLon, minLat, maxLon, maxLat];
+    }
+
+    // scale down preserving center and aspect ratio
+    const scale = Math.sqrt(maxKm2 / areaKm2);
+
+    const newHalfWidthDeg = halfWidthDeg * scale;
+    const newHalfHeightDeg = halfHeightDeg * scale;
+
+    let newMinLon = centerLon - newHalfWidthDeg;
+    let newMaxLon = centerLon + newHalfWidthDeg;
+    let newMinLat = centerLat - newHalfHeightDeg;
+    let newMaxLat = centerLat + newHalfHeightDeg;
+
+    // clamp lat to valid range
+    newMinLat = clamp(newMinLat, -90, 90);
+    newMaxLat = clamp(newMaxLat, -90, 90);
+
+    // normalize lon to -180..180 (simple clamp; adjust as needed for antimeridian)
+    newMinLon = clamp(newMinLon, -180, 180);
+    newMaxLon = clamp(newMaxLon, -180, 180);
+
+    return [newMinLon, newMinLat, newMaxLon, newMaxLat];
+  }
+
+  /** Fetch TomTom incidentDetails and only keep iconCategory === 8 (RoadClosed) */
+  async function fetchTomTomRoadClosures(
+    bboxArray?: [number, number, number, number]
+  ): Promise<GeoJSON.FeatureCollection | null> {
+    try {
+      const key = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
+      if (!key) {
+        console.error("TomTom API key missing (NEXT_PUBLIC_TOMTOM_API_KEY).");
+        return null;
+      }
+
+      if (!bboxArray) {
+        console.warn(
+          "No bbox provided to fetchTomTomRoadClosures; skipping request."
+        );
+        return null;
+      }
+
+      // clamp area to TomTom's 10k km^2 limit (use your existing limiter)
+      const clamped = limitBBoxToMaxArea(bboxArray, 10000);
+      const bboxStr = clamped.join(",");
+
+      // --- IMPORTANT: description lives under properties.events[].description ---
+      // Request: incidents{ type, geometry{...}, properties{ iconCategory, startTime, endTime, from, to, length, events{ description, code, iconCategory } } }
+      const fieldsRaw =
+        "{incidents{type,geometry{type,coordinates},properties{iconCategory,startTime,endTime,from,to,length,events{description,code,iconCategory}}}}";
+      const fields = encodeURIComponent(fieldsRaw);
+
+      const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${key}&bbox=${bboxStr}&fields=${fields}&language=en-GB`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("TomTom incidentDetails error", res.status, text);
+        return null;
+      }
+      const data = await res.json();
+
+      const incidents = (data.incidents || []).filter((inc: any) => {
+        const ic = inc.properties?.iconCategory ?? inc.ic ?? null;
+        return Number(ic) === 8; // 8 == Road Closed
+      });
+
+      const features = incidents.map((inc: any, idx: number) => {
+        const geom = inc.geometry || {};
+        const desc =
+          inc.properties?.events?.[0]?.description ??
+          inc.properties?.description ??
+          "";
+
+        // ensure style-evaluated fields exist and have the expected types
+        const safeLayer =
+          Number(
+            // try incident-provided value first (if any), otherwise 0
+            inc.properties?.layer ?? inc.properties?.level ?? 0
+          ) || 0;
+
+        const safeClass = inc.properties?.class ?? ""; // string
+        const safeStructure = inc.properties?.structure ?? ""; // string
+
+        return {
+          type: "Feature",
+          id: inc.id ?? `tt-rc-${idx}`,
+          properties: {
+            description: desc,
+            startTime: inc.properties?.startTime ?? null,
+            endTime: inc.properties?.endTime ?? null,
+            iconCategory: inc.properties?.iconCategory ?? null,
+            // ADDED safe properties to avoid Mapbox expression errors:
+            layer: safeLayer,
+            class: safeClass,
+            structure: safeStructure,
+            raw: inc,
+          },
+          geometry: {
+            type: geom.type || "Point",
+            coordinates: geom.coordinates || [],
+          },
+        };
+      });
+
+      return {
+        type: "FeatureCollection",
+        features,
+      } as GeoJSON.FeatureCollection;
+    } catch (err) {
+      console.error("fetchTomTomRoadClosures error", err);
+      return null;
+    }
+  }
+
+  async function fetchTomTomLaneClosures(
+    bboxArray?: [number, number, number, number]
+  ): Promise<GeoJSON.FeatureCollection | null> {
+    try {
+      const key = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
+      if (!key) {
+        console.error("TomTom API key missing (NEXT_PUBLIC_TOMTOM_API_KEY).");
+        return null;
+      }
+
+      if (!bboxArray) {
+        console.warn(
+          "No bbox provided to fetchTomTomRoadClosures; skipping request."
+        );
+        return null;
+      }
+
+      // clamp area to TomTom's 10k km^2 limit (use your existing limiter)
+      const clamped = limitBBoxToMaxArea(bboxArray, 10000);
+      const bboxStr = clamped.join(",");
+
+      // --- IMPORTANT: description lives under properties.events[].description ---
+      // Request: incidents{ type, geometry{...}, properties{ iconCategory, startTime, endTime, from, to, length, events{ description, code, iconCategory } } }
+      const fieldsRaw =
+        "{incidents{type,geometry{type,coordinates},properties{iconCategory,startTime,endTime,from,to,length,events{description,code,iconCategory}}}}";
+      const fields = encodeURIComponent(fieldsRaw);
+
+      const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${key}&bbox=${bboxStr}&fields=${fields}&language=en-GB`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("TomTom incidentDetails error", res.status, text);
+        return null;
+      }
+      const data = await res.json();
+
+      const incidents = (data.incidents || []).filter((inc: any) => {
+        const ic = inc.properties?.iconCategory ?? inc.ic ?? null;
+        return Number(ic) === 9; // 8 == Road Closed
+      });
+
+      const features = incidents.map((inc: any, idx: number) => {
+        const geom = inc.geometry || {};
+        const desc =
+          inc.properties?.events?.[0]?.description ??
+          inc.properties?.description ??
+          "";
+
+        // ensure style-evaluated fields exist and have the expected types
+        const safeLayer =
+          Number(
+            // try incident-provided value first (if any), otherwise 0
+            inc.properties?.layer ?? inc.properties?.level ?? 0
+          ) || 0;
+
+        const safeClass = inc.properties?.class ?? ""; // string
+        const safeStructure = inc.properties?.structure ?? ""; // string
+
+        return {
+          type: "Feature",
+          id: inc.id ?? `tt-rc-${idx}`,
+          properties: {
+            description: desc,
+            startTime: inc.properties?.startTime ?? null,
+            endTime: inc.properties?.endTime ?? null,
+            iconCategory: inc.properties?.iconCategory ?? null,
+            // ADDED safe properties to avoid Mapbox expression errors:
+            layer: safeLayer,
+            class: safeClass,
+            structure: safeStructure,
+            raw: inc,
+          },
+          geometry: {
+            type: geom.type || "Point",
+            coordinates: geom.coordinates || [],
+          },
+        };
+      });
+
+      return {
+        type: "FeatureCollection",
+        features,
+      } as GeoJSON.FeatureCollection;
+    } catch (err) {
+      console.error("fetchTomTomRoadClosures error", err);
+      return null;
+    }
+  }
+
+  // --- Updated toggleTrafficItem (replace the previous implementation) ---
+  const toggleTrafficItem = async (item: string) => {
+    const isAlreadyChecked = trafficCheckedItems.includes(item);
+    const newItems = isAlreadyChecked
+      ? trafficCheckedItems.filter((i) => i !== item)
+      : [...trafficCheckedItems, item];
+
+    setTrafficCheckedItems(newItems);
+
+    // ----- ROAD CLOSURE -----
+    if (item === "Road Closure") {
+      if (!isAlreadyChecked) {
+        const bbox = mapRef?.current?.getBounds?.();
+        if (!bbox) return;
+
+        const geojson = await fetchTomTomRoadClosures(bbox);
+        mapRef.current?.drawRoadClosures?.(
+          geojson ?? { type: "FeatureCollection", features: [] }
+        );
+
+        // Debounced bounds listener
+        const boundsCallback = (newBbox: [number, number, number, number]) => {
+          if (roadClosureTimerRef.current)
+            window.clearTimeout(roadClosureTimerRef.current);
+          roadClosureTimerRef.current = window.setTimeout(async () => {
+            const refreshed = await fetchTomTomRoadClosures(newBbox);
+            mapRef.current?.drawRoadClosures?.(
+              refreshed ?? { type: "FeatureCollection", features: [] }
+            );
+          }, 350) as unknown as number;
+        };
+
+        registeredBoundsCallbackRef.current = boundsCallback;
+        mapRef.current?.registerBoundsListener?.(boundsCallback);
+      } else {
+        mapRef.current?.drawRoadClosures?.({
+          type: "FeatureCollection",
+          features: [],
+        });
+        if (registeredBoundsCallbackRef.current) {
+          mapRef.current?.unregisterBoundsListener?.();
+          registeredBoundsCallbackRef.current = null;
+        }
+        if (roadClosureTimerRef.current) {
+          window.clearTimeout(roadClosureTimerRef.current);
+          roadClosureTimerRef.current = null;
+        }
+      }
+    }
+
+    // ----- LANE CLOSURE -----
+    if (item === "Lane Closure") {
+      if (!isAlreadyChecked) {
+        const bbox = mapRef?.current?.getBounds?.();
+        if (!bbox) return;
+
+        const laneGeo = await fetchTomTomLaneClosures(bbox);
+        mapRef.current?.drawLaneClosures?.(
+          laneGeo ?? { type: "FeatureCollection", features: [] }
+        );
+
+        // Debounced bounds listener for lane closures
+        const laneCallback = (newBbox: [number, number, number, number]) => {
+          if (laneClosureTimerRef.current)
+            window.clearTimeout(laneClosureTimerRef.current);
+          laneClosureTimerRef.current = window.setTimeout(async () => {
+            const refreshed = await fetchTomTomLaneClosures(newBbox);
+            mapRef.current?.drawLaneClosures?.(
+              refreshed ?? { type: "FeatureCollection", features: [] }
+            );
+          }, 350) as unknown as number;
+        };
+
+        registeredLaneCallbackRef.current = laneCallback;
+        mapRef.current?.registerBoundsListener?.(laneCallback);
+      } else {
+        mapRef.current?.drawLaneClosures?.({
+          type: "FeatureCollection",
+          features: [],
+        });
+        if (registeredLaneCallbackRef.current) {
+          mapRef.current?.unregisterBoundsListener?.();
+          registeredLaneCallbackRef.current = null;
+        }
+        if (laneClosureTimerRef.current) {
+          window.clearTimeout(laneClosureTimerRef.current);
+          laneClosureTimerRef.current = null;
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      // component unmount: ensure unregister and clear timer
+      if (registeredBoundsCallbackRef.current) {
+        mapRef.current?.unregisterBoundsListener?.();
+        registeredBoundsCallbackRef.current = null;
+      }
+      if (roadClosureTimerRef.current) {
+        window.clearTimeout(roadClosureTimerRef.current);
+        roadClosureTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Combined fetch function to get and merge earthquake data from both APIs
   const fetchCombinedEarthquakeData = async () => {
@@ -381,10 +748,16 @@ export default function ToolPanel({
                       </div>
                     )}
 
-                    <TransparentButton
-                      label="Traffic Incidents"
+                    <PanelToggle
+                      title="Traffic Incidents"
                       icon={<TrafficCone size={20} />}
+                      expanded={trafficExpanded}
+                      onToggle={() => setTrafficExpanded((prev) => !prev)}
+                      items={trafficCheckboxItems}
+                      checkedItems={trafficCheckedItems}
+                      onCheck={toggleTrafficItem}
                     />
+
                     <TransparentButton
                       label="Air Quality Index (AQI)"
                       icon={<Wind size={20} />}

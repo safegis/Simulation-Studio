@@ -3,6 +3,8 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { Construction, CircleMinus } from "lucide-react";
+import ReactDOMServer from "react-dom/server";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -26,6 +28,14 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestVolcanoes = useRef<any[]>([]);
   const latestEarthquakes = useRef<any[]>([]);
   const latestActiveFaults = useRef<GeoJSON.FeatureCollection | null>(null);
+
+  // add this ref to hold the registered callback
+  const boundsListenerRef = useRef<
+    ((bbox: [number, number, number, number]) => void) | null
+  >(null);
+
+  const roadClosureMarkersRef = { current: [] as mapboxgl.Marker[] };
+  const laneClosureMarkersRef = { current: [] as mapboxgl.Marker[] };
 
   const selectedFeatureIndexRef = useRef<number | null>(null);
 
@@ -72,6 +82,22 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
     map.on("load", () => {
       mapIsLoaded.current = true;
+
+      map.on("moveend", () => {
+        try {
+          const b = map.getBounds();
+          if (!b) return;
+          const bbox: [number, number, number, number] = [
+            b.getWest(),
+            b.getSouth(),
+            b.getEast(),
+            b.getNorth(),
+          ];
+          if (boundsListenerRef.current) boundsListenerRef.current(bbox);
+        } catch (e) {
+          // ignore
+        }
+      });
     });
 
     return () => {
@@ -225,23 +251,6 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     });
   };
 
-  const reDrawRoutesIfAny = () => {
-    if (latestRoutesGeoJSON.current && mapInstance.current) {
-      setTimeout(() => {
-        drawRoutes(latestRoutesGeoJSON.current!);
-      }, 300);
-    }
-  };
-
-  const reDrawVolcanoesAndQuakes = () => {
-    if (latestVolcanoes.current.length > 0) {
-      drawVolcanoDots(latestVolcanoes.current);
-    }
-    if (latestEarthquakes.current.length > 0) {
-      drawEarthquakeDots(latestEarthquakes.current);
-    }
-  };
-
   // find a good beforeId once per style load
   const getTopSymbolLayerId = (map: mapboxgl.Map) => {
     const layers = map.getStyle()?.layers || [];
@@ -368,10 +377,251 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     });
   };
 
-  const reDrawActiveFaultsIfAny = () => {
-    if (latestActiveFaults.current) {
-      drawActiveFaults(latestActiveFaults.current);
+  // --- ADD helper function near other drawX helpers in Map.tsx ---
+  const drawRoadClosures = (geojson: GeoJSON.FeatureCollection | null) => {
+    const map = mapInstance.current;
+    if (!map || !mapIsLoaded.current) return;
+
+    const sourceId = "tomtom-road-closures-src";
+    const outlineLayerId = "tomtom-road-closures-outline";
+    const innerLayerId = "tomtom-road-closures";
+
+    // ✅ Remove existing markers first
+    roadClosureMarkersRef.current.forEach((m) => m.remove());
+    roadClosureMarkersRef.current = [];
+
+    // cleanup existing layers + sources
+    try {
+      if (map.getLayer(innerLayerId)) map.removeLayer(innerLayerId);
+      if (map.getLayer(outlineLayerId)) map.removeLayer(outlineLayerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    } catch (e) {
+      console.warn("cleanup road closures failed", e);
     }
+
+    // If no features, return early
+    if (!geojson || geojson.features.length === 0) return;
+
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+    const beforeId = getTopSymbolLayerId(map);
+
+    // outline (red)
+    map.addLayer(
+      {
+        id: outlineLayerId,
+        type: "line",
+        source: sourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#FF0000", // red outline
+          "line-width": 10,
+          "line-opacity": 0.85,
+        },
+      },
+      beforeId
+    );
+
+    // inner line (white)
+    map.addLayer(
+      {
+        id: innerLayerId,
+        type: "line",
+        source: sourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#FFFFFF", // white inner line
+          "line-width": 6,
+          "line-dasharray": [2, 1],
+          "line-opacity": 0.95,
+        },
+      },
+      beforeId
+    );
+
+    // diamond markers
+    geojson.features.forEach((f) => {
+      if (f.geometry.type === "LineString") {
+        const coords = f.geometry.coordinates;
+        if (!coords?.length) return;
+        const start = coords[0] as [number, number];
+
+        const iconSVG = ReactDOMServer.renderToString(
+          <Construction size={24} color="#FF0000" />
+        );
+
+        const el = document.createElement("div");
+        el.innerHTML = `
+        <div style="
+          width: 40px; 
+          height: 40px; 
+          background: #FFFFFF; 
+          transform: rotate(45deg); 
+          border: 2px solid #FF0000; 
+          box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+          display: flex; 
+          align-items: center; 
+          justify-content: center;">
+          <div style="transform: rotate(-45deg); display:flex; align-items:center; justify-content:center;">
+            ${iconSVG}
+          </div>
+        </div>
+      `;
+
+        const marker = new mapboxgl.Marker({
+          element: el,
+          anchor: "bottom",
+          offset: [0, -6],
+        })
+          .setLngLat(start)
+          .addTo(map);
+
+        roadClosureMarkersRef.current.push(marker);
+      }
+    });
+
+    // popup on line click
+    map.on("click", innerLayerId, (e) => {
+      const props = e.features?.[0]?.properties || {};
+      const popupHTML = `
+      <div style="min-width:180px;">
+        <strong>Road Closure</strong><br/>
+        <div>${props.description ?? ""}</div>
+        <div>Start: ${props.startTime ?? "n/a"}</div>
+        <div>End: ${props.endTime ?? "n/a"}</div>
+      </div>
+    `;
+      new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(popupHTML).addTo(map);
+    });
+
+    map.on("mouseenter", innerLayerId, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", innerLayerId, () => {
+      map.getCanvas().style.cursor = "";
+    });
+  };
+
+  const drawLaneClosures = (geojson: GeoJSON.FeatureCollection | null) => {
+    const map = mapInstance.current;
+    if (!map || !mapIsLoaded.current) return;
+
+    const sourceId = "tomtom-lane-closures-src";
+    const outlineLayerId = "tomtom-lane-closures-outline";
+    const innerLayerId = "tomtom-lane-closures";
+
+    // ✅ Remove existing markers first
+    laneClosureMarkersRef.current.forEach((m) => m.remove());
+    laneClosureMarkersRef.current = [];
+
+    // cleanup layers/sources
+    try {
+      if (map.getLayer(innerLayerId)) map.removeLayer(innerLayerId);
+      if (map.getLayer(outlineLayerId)) map.removeLayer(outlineLayerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    } catch (e) {
+      console.warn("cleanup lane closures failed", e);
+    }
+
+    // If no features, return early
+    if (!geojson || geojson.features.length === 0) return;
+
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+    const beforeId = getTopSymbolLayerId(map);
+
+    // outline (black)
+    map.addLayer(
+      {
+        id: outlineLayerId,
+        type: "line",
+        source: sourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#000000",
+          "line-width": 10,
+          "line-opacity": 0.85,
+        },
+      },
+      beforeId
+    );
+
+    // inner line (yellow)
+    map.addLayer(
+      {
+        id: innerLayerId,
+        type: "line",
+        source: sourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#FFD700",
+          "line-width": 6,
+          "line-dasharray": [2, 1],
+          "line-opacity": 0.95,
+        },
+      },
+      beforeId
+    );
+
+    // diamond markers (black border, yellow background, CircleMinus icon)
+    geojson.features.forEach((f) => {
+      if (f.geometry.type === "LineString") {
+        const coords = f.geometry.coordinates;
+        if (!coords?.length) return;
+        const start = coords[0] as [number, number];
+
+        const iconSVG = ReactDOMServer.renderToString(
+          <CircleMinus size={24} color="#000000" />
+        );
+
+        const el = document.createElement("div");
+        el.innerHTML = `
+        <div style="
+          width: 40px; 
+          height: 40px; 
+          background: #FFD700; 
+          transform: rotate(45deg); 
+          border: 2px solid #000000; 
+          box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+          display: flex; 
+          align-items: center; 
+          justify-content: center;">
+          <div style="transform: rotate(-45deg); display:flex; align-items:center; justify-content:center;">
+            ${iconSVG}
+          </div>
+        </div>
+      `;
+
+        const marker = new mapboxgl.Marker({
+          element: el,
+          anchor: "bottom",
+          offset: [0, -6],
+        })
+          .setLngLat(start)
+          .addTo(map);
+
+        laneClosureMarkersRef.current.push(marker);
+      }
+    });
+
+    // popup
+    map.on("click", innerLayerId, (e) => {
+      const props = e.features?.[0]?.properties || {};
+      const popupHTML = `
+      <div style="min-width:180px;">
+        <strong>Lane Closure</strong><br/>
+        <div>${props.description ?? ""}</div>
+        <div>Start: ${props.startTime ?? "n/a"}</div>
+        <div>End: ${props.endTime ?? "n/a"}</div>
+      </div>
+    `;
+      new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(popupHTML).addTo(map);
+    });
+
+    map.on("mouseenter", innerLayerId, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", innerLayerId, () => {
+      map.getCanvas().style.cursor = "";
+    });
   };
 
   useImperativeHandle(ref, () => ({
@@ -591,6 +841,52 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     drawVolcanoDots,
     drawEarthquakeDots,
     drawActiveFaults,
+
+    // inside useImperativeHandle(ref, () => ({ ... }))
+    getBounds: (): [number, number, number, number] | null => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return null;
+
+      const b = map.getBounds();
+      if (!b) return null; // guard for possible null/undefined
+
+      // return [minLon, minLat, maxLon, maxLat]
+      return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+    },
+
+    drawRoadClosures,
+    drawLaneClosures,
+
+    /**
+     * Register a callback to be invoked when the map bounds change (moveend).
+     * callback receives [minLon,minLat,maxLon,maxLat].
+     * Returns nothing. Use unregisterBoundsListener to remove.
+     */
+    registerBoundsListener: (
+      cb: (bbox: [number, number, number, number]) => void
+    ) => {
+      boundsListenerRef.current = cb;
+      // call immediately with current bounds if available
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return;
+      try {
+        const b = map.getBounds();
+        if (!b) return;
+        const bbox: [number, number, number, number] = [
+          b.getWest(),
+          b.getSouth(),
+          b.getEast(),
+          b.getNorth(),
+        ];
+        cb(bbox);
+      } catch (e) {
+        // ignore
+      }
+    },
+
+    unregisterBoundsListener: () => {
+      boundsListenerRef.current = null;
+    },
   }));
 
   return (
