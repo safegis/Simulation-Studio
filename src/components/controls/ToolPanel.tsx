@@ -413,7 +413,12 @@ export default function ToolPanel({
     }
   }
 
-  // --- Updated toggleTrafficItem (replace the previous implementation) ---
+  // --- refs at the top of ToolPanel.tsx ---
+  const roadClosureIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const laneClosureIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // --- Updated toggleTrafficItem ---
+  // --- Updated toggleTrafficItem ---
   const toggleTrafficItem = async (item: string) => {
     const isAlreadyChecked = trafficCheckedItems.includes(item);
     const newItems = isAlreadyChecked
@@ -422,18 +427,38 @@ export default function ToolPanel({
 
     setTrafficCheckedItems(newItems);
 
+    const fetchAndDrawRoads = async () => {
+      const currentBbox = mapRef.current?.getBounds?.();
+      if (!currentBbox) return;
+
+      const geojson = await fetchTomTomRoadClosures(currentBbox);
+      // Always overwrite data, even if empty
+      mapRef.current?.drawRoadClosures?.(
+        geojson ?? { type: "FeatureCollection", features: [] }
+      );
+    };
+
+    const fetchAndDrawLanes = async () => {
+      const currentBbox = mapRef.current?.getBounds?.();
+      if (!currentBbox) return;
+
+      const laneGeo = await fetchTomTomLaneClosures(currentBbox);
+      mapRef.current?.drawLaneClosures?.(
+        laneGeo ?? { type: "FeatureCollection", features: [] }
+      );
+    };
+
     // ----- ROAD CLOSURE -----
     if (item === "Road Closure") {
       if (!isAlreadyChecked) {
-        const bbox = mapRef?.current?.getBounds?.();
-        if (!bbox) return;
+        // Initial draw
+        fetchAndDrawRoads();
 
-        const geojson = await fetchTomTomRoadClosures(bbox);
-        mapRef.current?.drawRoadClosures?.(
-          geojson ?? { type: "FeatureCollection", features: [] }
-        );
+        if (roadClosureIntervalRef.current)
+          clearInterval(roadClosureIntervalRef.current);
+        roadClosureIntervalRef.current = setInterval(fetchAndDrawRoads, 60_000);
 
-        // Debounced bounds listener
+        // Debounced bounds callback for roads
         const boundsCallback = (newBbox: [number, number, number, number]) => {
           if (roadClosureTimerRef.current)
             window.clearTimeout(roadClosureTimerRef.current);
@@ -445,17 +470,35 @@ export default function ToolPanel({
           }, 350) as unknown as number;
         };
 
+        // Register this callback (does NOT override lane closures anymore)
         registeredBoundsCallbackRef.current = boundsCallback;
         mapRef.current?.registerBoundsListener?.(boundsCallback);
       } else {
+        // Clear features (lines + markers)
         mapRef.current?.drawRoadClosures?.({
           type: "FeatureCollection",
           features: [],
         });
+        // 🔑 Clear markers explicitly
+        if (mapRef.current?.roadClosureMarkersRef) {
+          mapRef.current.roadClosureMarkersRef.current.forEach((m: any) =>
+            m.remove()
+          );
+          mapRef.current.roadClosureMarkersRef.current = [];
+        }
+
+        if (roadClosureIntervalRef.current) {
+          clearInterval(roadClosureIntervalRef.current);
+          roadClosureIntervalRef.current = null;
+        }
+
         if (registeredBoundsCallbackRef.current) {
-          mapRef.current?.unregisterBoundsListener?.();
+          mapRef.current?.unregisterBoundsListener?.(
+            registeredBoundsCallbackRef.current
+          );
           registeredBoundsCallbackRef.current = null;
         }
+
         if (roadClosureTimerRef.current) {
           window.clearTimeout(roadClosureTimerRef.current);
           roadClosureTimerRef.current = null;
@@ -466,18 +509,18 @@ export default function ToolPanel({
     // ----- LANE CLOSURE -----
     if (item === "Lane Closure") {
       if (!isAlreadyChecked) {
-        const bbox = mapRef?.current?.getBounds?.();
-        if (!bbox) return;
+        // Initial draw
+        fetchAndDrawLanes();
 
-        const laneGeo = await fetchTomTomLaneClosures(bbox);
-        mapRef.current?.drawLaneClosures?.(
-          laneGeo ?? { type: "FeatureCollection", features: [] }
-        );
+        if (laneClosureIntervalRef.current)
+          clearInterval(laneClosureIntervalRef.current);
+        laneClosureIntervalRef.current = setInterval(fetchAndDrawLanes, 60_000);
 
-        // Debounced bounds listener for lane closures
+        // Debounced bounds callback for lanes
         const laneCallback = (newBbox: [number, number, number, number]) => {
           if (laneClosureTimerRef.current)
             window.clearTimeout(laneClosureTimerRef.current);
+
           laneClosureTimerRef.current = window.setTimeout(async () => {
             const refreshed = await fetchTomTomLaneClosures(newBbox);
             mapRef.current?.drawLaneClosures?.(
@@ -486,17 +529,35 @@ export default function ToolPanel({
           }, 350) as unknown as number;
         };
 
+        // Register this callback (coexists with road closures)
         registeredLaneCallbackRef.current = laneCallback;
         mapRef.current?.registerBoundsListener?.(laneCallback);
       } else {
+        // Clear features (lines + markers)
         mapRef.current?.drawLaneClosures?.({
           type: "FeatureCollection",
           features: [],
         });
+        // 🔑 Clear markers explicitly
+        if (mapRef.current?.laneClosureMarkersRef) {
+          mapRef.current.laneClosureMarkersRef.current.forEach((m: any) =>
+            m.remove()
+          );
+          mapRef.current.laneClosureMarkersRef.current = [];
+        }
+
+        if (laneClosureIntervalRef.current) {
+          clearInterval(laneClosureIntervalRef.current);
+          laneClosureIntervalRef.current = null;
+        }
+
         if (registeredLaneCallbackRef.current) {
-          mapRef.current?.unregisterBoundsListener?.();
+          mapRef.current?.unregisterBoundsListener?.(
+            registeredLaneCallbackRef.current
+          );
           registeredLaneCallbackRef.current = null;
         }
+
         if (laneClosureTimerRef.current) {
           window.clearTimeout(laneClosureTimerRef.current);
           laneClosureTimerRef.current = null;
@@ -504,6 +565,27 @@ export default function ToolPanel({
       }
     }
   };
+
+  // --- ON UNMOUNT: clear intervals + listeners ---
+  useEffect(() => {
+    return () => {
+      if (roadClosureIntervalRef.current)
+        clearInterval(roadClosureIntervalRef.current);
+      if (laneClosureIntervalRef.current)
+        clearInterval(laneClosureIntervalRef.current);
+
+      if (registeredBoundsCallbackRef.current) {
+        mapRef.current?.unregisterBoundsListener?.(
+          registeredBoundsCallbackRef.current
+        );
+      }
+      if (registeredLaneCallbackRef.current) {
+        mapRef.current?.unregisterBoundsListener?.(
+          registeredLaneCallbackRef.current
+        );
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return () => {

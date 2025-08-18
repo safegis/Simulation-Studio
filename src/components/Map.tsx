@@ -30,12 +30,12 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestActiveFaults = useRef<GeoJSON.FeatureCollection | null>(null);
 
   // add this ref to hold the registered callback
-  const boundsListenerRef = useRef<
-    ((bbox: [number, number, number, number]) => void) | null
-  >(null);
+  const boundsListenersRef = useRef<
+    Set<(bbox: [number, number, number, number]) => void>
+  >(new Set());
 
-  const roadClosureMarkersRef = { current: [] as mapboxgl.Marker[] };
-  const laneClosureMarkersRef = { current: [] as mapboxgl.Marker[] };
+  const roadClosureMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const laneClosureMarkersRef = useRef<mapboxgl.Marker[]>([]);
 
   const selectedFeatureIndexRef = useRef<number | null>(null);
 
@@ -93,7 +93,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
             b.getEast(),
             b.getNorth(),
           ];
-          if (boundsListenerRef.current) boundsListenerRef.current(bbox);
+
+          // call all registered listeners
+          boundsListenersRef.current.forEach((cb) => cb(bbox));
         } catch (e) {
           // ignore
         }
@@ -865,8 +867,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     registerBoundsListener: (
       cb: (bbox: [number, number, number, number]) => void
     ) => {
-      boundsListenerRef.current = cb;
-      // call immediately with current bounds if available
+      boundsListenersRef.current.add(cb);
+
+      // call immediately with current bounds
       const map = mapInstance.current;
       if (!map || !mapIsLoaded.current) return;
       try {
@@ -884,8 +887,10 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       }
     },
 
-    unregisterBoundsListener: () => {
-      boundsListenerRef.current = null;
+    unregisterBoundsListener: (
+      cb: (bbox: [number, number, number, number]) => void
+    ) => {
+      boundsListenersRef.current.delete(cb);
     },
   }));
 
