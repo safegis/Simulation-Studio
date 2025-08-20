@@ -3,7 +3,7 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Construction, CircleMinus } from "lucide-react";
+import { Construction, CircleMinus, BriefcaseMedical } from "lucide-react";
 import ReactDOMServer from "react-dom/server";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -29,6 +29,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestEarthquakes = useRef<any[]>([]);
   const latestActiveFaults = useRef<GeoJSON.FeatureCollection | null>(null);
   const lastHealthFacilities = useRef<GeoJSON.FeatureCollection | null>(null);
+  const healthFacilityMarkersRef = useRef<mapboxgl.Marker[]>([]);
+
+  const healthPopupRef = useRef<mapboxgl.Popup | null>(null);
 
   // add this ref to hold the registered callback
   const boundsListenersRef = useRef<
@@ -104,6 +107,8 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     });
 
     return () => {
+      healthPopupRef.current?.remove();
+      healthPopupRef.current = null;
       map.remove();
       mapIsLoaded.current = false;
       locationMarkerRef.current?.remove();
@@ -631,56 +636,80 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     const map = mapInstance.current;
     if (!map || !mapIsLoaded.current) return;
 
-    lastHealthFacilities.current = geojson; // save last dataset
+    lastHealthFacilities.current = geojson;
 
-    const sourceId = "health-facilities";
-    const layerId = "health-facilities-layer";
+    // ✅ Remove existing markers
+    healthFacilityMarkersRef.current.forEach((m) => m.remove());
+    healthFacilityMarkersRef.current = [];
 
-    // Remove existing layer/source if they exist
-    try {
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
-    } catch (e) {}
+    geojson.features.forEach((f) => {
+      if (f.geometry.type === "Point") {
+        const coords = f.geometry.coordinates as [number, number];
 
-    // Add the source
-    map.addSource(sourceId, { type: "geojson", data: geojson });
+        const iconSVG = ReactDOMServer.renderToString(
+          <BriefcaseMedical size={24} color="#ffffff" />
+        );
 
-    // Add circle layer
-    map.addLayer({
-      id: layerId,
-      type: "circle",
-      source: sourceId,
-      paint: {
-        "circle-radius": 5,
-        "circle-color": "#1E90FF",
-        "circle-stroke-width": 1,
-        "circle-stroke-color": "#fff",
-      },
-    });
+        const el = document.createElement("div");
+        el.style.display = "flex";
+        el.style.alignItems = "center";
+        el.style.justifyContent = "center";
+        el.style.width = "40px";
+        el.style.height = "40px";
+        el.style.cursor = "pointer"; // 👈 makes cursor pointer on hover
 
-    // Add popup on click
-    map.on("click", layerId, (e) => {
-      const props = e.features?.[0].properties || {};
-      let popupHTML = `<div style="min-width:180px;">`;
+        el.innerHTML = `
+        <div style="
+          width: 40px; 
+          height: 40px; 
+          background: #FF0000; 
+          transform: rotate(45deg); 
+          box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+          display: flex; 
+          align-items: center; 
+          justify-content: center;">
+          <div style="transform: rotate(-45deg); display:flex; align-items:center; justify-content:center;">
+            ${iconSVG}
+          </div>
+        </div>
+      `;
 
-      for (const key in props) {
-        // Skip osm_id and osm_type
-        if (key === "osm_id" || key === "osm_type") continue;
-        if (props[key] !== null && props[key] !== "") {
-          popupHTML += `<div><strong>${key}:</strong> ${props[key]}</div>`;
-        }
+        const marker = new mapboxgl.Marker({
+          element: el,
+          anchor: "center",
+        })
+          .setLngLat(coords)
+          .addTo(map);
+
+        // ✅ Reuse one popup instance → old popup closes when new one opens
+        marker.getElement().addEventListener("click", (e) => {
+          e.stopPropagation();
+
+          const props = f.properties || {};
+          let popupHTML = `<div style="min-width:180px;">`;
+          for (const key in props) {
+            if (key === "osm_id" || key === "osm_type") continue;
+            if (props[key] !== null && props[key] !== "") {
+              popupHTML += `<div><strong>${key}:</strong> ${props[key]}</div>`;
+            }
+          }
+          popupHTML += "</div>";
+
+          if (!healthPopupRef.current) {
+            healthPopupRef.current = new mapboxgl.Popup({
+              closeOnClick: true,
+              closeButton: true,
+            });
+          }
+
+          healthPopupRef.current
+            .setLngLat(coords)
+            .setHTML(popupHTML)
+            .addTo(map);
+        });
+
+        healthFacilityMarkersRef.current.push(marker);
       }
-
-      popupHTML += "</div>";
-      new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(popupHTML).addTo(map);
-    });
-
-    // Change cursor on hover
-    map.on("mouseenter", layerId, () => {
-      map.getCanvas().style.cursor = "pointer";
-    });
-    map.on("mouseleave", layerId, () => {
-      map.getCanvas().style.cursor = "";
     });
   };
 
@@ -688,15 +717,19 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     const map = mapInstance.current;
     if (!map || !mapIsLoaded.current) return;
 
-    const sourceId = "health-facilities";
-    const layerId = "health-facilities-layer";
+    // remove markers
+    healthFacilityMarkersRef.current.forEach((m) => m.remove());
+    healthFacilityMarkersRef.current = [];
 
-    try {
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
-    } catch (e) {}
+    // close the active health popup (if any)
+    if (healthPopupRef.current) {
+      healthPopupRef.current.remove();
+      // keep the instance so we can reuse it later (optional)
+      // or set to null if you prefer re-creating it next time:
+      // healthPopupRef.current = null;
+    }
 
-    lastHealthFacilities.current = null; // ⬅️ Clear saved dataset too
+    lastHealthFacilities.current = null;
   };
 
   // Restore after style change
@@ -705,15 +738,17 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     if (!map) return;
 
     const handleStyleLoad = () => {
+      // close any open health popup on style change
+      healthPopupRef.current?.remove();
+
       if (lastHealthFacilities.current) {
         drawHealthFacilities(lastHealthFacilities.current);
       }
     };
 
     map.on("style.load", handleStyleLoad);
-
     return () => {
-      map.off("style.load", handleStyleLoad); // now return type is void ✅
+      map.off("style.load", handleStyleLoad);
     };
   }, []);
 
