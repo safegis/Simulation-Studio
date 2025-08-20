@@ -28,6 +28,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestVolcanoes = useRef<any[]>([]);
   const latestEarthquakes = useRef<any[]>([]);
   const latestActiveFaults = useRef<GeoJSON.FeatureCollection | null>(null);
+  const lastHealthFacilities = useRef<GeoJSON.FeatureCollection | null>(null);
 
   // add this ref to hold the registered callback
   const boundsListenersRef = useRef<
@@ -626,6 +627,96 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     });
   };
 
+  const drawHealthFacilities = (geojson: GeoJSON.FeatureCollection) => {
+    const map = mapInstance.current;
+    if (!map || !mapIsLoaded.current) return;
+
+    lastHealthFacilities.current = geojson; // save last dataset
+
+    const sourceId = "health-facilities";
+    const layerId = "health-facilities-layer";
+
+    // Remove existing layer/source if they exist
+    try {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    } catch (e) {}
+
+    // Add the source
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+
+    // Add circle layer
+    map.addLayer({
+      id: layerId,
+      type: "circle",
+      source: sourceId,
+      paint: {
+        "circle-radius": 5,
+        "circle-color": "#1E90FF",
+        "circle-stroke-width": 1,
+        "circle-stroke-color": "#fff",
+      },
+    });
+
+    // Add popup on click
+    map.on("click", layerId, (e) => {
+      const props = e.features?.[0].properties || {};
+      let popupHTML = `<div style="min-width:180px;">`;
+
+      for (const key in props) {
+        // Skip osm_id and osm_type
+        if (key === "osm_id" || key === "osm_type") continue;
+        if (props[key] !== null && props[key] !== "") {
+          popupHTML += `<div><strong>${key}:</strong> ${props[key]}</div>`;
+        }
+      }
+
+      popupHTML += "</div>";
+      new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(popupHTML).addTo(map);
+    });
+
+    // Change cursor on hover
+    map.on("mouseenter", layerId, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", layerId, () => {
+      map.getCanvas().style.cursor = "";
+    });
+  };
+
+  const clearHealthFacilities = () => {
+    const map = mapInstance.current;
+    if (!map || !mapIsLoaded.current) return;
+
+    const sourceId = "health-facilities";
+    const layerId = "health-facilities-layer";
+
+    try {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    } catch (e) {}
+
+    lastHealthFacilities.current = null; // ⬅️ Clear saved dataset too
+  };
+
+  // Restore after style change
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+
+    const handleStyleLoad = () => {
+      if (lastHealthFacilities.current) {
+        drawHealthFacilities(lastHealthFacilities.current);
+      }
+    };
+
+    map.on("style.load", handleStyleLoad);
+
+    return () => {
+      map.off("style.load", handleStyleLoad); // now return type is void ✅
+    };
+  }, []);
+
   useImperativeHandle(ref, () => ({
     flyTo: (opts: FlyToOptions) => {
       if (!mapIsLoaded.current) return;
@@ -892,6 +983,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     ) => {
       boundsListenersRef.current.delete(cb);
     },
+
+    drawHealthFacilities,
+    clearHealthFacilities,
   }));
 
   return (
