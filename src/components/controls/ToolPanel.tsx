@@ -481,11 +481,100 @@ export default function ToolPanel({
     }
   }
 
+  // --- Helper to map TomTom congestion description into severity level ---
+  function mapCongestionSeverity(desc: string): number {
+    switch (desc.toLowerCase()) {
+      case "free traffic":
+        return 1;
+      case "heavy traffic":
+        return 2;
+      case "slow traffic":
+        return 3;
+      case "queuing traffic":
+        return 4;
+      case "stationary traffic":
+        return 5;
+      default:
+        return 0;
+    }
+  }
+
+  /** Fetch TomTom incidentDetails and only keep iconCategory === 6 (Congestion/Jam) */
+  async function fetchTomTomCongestion(
+    bboxArray?: [number, number, number, number]
+  ): Promise<GeoJSON.FeatureCollection | null> {
+    try {
+      const key = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
+      if (!key) {
+        console.error("TomTom API key missing (NEXT_PUBLIC_TOMTOM_API_KEY).");
+        return null;
+      }
+      if (!bboxArray) return null;
+
+      const clamped = limitBBoxToMaxArea(bboxArray, 10000);
+      const bboxStr = clamped.join(",");
+
+      const fieldsRaw =
+        "{incidents{type,geometry{type,coordinates},properties{iconCategory,startTime,endTime,from,to,length,events{description,code,iconCategory}}}}";
+      const fields = encodeURIComponent(fieldsRaw);
+
+      const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${key}&bbox=${bboxStr}&fields=${fields}&language=en-GB`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.error("TomTom incidentDetails error", res.status);
+        return null;
+      }
+      const data = await res.json();
+
+      const incidents = (data.incidents || []).filter((inc: any) => {
+        const ic = inc.properties?.iconCategory ?? inc.ic ?? null;
+        return Number(ic) === 6; // 6 = Congestion/Jam
+      });
+
+      const features = incidents.map((inc: any, idx: number) => {
+        const geom = inc.geometry || {};
+        const desc =
+          inc.properties?.events?.[0]?.description ??
+          inc.properties?.description ??
+          "";
+        const severity = mapCongestionSeverity(desc);
+
+        return {
+          type: "Feature",
+          id: inc.id ?? `tt-jam-${idx}`,
+          properties: {
+            description: desc,
+            severity,
+            startTime: inc.properties?.startTime ?? null,
+            endTime: inc.properties?.endTime ?? null,
+            iconCategory: inc.properties?.iconCategory ?? null,
+            raw: inc,
+          },
+          geometry: {
+            type: geom.type || "Point",
+            coordinates: geom.coordinates || [],
+          },
+        };
+      });
+
+      return { type: "FeatureCollection", features };
+    } catch (err) {
+      console.error("fetchTomTomCongestion error", err);
+      return null;
+    }
+  }
+
   // --- refs at the top of ToolPanel.tsx ---
   const roadClosureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const laneClosureIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // --- Updated toggleTrafficItem ---
+  const congestionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const congestionTimerRef = useRef<number | null>(null);
+  const registeredCongestionCallbackRef = useRef<
+    ((bbox: [number, number, number, number]) => void) | null
+  >(null);
+
   // --- Updated toggleTrafficItem ---
   const toggleTrafficItem = async (item: string) => {
     const isAlreadyChecked = trafficCheckedItems.includes(item);
@@ -632,6 +721,72 @@ export default function ToolPanel({
         }
       }
     }
+
+    // ----- CONGESTION -----
+    if (item === "Congestion") {
+      if (!isAlreadyChecked) {
+        const fetchAndDrawCongestion = async () => {
+          const currentBbox = mapRef.current?.getBounds?.();
+          if (!currentBbox) return;
+          const jamGeo = await fetchTomTomCongestion(currentBbox);
+          mapRef.current?.drawCongestion?.(
+            jamGeo ?? { type: "FeatureCollection", features: [] }
+          );
+        };
+
+        // initial draw
+        fetchAndDrawCongestion();
+        // poll every 60s
+        congestionIntervalRef.current = setInterval(
+          fetchAndDrawCongestion,
+          60_000
+        );
+
+        // register bounds listener
+        const congestionCallback = (
+          newBbox: [number, number, number, number]
+        ) => {
+          if (congestionTimerRef.current)
+            window.clearTimeout(congestionTimerRef.current);
+
+          congestionTimerRef.current = window.setTimeout(async () => {
+            const refreshed = await fetchTomTomCongestion(newBbox);
+            mapRef.current?.drawCongestion?.(
+              refreshed ?? { type: "FeatureCollection", features: [] }
+            );
+          }, 350) as unknown as number;
+        };
+
+        registeredCongestionCallbackRef.current = congestionCallback;
+        mapRef.current?.registerBoundsListener?.(congestionCallback);
+      } else {
+        // clear map when unchecked
+        mapRef.current?.drawCongestion?.({
+          type: "FeatureCollection",
+          features: [],
+        });
+        if (mapRef.current?.congestionMarkersRef) {
+          mapRef.current.congestionMarkersRef.current.forEach((m: any) =>
+            m.remove()
+          );
+          mapRef.current.congestionMarkersRef.current = [];
+        }
+        if (congestionIntervalRef.current) {
+          clearInterval(congestionIntervalRef.current);
+          congestionIntervalRef.current = null;
+        }
+        if (registeredCongestionCallbackRef.current) {
+          mapRef.current?.unregisterBoundsListener?.(
+            registeredCongestionCallbackRef.current
+          );
+          registeredCongestionCallbackRef.current = null;
+        }
+        if (congestionTimerRef.current) {
+          window.clearTimeout(congestionTimerRef.current);
+          congestionTimerRef.current = null;
+        }
+      }
+    }
   };
 
   // --- ON UNMOUNT: clear intervals + listeners ---
@@ -641,6 +796,8 @@ export default function ToolPanel({
         clearInterval(roadClosureIntervalRef.current);
       if (laneClosureIntervalRef.current)
         clearInterval(laneClosureIntervalRef.current);
+      if (congestionIntervalRef.current)
+        clearInterval(congestionIntervalRef.current);
 
       if (registeredBoundsCallbackRef.current) {
         mapRef.current?.unregisterBoundsListener?.(
@@ -650,6 +807,11 @@ export default function ToolPanel({
       if (registeredLaneCallbackRef.current) {
         mapRef.current?.unregisterBoundsListener?.(
           registeredLaneCallbackRef.current
+        );
+      }
+      if (registeredCongestionCallbackRef.current) {
+        mapRef.current?.unregisterBoundsListener?.(
+          registeredCongestionCallbackRef.current
         );
       }
     };
