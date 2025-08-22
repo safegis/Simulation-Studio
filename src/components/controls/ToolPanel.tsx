@@ -71,17 +71,17 @@ const hydroMeteorologicalCheckboxItems = [
   "Landslide (Rain-induced)",
 ];
 const geologicalCheckboxItems = [
-  "Earthquakes",
-  "Volcano Locations",
+  "Earthquake",
+  "Volcano List",
   "Landslide (Earthquake-triggered)",
   "Active Faults",
 ];
 
 const trafficCheckboxItems = [
   "Congestion",
-  "Road Closure",
-  "Lane Closure",
-  "Road Obstruction",
+  "Road Closures",
+  "Lane Closures",
+  "Obstructions",
 ];
 
 const countries = [
@@ -667,7 +667,7 @@ export default function ToolPanel({
     };
 
     // ----- ROAD CLOSURE -----
-    if (item === "Road Closure") {
+    if (item === "Road Closures") {
       if (!isAlreadyChecked) {
         // Initial draw
         fetchAndDrawRoads();
@@ -725,7 +725,7 @@ export default function ToolPanel({
     }
 
     // ----- LANE CLOSURE -----
-    if (item === "Lane Closure") {
+    if (item === "Lane Closures") {
       if (!isAlreadyChecked) {
         // Initial draw
         fetchAndDrawLanes();
@@ -849,7 +849,7 @@ export default function ToolPanel({
       }
     }
     // ----- ROAD OBSTRUCTION -----
-    if (item === "Road Obstruction") {
+    if (item === "Obstructions") {
       if (!isAlreadyChecked) {
         const fetchAndDrawObstructions = async () => {
           const currentBbox = mapRef.current?.getBounds?.();
@@ -1043,7 +1043,7 @@ export default function ToolPanel({
 
     setGeologicalCheckedItems(newItems);
 
-    if (item === "Earthquakes") {
+    if (item === "Earthquake") {
       if (!isAlreadyChecked) {
         const combinedFeatures = await fetchCombinedEarthquakeData();
         mapRef.current?.drawEarthquakeDots(combinedFeatures);
@@ -1054,7 +1054,7 @@ export default function ToolPanel({
       }
     }
 
-    if (item === "Volcano Locations") {
+    if (item === "Volcano List") {
       if (!isAlreadyChecked) {
         try {
           const res = await fetch("http://localhost:8000/hazards/volcanoes");
