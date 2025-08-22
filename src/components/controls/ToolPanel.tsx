@@ -16,6 +16,7 @@ import {
   ShoppingCart,
   BusFront,
   Siren,
+  Bug,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { healthFacilities } from "./HealthFacilities";
@@ -71,7 +72,7 @@ const hydroMeteorologicalCheckboxItems = [
 ];
 const geologicalCheckboxItems = [
   "Earthquakes",
-  "Volcano",
+  "Volcano Locations",
   "Landslide (Earthquake-triggered)",
   "Active Faults",
 ];
@@ -80,7 +81,7 @@ const trafficCheckboxItems = [
   "Congestion",
   "Road Closure",
   "Lane Closure",
-  "Construction Zones",
+  "Road Obstruction",
 ];
 
 const countries = [
@@ -196,6 +197,12 @@ export default function ToolPanel({
 
   const laneClosureTimerRef = useRef<number | null>(null);
   const registeredLaneCallbackRef = useRef<
+    ((bbox: [number, number, number, number]) => void) | null
+  >(null);
+
+  const obstructionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const obstructionTimerRef = useRef<number | null>(null);
+  const registeredObstructionCallbackRef = useRef<
     ((bbox: [number, number, number, number]) => void) | null
   >(null);
 
@@ -565,6 +572,60 @@ export default function ToolPanel({
     }
   }
 
+  async function fetchTomTomRoadObstructions(
+    bboxArray?: [number, number, number, number]
+  ): Promise<GeoJSON.FeatureCollection | null> {
+    try {
+      const key = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
+      if (!key || !bboxArray) return null;
+
+      const clamped = limitBBoxToMaxArea(bboxArray, 10000);
+      const bboxStr = clamped.join(",");
+
+      const fieldsRaw =
+        "{incidents{type,geometry{type,coordinates},properties{iconCategory,startTime,endTime,from,to,length,events{description,code,iconCategory}}}}";
+      const fields = encodeURIComponent(fieldsRaw);
+
+      const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${key}&bbox=${bboxStr}&fields=${fields}&language=en-GB`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+
+      const allowed = [1, 3, 5, 9, 11, 14];
+      const incidents = (data.incidents || []).filter((inc: any) =>
+        allowed.includes(Number(inc.properties?.iconCategory ?? inc.ic ?? -1))
+      );
+
+      const features = incidents.map((inc: any, idx: number) => {
+        const geom = inc.geometry || {};
+        const desc =
+          inc.properties?.events?.[0]?.description ??
+          inc.properties?.description ??
+          "";
+        return {
+          type: "Feature",
+          id: inc.id ?? `tt-obs-${idx}`,
+          properties: {
+            description: desc,
+            startTime: inc.properties?.startTime ?? null,
+            endTime: inc.properties?.endTime ?? null,
+            iconCategory: inc.properties?.iconCategory ?? null,
+            raw: inc,
+          },
+          geometry: {
+            type: geom.type || "Point",
+            coordinates: geom.coordinates || [],
+          },
+        };
+      });
+
+      return { type: "FeatureCollection", features };
+    } catch (err) {
+      console.error("fetchTomTomRoadObstructions error", err);
+      return null;
+    }
+  }
+
   // --- refs at the top of ToolPanel.tsx ---
   const roadClosureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const laneClosureIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -787,6 +848,70 @@ export default function ToolPanel({
         }
       }
     }
+    // ----- ROAD OBSTRUCTION -----
+    if (item === "Road Obstruction") {
+      if (!isAlreadyChecked) {
+        const fetchAndDrawObstructions = async () => {
+          const currentBbox = mapRef.current?.getBounds?.();
+          if (!currentBbox) return;
+          const obsGeo = await fetchTomTomRoadObstructions(currentBbox);
+          mapRef.current?.drawRoadObstructions?.(
+            obsGeo ?? { type: "FeatureCollection", features: [] }
+          );
+        };
+
+        // initial draw
+        fetchAndDrawObstructions();
+        obstructionIntervalRef.current = setInterval(
+          fetchAndDrawObstructions,
+          60_000
+        );
+
+        // bounds listener
+        const obstructionCallback = (
+          newBbox: [number, number, number, number]
+        ) => {
+          if (obstructionTimerRef.current)
+            window.clearTimeout(obstructionTimerRef.current);
+
+          obstructionTimerRef.current = window.setTimeout(async () => {
+            const refreshed = await fetchTomTomRoadObstructions(newBbox);
+            mapRef.current?.drawRoadObstructions?.(
+              refreshed ?? { type: "FeatureCollection", features: [] }
+            );
+          }, 350) as unknown as number;
+        };
+
+        registeredObstructionCallbackRef.current = obstructionCallback;
+        mapRef.current?.registerBoundsListener?.(obstructionCallback);
+      } else {
+        // clear map when unchecked
+        mapRef.current?.drawRoadObstructions?.({
+          type: "FeatureCollection",
+          features: [],
+        });
+        if (mapRef.current?.obstructionMarkersRef) {
+          mapRef.current.obstructionMarkersRef.current.forEach((m: any) =>
+            m.remove()
+          );
+          mapRef.current.obstructionMarkersRef.current = [];
+        }
+        if (obstructionIntervalRef.current) {
+          clearInterval(obstructionIntervalRef.current);
+          obstructionIntervalRef.current = null;
+        }
+        if (registeredObstructionCallbackRef.current) {
+          mapRef.current?.unregisterBoundsListener?.(
+            registeredObstructionCallbackRef.current
+          );
+          registeredObstructionCallbackRef.current = null;
+        }
+        if (obstructionTimerRef.current) {
+          window.clearTimeout(obstructionTimerRef.current);
+          obstructionTimerRef.current = null;
+        }
+      }
+    }
   };
 
   // --- ON UNMOUNT: clear intervals + listeners ---
@@ -798,6 +923,8 @@ export default function ToolPanel({
         clearInterval(laneClosureIntervalRef.current);
       if (congestionIntervalRef.current)
         clearInterval(congestionIntervalRef.current);
+      if (obstructionIntervalRef.current)
+        clearInterval(obstructionIntervalRef.current);
 
       if (registeredBoundsCallbackRef.current) {
         mapRef.current?.unregisterBoundsListener?.(
@@ -812,6 +939,11 @@ export default function ToolPanel({
       if (registeredCongestionCallbackRef.current) {
         mapRef.current?.unregisterBoundsListener?.(
           registeredCongestionCallbackRef.current
+        );
+      }
+      if (registeredObstructionCallbackRef.current) {
+        mapRef.current?.unregisterBoundsListener?.(
+          registeredObstructionCallbackRef.current
         );
       }
     };
@@ -922,7 +1054,7 @@ export default function ToolPanel({
       }
     }
 
-    if (item === "Volcano") {
+    if (item === "Volcano Locations") {
       if (!isAlreadyChecked) {
         try {
           const res = await fetch("http://localhost:8000/hazards/volcanoes");
@@ -1080,7 +1212,7 @@ export default function ToolPanel({
                     />
                     <TransparentButton
                       label="Infectious Disease"
-                      icon={<Flame size={20} />}
+                      icon={<Bug size={20} />}
                     />
                   </>
                 )}
