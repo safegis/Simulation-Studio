@@ -1281,6 +1281,85 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
     drawHealthFacilities,
     clearHealthFacilities,
+
+    addGeoJSONLayer: async (
+      geojson: GeoJSON.FeatureCollection,
+      layerName: string
+    ) => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return;
+
+      const safeName = layerName.replace(/[^a-zA-Z0-9_-]/g, "");
+      const sourceId = `upload-${safeName}`;
+      const baseId = `${sourceId}-layer`;
+
+      // cleanup old
+      if (map.getLayer(`${baseId}-fill`)) map.removeLayer(`${baseId}-fill`);
+      if (map.getLayer(`${baseId}-line`)) map.removeLayer(`${baseId}-line`);
+      if (map.getLayer(`${baseId}-circle`)) map.removeLayer(`${baseId}-circle`);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      map.addSource(sourceId, { type: "geojson", data: geojson });
+
+      const beforeId = getTopSymbolLayerId(map);
+
+      // polygons
+      map.addLayer(
+        {
+          id: `${baseId}-fill`,
+          type: "fill",
+          source: sourceId,
+          paint: {
+            "fill-color": "#00BFFF",
+            "fill-opacity": 0.3,
+          },
+        },
+        beforeId
+      );
+
+      // lines
+      map.addLayer(
+        {
+          id: `${baseId}-line`,
+          type: "line",
+          source: sourceId,
+          paint: {
+            "line-color": "#00BFFF",
+            "line-width": 3,
+          },
+        },
+        beforeId
+      );
+
+      // points
+      map.addLayer(
+        {
+          id: `${baseId}-circle`,
+          type: "circle",
+          source: sourceId,
+          paint: {
+            "circle-radius": 6,
+            "circle-color": "#FF4500",
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+          },
+        },
+        beforeId
+      );
+
+      // 👇 Zoom to uploaded data
+      try {
+        const turf = await import("@turf/turf");
+        const bbox = turf.bbox(geojson); // [minX, minY, maxX, maxY]
+        map.fitBounds(bbox as [number, number, number, number], {
+          padding: 40,
+          duration: 1000, // smooth zoom animation
+        });
+      } catch (err) {
+        console.warn("Could not fit bounds:", err);
+      }
+    },
+    getMap: () => mapInstance.current,
   }));
 
   return (

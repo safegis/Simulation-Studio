@@ -17,6 +17,8 @@ import {
   Moon,
   CircleUser,
   PanelLeft,
+  Layers2,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 
@@ -27,6 +29,9 @@ import PathfinderControls from "./controls/Pathfinder/PathfinderControls";
 import SelectPlanningTools from "./controls/Planning Suite/SelectPlanningTools";
 import ToolPanel from "./controls/ToolPanel";
 import SyncIcon from "@mui/icons-material/Sync";
+import shp from "shpjs";
+import * as toGeoJSON from "@mapbox/togeojson";
+import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
@@ -54,6 +59,40 @@ export default function MainUILayout() {
   const [selectedPlanningTools, setSelectedPlanningTools] = useState<string[]>(
     []
   );
+
+  const [showGeoJSONPanel, setShowGeoJSONPanel] = useState(false);
+
+  // NEW: Track uploaded files
+  const [uploadedFiles, setUploadedFiles] = useState<
+    { name: string; layerName: string }[]
+  >([]);
+
+  const handleRemoveFile = (layerName: string) => {
+    if (!mapRef.current) return;
+
+    // Sanitize the layerName (must match how you added it on map)
+    const safeName = layerName.replace(/[^a-zA-Z0-9_-]/g, "");
+    const sourceId = `upload-${safeName}`;
+    const baseId = `${sourceId}-layer`;
+
+    // Remove layers and source from map
+    const map = mapRef.current.getMap();
+    if (map) {
+      ["fill", "line", "circle"].forEach((type) => {
+        const layerId = `${baseId}-${type}`;
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+      });
+
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    }
+
+    // Remove from state list
+    setUploadedFiles((prev) => prev.filter((f) => f.layerName !== layerName));
+
+    // 🔑 Reset file input so same file can be uploaded again
+    const inputEl = document.getElementById("geo-upload") as HTMLInputElement;
+    if (inputEl) inputEl.value = "";
+  };
 
   const mapStyleRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -736,6 +775,133 @@ export default function MainUILayout() {
               <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
                 ?
               </button>
+            </div>
+
+            <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+              <button
+                onClick={() => setShowGeoJSONPanel((prev) => !prev)}
+                className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg transition ${
+                  showGeoJSONPanel
+                    ? "bg-gradient-to-b from-[#9699FF] to-white"
+                    : "hover:bg-[#3a3a3a]"
+                }`}
+              >
+                <Layers2
+                  width={28}
+                  height={28}
+                  color={showGeoJSONPanel ? "#2E2E2E" : "#C7C7C7"}
+                />
+              </button>
+
+              {showGeoJSONPanel && (
+                <div className="absolute right-full mr-[18px] top-1/2 -translate-y-1/2 w-96 bg-[#2E2E2E] rounded-xl shadow-md p-6 z-40 flex flex-col items-center">
+                  {/* optional little arrow that points to the button */}
+
+                  <h3 className="text-lg font-semibold text-white mb-4">
+                    Import Geospatial Data
+                  </h3>
+
+                  <div className="flex flex-col gap-2 w-full">
+                    {uploadedFiles.map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between bg-[#3a3a3a] text-white px-3 py-2 rounded-lg w-full"
+                      >
+                        <span className="truncate whitespace-nowrap overflow-hidden max-w-[80%]">
+                          {file.name}
+                        </span>
+                        <button
+                          onClick={() => handleRemoveFile(file.layerName)}
+                          className="text-red-400 hover:text-red-600 flex-shrink-0 ml-2"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Styled upload button */}
+                    <label
+                      htmlFor="geo-upload"
+                      className="bg-[#5A5C99] text-white font-medium px-6 py-3 rounded-lg shadow-md cursor-pointer hover:opacity-90 transition text-center w-full"
+                    >
+                      Choose Files
+                      <span className="block text-sm font-normal mt-1 text-[#E0E0E0]">
+                        Supports: .geojson, .shp (zip), .kml
+                      </span>
+                    </label>
+                  </div>
+
+                  <input
+                    id="geo-upload"
+                    type="file"
+                    multiple
+                    className="hidden"
+                    accept=".geojson,.json,.kml,.shp,.zip,application/geo+json,application/json,application/vnd.google-earth.kml+xml"
+                    onChange={async (e) => {
+                      const files = e.target.files;
+                      if (!files) return;
+
+                      for (const file of Array.from(files)) {
+                        const ext = file.name.split(".").pop()?.toLowerCase();
+                        try {
+                          let geojson:
+                            | FeatureCollection<Geometry, GeoJsonProperties>
+                            | FeatureCollection<Geometry, GeoJsonProperties>[]
+                            | null = null;
+
+                          if (ext === "geojson" || ext === "json") {
+                            const text = await file.text();
+                            geojson = JSON.parse(text);
+                          } else if (ext === "kml") {
+                            const text = await file.text();
+                            const dom = new DOMParser().parseFromString(
+                              text,
+                              "text/xml"
+                            );
+                            const toGeoJSON = await import("@mapbox/togeojson");
+                            geojson = toGeoJSON.kml(dom) as FeatureCollection<
+                              Geometry,
+                              GeoJsonProperties
+                            >;
+                          } else if (ext === "zip" || ext === "shp") {
+                            const arrayBuffer = await file.arrayBuffer();
+                            const shp = (await import("shpjs")).default;
+                            geojson = await shp(arrayBuffer);
+                          }
+
+                          if (geojson) {
+                            if (Array.isArray(geojson)) {
+                              geojson.forEach((fc, i) => {
+                                mapRef.current?.addGeoJSONLayer(
+                                  fc,
+                                  `${file.name}-layer${i + 1}`
+                                );
+                              });
+                            } else {
+                              mapRef.current?.addGeoJSONLayer(
+                                geojson,
+                                file.name
+                              );
+                              setUploadedFiles((prev) => [
+                                ...prev,
+                                { name: file.name, layerName: file.name },
+                              ]);
+                            }
+                          } else {
+                            console.warn("Unsupported file:", file.name);
+                          }
+                        } catch (err) {
+                          console.error(
+                            "Error processing file:",
+                            file.name,
+                            err
+                          );
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
