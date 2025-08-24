@@ -1293,72 +1293,154 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       const sourceId = `upload-${safeName}`;
       const baseId = `${sourceId}-layer`;
 
-      // cleanup old
-      if (map.getLayer(`${baseId}-fill`)) map.removeLayer(`${baseId}-fill`);
-      if (map.getLayer(`${baseId}-line`)) map.removeLayer(`${baseId}-line`);
-      if (map.getLayer(`${baseId}-circle`)) map.removeLayer(`${baseId}-circle`);
+      // Remove old layers
+      ["fill", "line", "circle"].forEach((type) => {
+        const layerId = `${baseId}-${type}`;
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+      });
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 
-      map.addSource(sourceId, { type: "geojson", data: geojson });
+      // Normalize multi-geometries
+      const turf = await import("@turf/turf");
+      const normalizedFeatures: GeoJSON.Feature<GeoJSON.Geometry>[] = [];
 
+      geojson.features.forEach((f) => {
+        if (
+          f.geometry.type === "MultiPolygon" ||
+          f.geometry.type === "MultiLineString"
+        ) {
+          const exploded = turf.flatten(f);
+          normalizedFeatures.push(...exploded.features);
+        } else if (f.geometry.type === "MultiPoint") {
+          f.geometry.coordinates.forEach((coord) => {
+            normalizedFeatures.push({
+              type: "Feature",
+              properties: f.properties,
+              geometry: { type: "Point", coordinates: coord },
+            });
+          });
+        } else {
+          normalizedFeatures.push(f);
+        }
+      });
+
+      const normalizedGeoJSON: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: normalizedFeatures,
+      };
+
+      // Add GeoJSON source
+      map.addSource(sourceId, { type: "geojson", data: normalizedGeoJSON });
       const beforeId = getTopSymbolLayerId(map);
 
-      // polygons
-      map.addLayer(
-        {
-          id: `${baseId}-fill`,
-          type: "fill",
-          source: sourceId,
-          paint: {
-            "fill-color": "#00BFFF",
-            "fill-opacity": 0.3,
-          },
-        },
-        beforeId
+      // Check which geometry types exist
+      const hasPolygons = normalizedGeoJSON.features.some(
+        (f) => f.geometry.type === "Polygon"
+      );
+      const hasLines = normalizedGeoJSON.features.some(
+        (f) => f.geometry.type === "LineString"
+      );
+      const hasPoints = normalizedGeoJSON.features.some(
+        (f) => f.geometry.type === "Point"
       );
 
-      // lines
-      map.addLayer(
-        {
-          id: `${baseId}-line`,
-          type: "line",
-          source: sourceId,
-          paint: {
-            "line-color": "#00BFFF",
-            "line-width": 3,
-          },
-        },
-        beforeId
-      );
+      // Unified color for all geometries
+      const color = "#9699FF";
 
-      // points
-      map.addLayer(
-        {
-          id: `${baseId}-circle`,
-          type: "circle",
-          source: sourceId,
-          paint: {
-            "circle-radius": 6,
-            "circle-color": "#FF4500",
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "#fff",
+      // Add polygon layer
+      if (hasPolygons) {
+        map.addLayer(
+          {
+            id: `${baseId}-fill`,
+            type: "fill",
+            source: sourceId,
+            paint: { "fill-color": color, "fill-opacity": 0.3 },
           },
-        },
-        beforeId
-      );
+          beforeId
+        );
+      }
 
-      // 👇 Zoom to uploaded data
+      // Add line layer
+      if (hasLines) {
+        map.addLayer(
+          {
+            id: `${baseId}-line`,
+            type: "line",
+            source: sourceId,
+            paint: { "line-color": color, "line-width": 3 },
+          },
+          beforeId
+        );
+      }
+
+      // Add point layer
+      if (hasPoints) {
+        map.addLayer(
+          {
+            id: `${baseId}-circle`,
+            type: "circle",
+            source: sourceId,
+            paint: {
+              "circle-radius": 6,
+              "circle-color": color,
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "#fff",
+            },
+          },
+          beforeId
+        );
+      }
+
+      // --- Add popups ---
+      const popup = new mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: true,
+      });
+
+      const attachPopup = (layerId: string) => {
+        map.on("click", layerId, (e) => {
+          if (!e.features || e.features.length === 0) return;
+
+          const feature = e.features[0];
+          const props = feature.properties || {};
+          let html = "<div class='text-sm'>";
+          for (const key in props) {
+            html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+          }
+          html += "</div>";
+
+          popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+        });
+
+        // Cursor change on hover
+        map.on(
+          "mouseenter",
+          layerId,
+          () => (map.getCanvas().style.cursor = "pointer")
+        );
+        map.on(
+          "mouseleave",
+          layerId,
+          () => (map.getCanvas().style.cursor = "")
+        );
+      };
+
+      if (hasPolygons) attachPopup(`${baseId}-fill`);
+      if (hasLines) attachPopup(`${baseId}-line`);
+      if (hasPoints) attachPopup(`${baseId}-circle`);
+
+      // Zoom to feature bounds
       try {
-        const turf = await import("@turf/turf");
-        const bbox = turf.bbox(geojson); // [minX, minY, maxX, maxY]
+        const bbox = turf.bbox(normalizedGeoJSON);
         map.fitBounds(bbox as [number, number, number, number], {
           padding: 40,
-          duration: 1000, // smooth zoom animation
+          duration: 1000,
         });
       } catch (err) {
         console.warn("Could not fit bounds:", err);
       }
     },
+
     getMap: () => mapInstance.current,
   }));
 
