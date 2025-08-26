@@ -68,6 +68,70 @@ export default function MainUILayout() {
     { name: string; layerName: string }[]
   >([]);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (files: FileList) => {
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      try {
+        let geojson:
+          | FeatureCollection<Geometry, GeoJsonProperties>
+          | FeatureCollection<Geometry, GeoJsonProperties>[]
+          | null = null;
+
+        if (ext === "geojson" || ext === "json") {
+          const text = await file.text();
+          geojson = JSON.parse(text);
+        } else if (ext === "kml") {
+          const text = await file.text();
+          const dom = new DOMParser().parseFromString(text, "text/xml");
+          const toGeoJSON = await import("@mapbox/togeojson");
+          geojson = toGeoJSON.kml(dom) as FeatureCollection<
+            Geometry,
+            GeoJsonProperties
+          >;
+        } else if (ext === "zip" || ext === "shp") {
+          const arrayBuffer = await file.arrayBuffer();
+          const shp = (await import("shpjs")).default;
+          geojson = await shp(arrayBuffer);
+        }
+
+        if (geojson) {
+          if (Array.isArray(geojson)) {
+            geojson.forEach((fc, i) => {
+              mapRef.current?.addGeoJSONLayer(fc, `${file.name}-layer${i + 1}`);
+            });
+          } else {
+            mapRef.current?.addGeoJSONLayer(geojson, file.name);
+            setUploadedFiles((prev) => [
+              ...prev,
+              { name: file.name, layerName: file.name },
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error("Error processing file:", file.name, err);
+      }
+    }
+  };
+
+  // --- Drag & Drop handlers ---
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => setIsDragging(false);
+
   const handleRemoveFile = (layerName: string) => {
     if (!mapRef.current) return;
 
@@ -813,16 +877,37 @@ export default function MainUILayout() {
                       </div>
                     ))}
 
-                    {/* Styled upload button */}
-                    <label
-                      htmlFor="geo-upload"
-                      className="bg-[#5A5C99] text-white font-medium px-6 py-3 rounded-lg shadow-md cursor-pointer hover:opacity-90 transition text-center w-full"
+                    {/* Styled upload button with drag & drop */}
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      className={`px-6 py-3 rounded-lg shadow-md cursor-pointer text-center w-full transition
+                        ${
+                          isDragging
+                            ? "bg-transparent border-4 border-dashed border-[#9699FF] text-[#9699FF]"
+                            : "bg-[#5A5C99] text-white hover:opacity-90"
+                        }
+                      `}
                     >
-                      Choose Files
+                      <span className="font-medium">Choose or drop a file</span>
                       <span className="block text-sm font-normal mt-1 text-[#E0E0E0]">
                         Supports: .geojson, .shp (zip), .kml
                       </span>
-                    </label>
+                    </div>
+
+                    <input
+                      ref={fileInputRef}
+                      id="geo-upload"
+                      type="file"
+                      multiple
+                      hidden
+                      accept=".geojson,.json,.kml,.shp,.zip,application/geo+json,application/json,application/vnd.google-earth.kml+xml"
+                      onChange={(e) => {
+                        if (e.target.files) handleFiles(e.target.files);
+                      }}
+                    />
                   </div>
 
                   <input
