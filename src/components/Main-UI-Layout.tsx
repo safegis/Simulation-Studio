@@ -312,7 +312,7 @@ export default function MainUILayout() {
       case "Default":
         map.setMapStyle(
           viewMode === "3d"
-            ? "mapbox://styles/mapbox/standard"
+            ? "mapbox://styles/shain34/cmesokqei00z501sdedixesto"
             : "mapbox://styles/mapbox/streets-v12"
         );
         break;

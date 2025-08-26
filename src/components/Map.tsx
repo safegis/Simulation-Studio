@@ -1125,7 +1125,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       if (!map || !mapIsLoaded.current || is3DMode.current) return;
       is3DMode.current = true;
 
-      let style = "mapbox://styles/mapbox/standard";
+      let style = "mapbox://styles/shain34/cmesokqei00z501sdedixesto";
       if (label === "Satellite") {
         style = "mapbox://styles/mapbox/standard-satellite";
       }
