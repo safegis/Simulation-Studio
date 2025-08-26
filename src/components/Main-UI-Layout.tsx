@@ -19,6 +19,7 @@ import {
   PanelLeft,
   Layers2,
   X,
+  RotateCcw,
 } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 
@@ -602,7 +603,6 @@ export default function MainUILayout() {
             </div>
 
             {/* PanelLeft Button in Separate Container */}
-            {/* PanelLeft Button in Separate Container */}
             {(selectedMaps.length > 0 || selectedPlanningTools.length > 0) && (
               <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
                 <button
@@ -718,7 +718,7 @@ export default function MainUILayout() {
             </div>
           )}
 
-          {/* User Icon Button at Bottom Left with 18px spacing */}
+          {/* User Settings Button at Bottom Left */}
           <div className="absolute bottom-[18px] left-[18px] z-50">
             <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
               <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
@@ -768,12 +768,6 @@ export default function MainUILayout() {
                 className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
               >
                 <ZoomOut width={28} height={28} />
-              </button>
-            </div>
-
-            <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
-              <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
-                ?
               </button>
             </div>
 
@@ -902,6 +896,12 @@ export default function MainUILayout() {
                   />
                 </div>
               )}
+            </div>
+
+            <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+              <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
+                <RotateCcw width={28} height={28} />
+              </button>
             </div>
           </div>
 

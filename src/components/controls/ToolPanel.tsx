@@ -1356,12 +1356,20 @@ export default function ToolPanel({
                           )}
                         </div>
                         {/* --- NEW "Clear Map" button --- */}
+                        {/* --- NEW "Clear Map" button --- */}
                         <button
                           onClick={() => {
+                            if (!selectedCountry) return; // do nothing if disabled
                             mapRef.current?.clearHealthFacilities?.();
                             setSelectedCountry(""); // reset dropdown label
                           }}
-                          className="w-full py-2 rounded-md mt-2 bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
+                          disabled={!selectedCountry}
+                          className={`w-full py-2 rounded-md mt-2 
+                            ${
+                              selectedCountry
+                                ? "bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
+                                : "bg-[#4c4c4c] text-[#a1a1a1] cursor-not-allowed"
+                            }`}
                         >
                           Clear Map
                         </button>
