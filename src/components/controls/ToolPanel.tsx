@@ -248,6 +248,36 @@ export default function ToolPanel({
     );
   };
 
+  const exportAsGeoJSON = () => {
+    const geojson = {
+      type: "FeatureCollection",
+      features: resourcesOnMap.map((resource) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [resource.coords.lng, resource.coords.lat], // ✅ use coords
+        },
+        properties: {
+          id: resource.id,
+          type: resource.type,
+          name: resource.data.name,
+          description: resource.data.description,
+        },
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], {
+      type: "application/json",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "resources.geojson";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // --- helpers: place near other helpers in ToolPanel.tsx ---
 
   /** clamp value between min and max */
@@ -1532,6 +1562,14 @@ export default function ToolPanel({
                         className="w-full mt-3 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
                       >
                         Clear all
+                      </button>
+                    )}
+                    {resourcesOnMap.length > 0 && (
+                      <button
+                        onClick={exportAsGeoJSON}
+                        className="w-full mt-2 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
+                      >
+                        Export as GeoJSON
                       </button>
                     )}
                   </>
