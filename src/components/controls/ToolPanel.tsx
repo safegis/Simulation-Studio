@@ -1425,8 +1425,8 @@ export default function ToolPanel({
 
                 {label === "Resource Planner" && (
                   <>
-                    <div className="text-white font-semibold mb-2">
-                      Resources
+                    <div className="text-white font-semibold mt-2 mb-5 text-center">
+                      Drag and drop a resource
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       {[
@@ -1490,7 +1490,7 @@ export default function ToolPanel({
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4">
+                    <div className="mt-7">
                       <div className="text-white font-semibold mb-2">
                         Resources on Map
                       </div>
@@ -1531,7 +1531,7 @@ export default function ToolPanel({
                         onClick={() => mapRef.current?.clearAllResources()}
                         className="w-full mt-3 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
                       >
-                        Clear All Resources
+                        Clear all
                       </button>
                     )}
                   </>
