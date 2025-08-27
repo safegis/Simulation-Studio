@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
+import {
+  useRef,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+  useState,
+} from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -8,6 +14,12 @@ import {
   CircleMinus,
   BriefcaseMedical,
   TrafficCone,
+  Users,
+  House,
+  Tent,
+  ShoppingBasket,
+  Bus,
+  Antenna,
 } from "lucide-react";
 import ReactDOMServer from "react-dom/server";
 
@@ -42,6 +54,13 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const boundsListenersRef = useRef<
     Set<(bbox: [number, number, number, number]) => void>
   >(new Set());
+
+  const [pendingResource, setPendingResource] = useState<{
+    lngLat: mapboxgl.LngLat;
+    type: string;
+  } | null>(null);
+  const [resourceName, setResourceName] = useState("");
+  const [resourceDesc, setResourceDesc] = useState("");
 
   const roadClosureMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const laneClosureMarkersRef = useRef<mapboxgl.Marker[]>([]);
@@ -108,6 +127,27 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         } catch (e) {
           // ignore
         }
+      });
+
+      map.getCanvas().addEventListener("dragover", (e: DragEvent) => {
+        e.preventDefault();
+      });
+
+      map.getCanvas().addEventListener("drop", (e: DragEvent) => {
+        e.preventDefault();
+        const type = e.dataTransfer?.getData("resource-type");
+        if (!type) return;
+
+        const rect = map.getCanvas().getBoundingClientRect();
+        const lngLat = map.unproject([
+          e.clientX - rect.left,
+          e.clientY - rect.top,
+        ]);
+
+        // Open modal instead of directly adding
+        setPendingResource({ lngLat, type });
+        setResourceName(type.charAt(0).toUpperCase() + type.slice(1));
+        setResourceDesc("");
       });
     });
 
@@ -1007,6 +1047,162 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     };
   }, []);
 
+  const resourceMarkersRef = useRef<
+    {
+      id: string;
+      type: string;
+      marker: mapboxgl.Marker;
+      data: { name: string; description: string };
+      coords: mapboxgl.LngLat;
+    }[]
+  >([]);
+
+  const resourceListenersRef = useRef<((resources: any[]) => void)[]>([]);
+
+  const notifyResourcesChanged = () => {
+    const snapshot = resourceMarkersRef.current.map((r) => ({
+      id: r.id,
+      type: r.type,
+      data: r.data,
+      coords: r.marker.getLngLat(), // 🔑 include live coords
+    }));
+
+    resourceListenersRef.current.forEach((cb) => cb(snapshot));
+  };
+
+  const addResourceMarker = (
+    lngLat: mapboxgl.LngLat,
+    type: string,
+    initialData?: { name: string; description: string }
+  ) => {
+    const id = `${type}-${Date.now()}`;
+    let icon;
+    switch (type) {
+      case "personnel":
+        icon = <Users size={24} color="blue" />;
+        break;
+      case "shelter":
+        icon = <House size={24} color="green" />;
+        break;
+      case "infra":
+        icon = <Tent size={24} color="orange" />;
+        break;
+      case "supply":
+        icon = <ShoppingBasket size={24} color="purple" />;
+        break;
+      case "transport":
+        icon = <Bus size={24} color="red" />;
+        break;
+      case "comm":
+        icon = <Antenna size={24} color="teal" />;
+        break;
+      default:
+        icon = <Users size={24} />;
+    }
+
+    // Create DOM element for marker
+    const el = document.createElement("div");
+    el.innerHTML = ReactDOMServer.renderToString(icon);
+
+    // Create marker
+    const marker = new mapboxgl.Marker({ element: el, draggable: true })
+      .setLngLat(lngLat)
+      .addTo(mapInstance.current!);
+
+    // Default resource details
+    let resourceData = {
+      type,
+      name: initialData?.name ?? type.charAt(0).toUpperCase() + type.slice(1),
+      description: initialData?.description ?? "",
+    };
+
+    // Create popup HTML with editable form
+    const createPopupHTML = () => `
+    <div style="min-width:200px;">
+      <strong>Edit Resource</strong>
+      <div style="margin-top:8px;">
+        <label>Name:</label><br/>
+        <input type="text" id="res-name" value="${resourceData.name}" style="width:100%; margin-bottom:6px;"/>
+        <label>Description:</label><br/>
+        <textarea id="res-desc" rows="3" style="width:100%;">${resourceData.description}</textarea>
+      </div>
+      <div style="margin-top:10px; display:flex; justify-content:space-between;">
+        <button id="save-btn" style="background:#5A5C99; color:white; padding:4px 8px; border-radius:4px;">Save</button>
+        <button id="delete-btn" style="background:#B33A3A; color:white; padding:4px 8px; border-radius:4px;">Delete</button>
+      </div>
+    </div>
+  `;
+
+    const popup = new mapboxgl.Popup({ offset: 25 })
+      .setLngLat(lngLat)
+      .setHTML(createPopupHTML());
+
+    // Attach popup to marker
+    marker.setPopup(popup);
+
+    // Resource object stored in ref
+    const resourceObj = {
+      id,
+      type,
+      marker,
+      data: resourceData,
+      coords: lngLat,
+    };
+
+    // Event: When popup opens, attach listeners to Save/Delete
+    marker.getElement().addEventListener("click", () => {
+      setTimeout(() => {
+        const saveBtn = document.getElementById("save-btn");
+        const deleteBtn = document.getElementById("delete-btn");
+        const nameInput = document.getElementById(
+          "res-name"
+        ) as HTMLInputElement;
+        const descInput = document.getElementById(
+          "res-desc"
+        ) as HTMLTextAreaElement;
+
+        if (saveBtn) {
+          saveBtn.onclick = () => {
+            resourceData.name = nameInput.value;
+            resourceData.description = descInput.value;
+            popup.setHTML(createPopupHTML()); // refresh popup with updated values
+            notifyResourcesChanged();
+          };
+        }
+
+        if (deleteBtn) {
+          deleteBtn.onclick = () => {
+            marker.remove();
+            popup.remove();
+            resourceMarkersRef.current = resourceMarkersRef.current.filter(
+              (r) => r.marker !== marker
+            );
+            notifyResourcesChanged();
+          };
+        }
+      }, 50); // allow popup to render before attaching events
+    });
+
+    // 🔑 Update coordinates when marker is dragged
+    marker.on("dragend", () => {
+      const newPos = marker.getLngLat();
+      resourceObj.coords = newPos; // update coords in object
+      notifyResourcesChanged(); // refresh UI instantly
+    });
+
+    // Add to resources list
+    resourceMarkersRef.current.push(resourceObj);
+    notifyResourcesChanged();
+  };
+
+  const clearAllResources = () => {
+    resourceMarkersRef.current.forEach((r) => {
+      r.marker.remove();
+    });
+    resourceMarkersRef.current = [];
+    notifyResourcesChanged();
+  };
+
   useImperativeHandle(ref, () => ({
     flyTo: (opts: FlyToOptions) => {
       if (!mapIsLoaded.current) return;
@@ -1442,10 +1638,84 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
 
     getMap: () => mapInstance.current,
+
+    getResourcesOnMap: () => resourceMarkersRef.current,
+    flyToResource: (id: string) => {
+      const res = resourceMarkersRef.current.find((r) => r.id === id);
+      if (res) {
+        mapInstance.current?.flyTo({
+          center: res.marker.getLngLat(),
+          zoom: 14,
+        });
+        res.marker.togglePopup();
+      }
+    },
+    onResourcesChanged: (cb: (resources: any[]) => void) => {
+      resourceListenersRef.current.push(cb);
+    },
+    clearAllResources,
   }));
 
   return (
-    <div ref={mapContainer} className="fixed top-0 left-0 w-screen h-screen" />
+    <>
+      <div
+        ref={mapContainer}
+        className="fixed top-0 left-0 w-screen h-screen z-0"
+      />
+
+      {pendingResource && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[9999]">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-[400px]">
+            <h2 className="text-lg font-bold mb-4">Add Resource</h2>
+
+            <label className="block mb-2 text-sm font-medium">Name</label>
+            <input
+              type="text"
+              value={resourceName}
+              onChange={(e) => setResourceName(e.target.value)}
+              className="w-full border rounded p-2 mb-4"
+            />
+
+            <label className="block mb-2 text-sm font-medium">
+              Description
+            </label>
+            <textarea
+              value={resourceDesc}
+              onChange={(e) => setResourceDesc(e.target.value)}
+              className="w-full border rounded p-2 mb-4"
+              rows={3}
+            />
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setPendingResource(null)} // cancel
+                className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (pendingResource) {
+                    addResourceMarker(
+                      pendingResource.lngLat,
+                      pendingResource.type,
+                      {
+                        name: resourceName,
+                        description: resourceDesc,
+                      }
+                    );
+                    setPendingResource(null);
+                  }
+                }}
+                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 });
 

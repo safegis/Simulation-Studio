@@ -17,6 +17,12 @@ import {
   BusFront,
   Siren,
   Bug,
+  Users,
+  House,
+  Tent,
+  ShoppingBasket,
+  Bus,
+  Antenna,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { healthFacilities } from "./HealthFacilities";
@@ -154,6 +160,32 @@ export default function ToolPanel({
   const [selectedCountry, setSelectedCountry] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [resourcesOnMap, setResourcesOnMap] = useState<
+    {
+      id: string;
+      type: string;
+      data: { name: string; description: string };
+      coords: { lng: number; lat: number };
+    }[]
+  >([]);
+
+  useEffect(() => {
+    if (mapRef.current?.onResourcesChanged) {
+      mapRef.current.onResourcesChanged((resources: any[]) => {
+        setResourcesOnMap(resources);
+      });
+    }
+  }, [mapRef]);
+
+  const resourceIcons: Record<string, React.ReactNode> = {
+    personnel: <Users size={15} className="text-gray-400" />,
+    shelter: <House size={15} className="text-gray-400" />,
+    infra: <Tent size={15} className="text-gray-400" />,
+    supply: <ShoppingBasket size={15} className="text-gray-400" />,
+    transport: <Bus size={15} className="text-gray-400" />,
+    comm: <Antenna size={15} className="text-gray-400" />,
+  };
 
   // debounce timer for bounds updates
   const roadClosureTimerRef = useRef<number | null>(null);
@@ -1388,6 +1420,120 @@ export default function ToolPanel({
                       label="Command & Response"
                       icon={<Siren size={20} />}
                     />
+                  </>
+                )}
+
+                {label === "Resource Planner" && (
+                  <>
+                    <div className="text-white font-semibold mb-2">
+                      Resources
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        {
+                          name: "Personnel",
+                          icon: <Users size={24} className="text-white" />,
+                          type: "personnel",
+                          textColor: "text-white",
+                          bgColor: "bg-blue-500 hover:bg-blue-600",
+                        },
+                        {
+                          name: "Evacuation Shelter",
+                          icon: <House size={24} className="text-white" />,
+                          type: "shelter",
+                          textColor: "text-white",
+                          bgColor: "bg-green-500 hover:bg-green-600",
+                        },
+                        {
+                          name: "Temporary Infra",
+                          icon: <Tent size={24} className="text-white" />,
+                          type: "infra",
+                          textColor: "text-white",
+                          bgColor: "bg-orange-500 hover:bg-orange-600",
+                        },
+                        {
+                          name: "Supply Hub",
+                          icon: (
+                            <ShoppingBasket size={24} className="text-white" />
+                          ),
+                          type: "supply",
+                          textColor: "text-white",
+                          bgColor: "bg-purple-500 hover:bg-purple-600",
+                        },
+                        {
+                          name: "Transport Hub",
+                          icon: <Bus size={24} className="text-white" />,
+                          type: "transport",
+                          textColor: "text-white",
+                          bgColor: "bg-red-500 hover:bg-red-600",
+                        },
+                        {
+                          name: "Communication Hub",
+                          icon: <Antenna size={24} className="text-white" />,
+                          type: "comm",
+                          textColor: "text-white",
+                          bgColor: "bg-teal-500 hover:bg-teal-600",
+                        },
+                      ].map((res) => (
+                        <div
+                          key={res.type}
+                          draggable
+                          onDragStart={(e) =>
+                            e.dataTransfer.setData("resource-type", res.type)
+                          }
+                          className={`flex flex-col items-center justify-center p-3 rounded-lg cursor-move hover:bg-[#505050] ${res.bgColor} ${res.textColor}`}
+                        >
+                          {res.icon}
+                          <span className="text-xs mt-1 text-center">
+                            {res.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4">
+                      <div className="text-white font-semibold mb-2">
+                        Resources on Map
+                      </div>
+                      <div className="space-y-2">
+                        {resourcesOnMap.length === 0 && (
+                          <div className="text-gray-400 text-sm">
+                            No resources placed yet
+                          </div>
+                        )}
+                        {resourcesOnMap.map((res) => (
+                          <div
+                            key={res.id}
+                            onClick={() =>
+                              mapRef.current?.flyToResource(res.id)
+                            }
+                            className="flex flex-col bg-[#3a3a3a] px-3 py-2 rounded-md cursor-pointer hover:bg-[#505050]"
+                          >
+                            {/* First row: name on left, type+icon on right */}
+                            <div className="flex items-center justify-between">
+                              <span>{res.data.name || res.type}</span>
+                              <div className="flex items-center gap-[5px] text-gray-400 text-xs capitalize">
+                                {resourceIcons[res.type]}
+                                <span>{res.type}</span>
+                              </div>
+                            </div>
+
+                            {/* Second row: coordinates */}
+                            <div className="text-xs text-gray-400 mt-1">
+                              {res.coords.lat.toFixed(4)},{" "}
+                              {res.coords.lng.toFixed(4)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {resourcesOnMap.length > 0 && (
+                      <button
+                        onClick={() => mapRef.current?.clearAllResources()}
+                        className="w-full mt-3 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
+                      >
+                        Clear All Resources
+                      </button>
+                    )}
                   </>
                 )}
               </div>
