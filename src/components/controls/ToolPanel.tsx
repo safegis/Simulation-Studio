@@ -23,6 +23,7 @@ import {
   ShoppingBasket,
   Bus,
   Antenna,
+  Building,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { healthFacilities } from "./HealthFacilities";
@@ -169,6 +170,10 @@ export default function ToolPanel({
       coords: { lng: number; lat: number };
     }[]
   >([]);
+
+  const [personnelExpanded, setPersonnelExpanded] = useState(false);
+  const [infraExpanded, setInfraExpanded] = useState(false);
+  const [suppliesExpanded, setSuppliesExpanded] = useState(false);
 
   useEffect(() => {
     if (mapRef.current?.onResourcesChanged) {
@@ -1418,7 +1423,6 @@ export default function ToolPanel({
                           )}
                         </div>
                         {/* --- NEW "Clear Map" button --- */}
-                        {/* --- NEW "Clear Map" button --- */}
                         <button
                           onClick={() => {
                             if (!selectedCountry) return; // do nothing if disabled
@@ -1455,76 +1459,191 @@ export default function ToolPanel({
 
                 {label === "Resource Planner" && (
                   <>
-                    <div className="text-white font-semibold mt-2 mb-5 text-center">
-                      Drag and drop a resource
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        {
-                          name: "Personnel",
-                          icon: <Users size={24} className="text-white" />,
-                          type: "personnel",
-                          textColor: "text-white",
-                          bgColor: "bg-blue-500 hover:bg-blue-600",
-                        },
-                        {
-                          name: "Evacuation Shelter",
-                          icon: <House size={24} className="text-white" />,
-                          type: "shelter",
-                          textColor: "text-white",
-                          bgColor: "bg-green-500 hover:bg-green-600",
-                        },
-                        {
-                          name: "Temporary Infra",
-                          icon: <Tent size={24} className="text-white" />,
-                          type: "infra",
-                          textColor: "text-white",
-                          bgColor: "bg-orange-500 hover:bg-orange-600",
-                        },
-                        {
-                          name: "Supply Hub",
-                          icon: (
-                            <ShoppingBasket size={24} className="text-white" />
-                          ),
-                          type: "supply",
-                          textColor: "text-white",
-                          bgColor: "bg-purple-500 hover:bg-purple-600",
-                        },
-                        {
-                          name: "Transport Hub",
-                          icon: <Bus size={24} className="text-white" />,
-                          type: "transport",
-                          textColor: "text-white",
-                          bgColor: "bg-red-500 hover:bg-red-600",
-                        },
-                        {
-                          name: "Communication Hub",
-                          icon: <Antenna size={24} className="text-white" />,
-                          type: "comm",
-                          textColor: "text-white",
-                          bgColor: "bg-teal-500 hover:bg-teal-600",
-                        },
-                      ].map((res) => (
-                        <div
-                          key={res.type}
-                          draggable
-                          onDragStart={(e) =>
-                            e.dataTransfer.setData("resource-type", res.type)
-                          }
-                          className={`flex flex-col items-center justify-center p-3 rounded-lg cursor-move hover:bg-[#505050] ${res.bgColor} ${res.textColor}`}
-                        >
-                          {res.icon}
-                          <span className="text-xs mt-1 text-center">
-                            {res.name}
-                          </span>
+                    {/* Personnel Section */}
+                    <button
+                      onClick={() => setPersonnelExpanded((prev) => !prev)}
+                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users size={18} />
+                        <span className="text-base font-medium">Personnel</span>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-white transition-transform duration-200 ${
+                          personnelExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {personnelExpanded && (
+                      <div className="pt-2 pb-5 px-2">
+                        <div className="text-gray-400 text-xs text-center mb-4 ">
+                          Drag and drop a resource
                         </div>
-                      ))}
-                    </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { name: "Health / Medical", type: "personnel" },
+                            { name: "Response and Rescue", type: "personnel" },
+                            {
+                              name: "Security / Law Enforcement",
+                              type: "personnel",
+                            },
+                            { name: "Logistics", type: "personnel" },
+                            { name: "Administrative", type: "personnel" },
+                            { name: "Others", type: "personnel" },
+                          ].map((res, index) => (
+                            <div
+                              key={`${res.type}-${index}`}
+                              draggable
+                              onDragStart={(e) =>
+                                e.dataTransfer.setData(
+                                  "resource-type",
+                                  res.type
+                                )
+                              }
+                              className="flex items-center justify-center p-3 rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
+                            >
+                              <span className="text-xs">{res.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Infrastructure Section */}
+                    <button
+                      onClick={() => setInfraExpanded((prev) => !prev)}
+                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition mt-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Building size={18} />
+                        <span className="text-base font-medium">
+                          Infrastructure
+                        </span>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-white transition-transform duration-200 ${
+                          infraExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {infraExpanded && (
+                      <div className="pt-2 pb-5 px-2">
+                        <div className="text-gray-400 text-xs text-center mb-4 ">
+                          Drag and drop a resource
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { name: "Health Facility", type: "infrastructure" },
+                            {
+                              name: "Water Distribution Hub",
+                              type: "infrastructure",
+                            },
+                            {
+                              name: "Evacuation Shelter",
+                              type: "infrastructure",
+                            },
+                            {
+                              name: "Transportation Hub",
+                              type: "infrastructure",
+                            },
+                            {
+                              name: "Communication Hub",
+                              type: "infrastructure",
+                            },
+                            {
+                              name: "Power / Generator Hub",
+                              type: "infrastructure",
+                            },
+                            {
+                              name: "Supply Distribution Hub",
+                              type: "infrastructure",
+                            },
+                            {
+                              name: "Sanitation Facility",
+                              type: "infrastructure",
+                            },
+                            {
+                              name: "Field Command Post",
+                              type: "infrastructure",
+                            },
+                          ].map((res, index) => (
+                            <div
+                              key={`${res.type}-${index}`}
+                              draggable
+                              onDragStart={(e) =>
+                                e.dataTransfer.setData(
+                                  "resource-type",
+                                  res.type
+                                )
+                              }
+                              className="flex items-center justify-center p-3 rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
+                            >
+                              <span className="text-xs text-center">
+                                {res.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Supplies Section */}
+                    <button
+                      onClick={() => setSuppliesExpanded((prev) => !prev)}
+                      className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition mt-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShoppingBasket size={18} />
+                        <span className="text-base font-medium">Supplies</span>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-white transition-transform duration-200 ${
+                          suppliesExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {suppliesExpanded && (
+                      <div className="pt-2 pb-5 px-2">
+                        <div className="text-gray-400 text-xs text-center mb-4 ">
+                          Drag and drop a resource
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { name: "Food Items", type: "supplies" },
+                            { name: "Water and Hydration", type: "supplies" },
+                            { name: "Health Supplies", type: "supplies" },
+                            { name: "Non-Food Items (NFIs)", type: "supplies" },
+                            { name: "Special Needs", type: "supplies" },
+                          ].map((res, index) => (
+                            <div
+                              key={`${res.type}-${index}`}
+                              draggable
+                              onDragStart={(e) =>
+                                e.dataTransfer.setData(
+                                  "resource-type",
+                                  res.type
+                                )
+                              }
+                              className="flex items-center justify-center p-3 rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
+                            >
+                              <span className="text-xs text-center">
+                                {res.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Resources on Map */}
                     <div className="mt-7">
                       <div className="text-white font-semibold mb-2">
                         Resources on Map
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                         {resourcesOnMap.length === 0 && (
                           <div className="text-gray-400 text-sm">
                             No resources placed yet
@@ -1538,16 +1657,12 @@ export default function ToolPanel({
                             }
                             className="flex flex-col bg-[#3a3a3a] px-3 py-2 rounded-md cursor-pointer hover:bg-[#505050]"
                           >
-                            {/* First row: name on left, type+icon on right */}
                             <div className="flex items-center justify-between">
                               <span>{res.data.name || res.type}</span>
                               <div className="flex items-center gap-[5px] text-gray-400 text-xs capitalize">
-                                {resourceIcons[res.type]}
                                 <span>{res.type}</span>
                               </div>
                             </div>
-
-                            {/* Second row: coordinates */}
                             <div className="text-xs text-gray-400 mt-1">
                               {res.coords.lat.toFixed(4)},{" "}
                               {res.coords.lng.toFixed(4)}
@@ -1556,21 +1671,22 @@ export default function ToolPanel({
                         ))}
                       </div>
                     </div>
+
                     {resourcesOnMap.length > 0 && (
-                      <button
-                        onClick={() => mapRef.current?.clearAllResources()}
-                        className="w-full mt-3 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
-                      >
-                        Clear all
-                      </button>
-                    )}
-                    {resourcesOnMap.length > 0 && (
-                      <button
-                        onClick={exportAsGeoJSON}
-                        className="w-full mt-2 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
-                      >
-                        Export as GeoJSON
-                      </button>
+                      <>
+                        <button
+                          onClick={() => mapRef.current?.clearAllResources()}
+                          className="w-full mt-3 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
+                        >
+                          Clear all
+                        </button>
+                        <button
+                          onClick={exportAsGeoJSON}
+                          className="w-full mt-2 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
+                        >
+                          Export as GeoJSON
+                        </button>
+                      </>
                     )}
                   </>
                 )}
