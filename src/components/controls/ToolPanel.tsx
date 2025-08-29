@@ -1501,7 +1501,7 @@ export default function ToolPanel({
                                   res.type
                                 )
                               }
-                              className="flex items-center justify-center p-3 rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
+                              className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
                             >
                               <span className="text-xs">{res.name}</span>
                             </div>
@@ -1545,11 +1545,11 @@ export default function ToolPanel({
                               type: "infrastructure",
                             },
                             {
-                              name: "Transportation Hub",
+                              name: "Transport Hub",
                               type: "infrastructure",
                             },
                             {
-                              name: "Communication Hub",
+                              name: "Comm Hub",
                               type: "infrastructure",
                             },
                             {
@@ -1568,6 +1568,10 @@ export default function ToolPanel({
                               name: "Field Command Post",
                               type: "infrastructure",
                             },
+                            {
+                              name: "Others",
+                              type: "infrastructure",
+                            },
                           ].map((res, index) => (
                             <div
                               key={`${res.type}-${index}`}
@@ -1578,7 +1582,7 @@ export default function ToolPanel({
                                   res.type
                                 )
                               }
-                              className="flex items-center justify-center p-3 rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
+                              className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
                             >
                               <span className="text-xs text-center">
                                 {res.name}
@@ -1617,6 +1621,7 @@ export default function ToolPanel({
                             { name: "Health Supplies", type: "supplies" },
                             { name: "Non-Food Items (NFIs)", type: "supplies" },
                             { name: "Special Needs", type: "supplies" },
+                            { name: "Others", type: "supplies" },
                           ].map((res, index) => (
                             <div
                               key={`${res.type}-${index}`}
@@ -1627,7 +1632,7 @@ export default function ToolPanel({
                                   res.type
                                 )
                               }
-                              className="flex items-center justify-center p-3 rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
+                              className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
                             >
                               <span className="text-xs text-center">
                                 {res.name}
