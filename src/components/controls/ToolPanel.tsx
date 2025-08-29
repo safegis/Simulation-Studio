@@ -24,6 +24,9 @@ import {
   Bus,
   Antenna,
   Building,
+  Route,
+  SquareStack,
+  Trash,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { healthFacilities } from "./HealthFacilities";
@@ -110,19 +113,6 @@ const countries = [
   "Congo",
 ];
 
-// Helper to parse datetime string from scraper "10 August 2024 - 06:03 AM"
-function parseCustomDatetime(datetimeStr: string): string {
-  // Remove " - " and replace with space, e.g. "10 August 2024 06:03 AM"
-  const cleaned = datetimeStr.replace(" - ", " ");
-  const dt = new Date(cleaned);
-
-  if (!isNaN(dt.getTime())) {
-    return dt.toLocaleString(); // local readable string
-  }
-  // Fallback to original string if invalid date
-  return datetimeStr;
-}
-
 export default function ToolPanel({
   isVisible,
   selectedMaps,
@@ -174,6 +164,25 @@ export default function ToolPanel({
   const [personnelExpanded, setPersonnelExpanded] = useState(false);
   const [infraExpanded, setInfraExpanded] = useState(false);
   const [suppliesExpanded, setSuppliesExpanded] = useState(false);
+
+  const [plans, setPlans] = useState<{ name: string; date: string }[]>([]);
+
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [newPlanName, setNewPlanName] = useState("");
+  const [planToDelete, setPlanToDelete] = useState<number | null>(null);
+
+  // function to handle creation
+  const handleCreatePlan = () => {
+    if (newPlanName.trim()) {
+      const newPlan = {
+        name: newPlanName.trim(),
+        date: new Date().toLocaleString(), // e.g. "8/30/2025, 2:35 PM"
+      };
+      setPlans((prev) => [...prev, newPlan]);
+      setNewPlanName("");
+      setIsPlanModalOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (mapRef.current?.onResourcesChanged) {
@@ -1307,7 +1316,6 @@ export default function ToolPanel({
                       icon={<LandPlot size={20} />}
                     />
                     {/* Medical / Health */}
-                    {/* Medical / Health */}
                     <button
                       onClick={() => setMedicalExpanded((prev) => !prev)}
                       className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
@@ -1454,6 +1462,129 @@ export default function ToolPanel({
                       label="Command & Response"
                       icon={<Siren size={20} />}
                     />
+                  </>
+                )}
+
+                {label === "Evacuation Planner" && (
+                  <>
+                    <div className="text-left text-white font-semibold mb-2">
+                      Available Plans:
+                    </div>
+
+                    {/* Wrapper */}
+                    {plans.length === 0 ? (
+                      // Empty state (centered)
+                      <div className="border-2 border-dashed border-gray-400 rounded-lg mb-4 min-h-[120px] flex flex-col items-center justify-center text-center p-6">
+                        <div className="text-md font-medium text-gray-400">
+                          -- No plans yet --
+                        </div>
+                        <div className="text-xs text-gray-400">Create one</div>
+                      </div>
+                    ) : (
+                      // Plans list (scrollable)
+                      <div className="border-2 border-dashed border-gray-400 rounded-lg mb-4 min-h-[120px] max-h-60 overflow-y-auto px-2 py-2">
+                        <ul className="space-y-2">
+                          {plans.map((plan, idx) => (
+                            <li
+                              key={idx}
+                              className="w-full bg-[#3a3a3a] text-white py-2 px-3 rounded-md flex justify-between items-center"
+                            >
+                              <div>
+                                <div className="font-semibold">{plan.name}</div>
+                                <div className="text-xs text-gray-400">
+                                  Created on: {plan.date}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => setPlanToDelete(idx)}
+                                className="p-1 transition"
+                              >
+                                <Trash
+                                  size={16}
+                                  className="text-red-400 hover:text-red-500 transition-colors"
+                                />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <button
+                      className="w-full py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
+                      onClick={() => setIsPlanModalOpen(true)}
+                    >
+                      Create new plan
+                    </button>
+
+                    {/* Modal */}
+                    {isPlanModalOpen && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+                        <div className="bg-[#2E2E2E] p-6 rounded-lg w-96 shadow-2xl">
+                          <h2 className="text-lg font-bold text-white mb-4">
+                            Create New Plan
+                          </h2>
+                          <input
+                            type="text"
+                            value={newPlanName}
+                            onChange={(e) => setNewPlanName(e.target.value)}
+                            placeholder="Enter plan name"
+                            className="w-full p-2 mb-4 rounded-md bg-[#3a3a3a] text-white outline-none"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setIsPlanModalOpen(false)}
+                              className="px-4 py-2 rounded-md bg-gray-500 text-white hover:opacity-80"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleCreatePlan}
+                              className="px-4 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90"
+                            >
+                              Create
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Delete Confirmation Modal */}
+                    {planToDelete !== null && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+                        <div className="bg-[#2E2E2E] p-6 rounded-lg w-96 shadow-2xl">
+                          <h2 className="text-lg font-bold text-white mb-4">
+                            Delete Plan
+                          </h2>
+                          <p className="text-gray-300 mb-6">
+                            Are you sure you want to delete{" "}
+                            <span className="font-semibold">
+                              {plans[planToDelete].name}
+                            </span>
+                            ?
+                          </p>
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setPlanToDelete(null)}
+                              className="px-4 py-2 rounded-md bg-gray-500 text-white hover:opacity-80"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => {
+                                setPlans(
+                                  plans.filter((_, i) => i !== planToDelete)
+                                );
+                                setPlanToDelete(null);
+                              }}
+                              className="px-4 py-2 rounded-md bg-red-600 text-white hover:opacity-90"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -1678,20 +1809,20 @@ export default function ToolPanel({
                     </div>
 
                     {resourcesOnMap.length > 0 && (
-                      <>
-                        <button
-                          onClick={() => mapRef.current?.clearAllResources()}
-                          className="w-full mt-3 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
-                        >
-                          Clear all
-                        </button>
+                      <div className="flex gap-2 mt-5">
                         <button
                           onClick={exportAsGeoJSON}
-                          className="w-full mt-2 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
+                          className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition flex items-center justify-center"
                         >
                           Export as GeoJSON
                         </button>
-                      </>
+                        <button
+                          onClick={() => mapRef.current?.clearAllResources()}
+                          className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition flex items-center justify-center"
+                        >
+                          Clear all
+                        </button>
+                      </div>
                     )}
                   </>
                 )}

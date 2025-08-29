@@ -191,3 +191,10 @@ body,
   color: inherit !important;
   cursor: pointer !important;
 }
+
+/* Ensure Mapbox elements never sit above our React modals */
+.mapboxgl-canvas,
+.mapboxgl-control-container,
+.mapboxgl-popup {
+  z-index: 0 !important;
+}
