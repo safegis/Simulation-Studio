@@ -20,6 +20,8 @@ import {
   Layers2,
   X,
   RotateCcw,
+  VectorSquare,
+  RectangleHorizontal,
 } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 
@@ -62,6 +64,26 @@ export default function MainUILayout() {
   );
 
   const [showGeoJSONPanel, setShowGeoJSONPanel] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<{
+    name: string;
+    date: string;
+  } | null>(null);
+
+  const [isDrawingBox, setIsDrawingBox] = useState(false); // Square
+  const [isDrawingRectangle, setIsDrawingRectangle] = useState(false); // Rectangle
+
+  const squareRatio = 1; // 1:1 square
+  const rectangleRatio = 16 / 9; // rectangle ratio (can change to 4/3 etc.)
+
+  // Handle start drawing
+  const handleSquareClick = () => {
+    setIsDrawingBox(true);
+    if (mapRef.current) {
+      const map = mapRef.current.getMap();
+      map.getCanvas().style.cursor = "crosshair";
+      map.dragPan.disable(); // ⛔ stop map from dragging
+    }
+  };
 
   // NEW: Track uploaded files
   const [uploadedFiles, setUploadedFiles] = useState<
@@ -161,6 +183,131 @@ export default function MainUILayout() {
 
   const mapStyleRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+
+  // Track temporary box coordinates
+  const boxCoordsRef = useRef<{
+    start: [number, number] | null;
+    end: [number, number] | null;
+  }>({ start: null, end: null });
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current.getMap();
+
+    function onMouseDown(e: any) {
+      if (!(isDrawingBox || isDrawingRectangle)) return;
+      boxCoordsRef.current.start = [e.lngLat.lng, e.lngLat.lat];
+      boxCoordsRef.current.end = null;
+    }
+
+    function onMouseMove(e: any) {
+      if (!(isDrawingBox || isDrawingRectangle) || !boxCoordsRef.current.start)
+        return;
+
+      const map = mapRef.current.getMap();
+
+      // Start and current mouse positions in pixels
+      const startPixel = map.project(boxCoordsRef.current.start);
+      const currentPixel = map.project([e.lngLat.lng, e.lngLat.lat]);
+
+      let dx = currentPixel.x - startPixel.x;
+      let dy = currentPixel.y - startPixel.y;
+
+      // --- FIXED RATIO LOGIC (in pixels) ---
+      let aspectRatio = 1; // square
+      if (isDrawingRectangle) aspectRatio = rectangleRatio; // e.g. 16/9
+
+      if (Math.abs(dx) / Math.abs(dy || 1) > aspectRatio) {
+        // too wide → adjust height
+        dy = (Math.sign(dy || 1) * Math.abs(dx)) / aspectRatio;
+      } else {
+        // too tall → adjust width
+        dx = Math.sign(dx || 1) * Math.abs(dy) * aspectRatio;
+      }
+
+      // Apply adjusted pixel coords
+      const fixedPixel = { x: startPixel.x + dx, y: startPixel.y + dy };
+
+      // Convert back to lat/lng
+      const endLngLat = map.unproject([fixedPixel.x, fixedPixel.y]);
+
+      // Build rectangle coords
+      const [lng1, lat1] = boxCoordsRef.current.start;
+      const [lng2, lat2] = [endLngLat.lng, endLngLat.lat];
+
+      const coords = [
+        [lng1, lat1],
+        [lng2, lat1],
+        [lng2, lat2],
+        [lng1, lat2],
+        [lng1, lat1],
+      ];
+
+      const feature: GeoJSON.Feature = {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [coords],
+        },
+        properties: {},
+      };
+
+      const featureCollection: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: [feature],
+      };
+
+      if (map.getSource("drawn-box")) {
+        (map.getSource("drawn-box") as mapboxgl.GeoJSONSource).setData(
+          featureCollection
+        );
+      } else {
+        map.addSource("drawn-box", {
+          type: "geojson",
+          data: featureCollection,
+        });
+        map.addLayer({
+          id: "drawn-box-layer",
+          type: "fill",
+          source: "drawn-box",
+          paint: {
+            "fill-color": "#9699FF",
+            "fill-opacity": 0.15,
+          },
+        });
+        map.addLayer({
+          id: "drawn-box-outline",
+          type: "line",
+          source: "drawn-box",
+          paint: {
+            "line-color": "#9699FF",
+            "line-width": 2,
+          },
+        });
+      }
+    }
+
+    function onMouseUp() {
+      if (!(isDrawingBox || isDrawingRectangle)) return;
+      setIsDrawingBox(false);
+      setIsDrawingRectangle(false);
+
+      const map = mapRef.current.getMap();
+      map.getCanvas().style.cursor = "";
+      map.dragPan.enable();
+    }
+
+    map.on("mousedown", onMouseDown);
+    map.on("mousemove", onMouseMove);
+    map.on("mouseup", onMouseUp);
+
+    return () => {
+      map.off("mousedown", onMouseDown);
+      map.off("mousemove", onMouseMove);
+      map.off("mouseup", onMouseUp);
+    };
+  }, [isDrawingBox, isDrawingRectangle]);
+
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLUListElement>(null);
@@ -481,6 +628,49 @@ export default function MainUILayout() {
         <>
           <MapComponent ref={mapRef} />
 
+          {/* ✅ Rectangle container above the clock */}
+          {selectedPlan && (
+            <div className="absolute bottom-[110px] left-1/2 transform -translate-x-1/2 bg-[#2E2E2E] w-[500px] h-[200px] flex flex-col items-center justify-center rounded-3xl shadow-2xl text-center z-50">
+              {/* Title above buttons */}
+              <span className="text-white text-xl font-medium mb-6">
+                ---- Define Scope ----
+              </span>
+
+              {/* Horizontal flex for buttons */}
+              <div className="flex items-center justify-center gap-6 w-full px-5">
+                {/* Square button */}
+                <button
+                  onClick={() => {
+                    setIsDrawingBox(true);
+                    if (mapRef.current) {
+                      const map = mapRef.current.getMap();
+                      map.getCanvas().style.cursor = "crosshair";
+                      map.dragPan.disable();
+                    }
+                  }}
+                  className="w-[35%] flex items-center justify-center px-5 py-5 rounded-xl border-3 border-dashed border-[#9699FF] text-[#9699FF] transition-colors duration-200 hover:border-[#7F81D9] hover:text-[#7F81D9]"
+                >
+                  <Square size={30} />
+                </button>
+
+                {/* Rectangle button */}
+                <button
+                  onClick={() => {
+                    setIsDrawingRectangle(true);
+                    if (mapRef.current) {
+                      const map = mapRef.current.getMap();
+                      map.getCanvas().style.cursor = "crosshair";
+                      map.dragPan.disable();
+                    }
+                  }}
+                  className="w-[35%] flex items-center justify-center px-5 py-5 rounded-xl border-3 border-dashed border-[#9699FF] text-[#9699FF] transition-colors duration-200 hover:border-[#7F81D9] hover:text-[#7F81D9]"
+                >
+                  <RectangleHorizontal size={30} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Time of Day + Map Style */}
           <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
             <div className="flex gap-[18px] relative">
@@ -778,6 +968,15 @@ export default function MainUILayout() {
                 selectedMaps={selectedMaps}
                 selectedPlanningTools={selectedPlanningTools}
                 mapRef={mapRef}
+                onPlanSelect={(plan) => {
+                  // ✅ toggle selection
+                  setSelectedPlan((prev) =>
+                    prev?.name === plan.name && prev?.date === plan.date
+                      ? null
+                      : plan
+                  );
+                }}
+                activePlan={selectedPlan}
               />
             </div>
           )}

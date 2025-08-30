@@ -36,6 +36,8 @@ interface Props {
   selectedMaps: string[];
   selectedPlanningTools: string[];
   mapRef: React.RefObject<any>;
+  onPlanSelect?: (plan: { name: string; date: string }) => void;
+  activePlan?: { name: string; date: string } | null;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -118,6 +120,8 @@ export default function ToolPanel({
   selectedMaps,
   selectedPlanningTools,
   mapRef,
+  onPlanSelect,
+  activePlan,
 }: Props) {
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
@@ -166,6 +170,10 @@ export default function ToolPanel({
   const [suppliesExpanded, setSuppliesExpanded] = useState(false);
 
   const [plans, setPlans] = useState<{ name: string; date: string }[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<{
+    name: string;
+    date: string;
+  } | null>(null);
 
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
@@ -1484,28 +1492,49 @@ export default function ToolPanel({
                       // Plans list (scrollable)
                       <div className="border-2 border-dashed border-gray-400 rounded-lg mb-4 min-h-[120px] max-h-60 overflow-y-auto px-2 py-2">
                         <ul className="space-y-2">
-                          {plans.map((plan, idx) => (
-                            <li
-                              key={idx}
-                              className="w-full bg-[#3a3a3a] text-white py-2 px-3 rounded-md flex justify-between items-center"
-                            >
-                              <div>
-                                <div className="font-semibold">{plan.name}</div>
-                                <div className="text-xs text-gray-400">
-                                  Created on: {plan.date}
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => setPlanToDelete(idx)}
-                                className="p-1 transition"
+                          {plans.map((plan, idx) => {
+                            const isActive =
+                              activePlan?.name === plan.name &&
+                              activePlan?.date === plan.date;
+
+                            return (
+                              <li
+                                key={idx}
+                                onClick={() => onPlanSelect?.(plan)}
+                                className={`w-full py-2 px-3 rounded-md flex justify-between items-center cursor-pointer transition
+          ${
+            isActive
+              ? "bg-gradient-to-r from-[#9699FF] to-[#5A5C99] text-white"
+              : "bg-[#3a3a3a] text-white hover:bg-[#505050]"
+          }`}
                               >
-                                <Trash
-                                  size={16}
-                                  className="text-red-400 hover:text-red-500 transition-colors"
-                                />
-                              </button>
-                            </li>
-                          ))}
+                                <div>
+                                  <div className="font-semibold">
+                                    {plan.name}
+                                  </div>
+                                  <div
+                                    className={`text-xs ${
+                                      isActive ? "text-black" : "text-gray-400"
+                                    }`}
+                                  >
+                                    Created on: {plan.date}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPlanToDelete(idx);
+                                  }}
+                                  className="p-1 transition"
+                                >
+                                  <Trash
+                                    size={16}
+                                    className="text-red-400 hover:text-red-500 transition-colors"
+                                  />
+                                </button>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     )}
