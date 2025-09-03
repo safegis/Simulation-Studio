@@ -145,14 +145,45 @@ export default function ToolPanel({
     string[]
   >([]);
 
+  const [regionOpen, setRegionOpen] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState("");
+  const [regionSearch, setRegionSearch] = useState("");
+
+  const [continentOpen, setContinentOpen] = useState(false);
+  const [selectedContinent, setSelectedContinent] = useState("");
+
   const [trafficExpanded, setTrafficExpanded] = useState(false);
   const [trafficCheckedItems, setTrafficCheckedItems] = useState<string[]>([]);
 
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [selectedSource, setSelectedSource] = useState("");
+
   const earthquakeInterval = useRef<NodeJS.Timeout | null>(null);
+
+  const [scopeLevelOpen, setScopeLevelOpen] = useState(false);
+  const [selectedScopeLevel, setSelectedScopeLevel] = useState("");
+
+  const [provinceOpen, setProvinceOpen] = useState(false);
+  const [selectedProvince, setSelectedProvince] = useState("");
+  const [provinceSearch, setProvinceSearch] = useState("");
+
+  // Flood scope dropdown state
+  const [floodScopeOpen, setFloodScopeOpen] = useState(false);
+  const [selectedScope, setSelectedScope] = useState("");
 
   const [medicalExpanded, setMedicalExpanded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState("");
+
+  const [returnPeriods, setReturnPeriods] = useState({
+    five: false,
+    twentyFive: false,
+    hundred: false,
+  });
+
+  const [floodCountryOpen, setFloodCountryOpen] = useState(false);
+  const [selectedFloodCountry, setSelectedFloodCountry] = useState("");
+  const [floodCountrySearch, setFloodCountrySearch] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -164,6 +195,10 @@ export default function ToolPanel({
       coords: { lng: number; lat: number };
     }[]
   >([]);
+
+  const [municipalityOpen, setMunicipalityOpen] = useState(false);
+  const [selectedMunicipality, setSelectedMunicipality] = useState("");
+  const [municipalitySearch, setMunicipalitySearch] = useState("");
 
   const [personnelExpanded, setPersonnelExpanded] = useState(false);
   const [infraExpanded, setInfraExpanded] = useState(false);
@@ -1198,13 +1233,622 @@ export default function ToolPanel({
                     {hydroExpanded && (
                       <div className="pl-7 pt-2 pb-2 space-y-2">
                         {hydroMeteorologicalCheckboxItems.map((item) => (
-                          <div key={item} className="flex items-center">
-                            <Checkbox
-                              className="mr-3 w-[18px] h-[18px]"
-                              checked={hydroCheckedItems.includes(item)}
-                              onCheckedChange={() => toggleHydroItem(item)}
-                            />
-                            <span className="text-base">{item}</span>
+                          <div key={item} className="flex flex-col">
+                            <div className="flex items-center">
+                              <Checkbox
+                                className="mr-3 w-[18px] h-[18px]"
+                                checked={hydroCheckedItems.includes(item)}
+                                onCheckedChange={() => toggleHydroItem(item)}
+                              />
+                              <span className="text-base">{item}</span>
+                            </div>
+
+                            {/* 👇 Show dropdown when Flood is checked */}
+                            {item === "Flood" &&
+                              hydroCheckedItems.includes("Flood") && (
+                                <div className="ml-7 pt-2 pb-2 relative w-[250px]">
+                                  <button
+                                    onClick={() =>
+                                      setFloodScopeOpen((prev) => !prev)
+                                    }
+                                    className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                  >
+                                    <span>
+                                      {selectedScope || "Select Scope"}
+                                    </span>
+                                    <ChevronDown
+                                      size={16}
+                                      className={`ml-2 transition-transform duration-200 ${
+                                        floodScopeOpen ? "rotate-180" : ""
+                                      }`}
+                                    />
+                                  </button>
+                                  {floodScopeOpen && (
+                                    <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+                                      {[
+                                        "Global",
+                                        "By Continent/Region",
+                                        "By Country",
+                                      ].map((option, index, arr) => (
+                                        <div
+                                          key={option}
+                                          onClick={() => {
+                                            setSelectedScope(option);
+                                            setFloodScopeOpen(false);
+                                          }}
+                                          className={`px-3 py-2 hover:bg-[#505050] cursor-pointer 
+          ${index === 0 ? "rounded-t-md" : ""} 
+          ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                        >
+                                          {option}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {/* 👇 Show continent dropdown when "By Continent/Region" is selected */}
+                                  {selectedScope === "By Continent/Region" && (
+                                    <div className="mt-2 relative w-[250px]">
+                                      <button
+                                        onClick={() =>
+                                          setContinentOpen((prev) => !prev)
+                                        }
+                                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                      >
+                                        <span>
+                                          {selectedContinent ||
+                                            "Select Continent/Region"}
+                                        </span>
+                                        <ChevronDown
+                                          size={16}
+                                          className={`ml-2 transition-transform duration-200 ${
+                                            continentOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+
+                                      {continentOpen && (
+                                        <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+                                          {[
+                                            "Asia",
+                                            "Africa",
+                                            "North America",
+                                            "South America",
+                                            "Antarctica",
+                                            "Europe",
+                                            "Australia / Oceania",
+                                          ].map((continent, index, arr) => (
+                                            <div
+                                              key={continent}
+                                              onClick={() => {
+                                                setSelectedContinent(continent);
+                                                setContinentOpen(false);
+                                              }}
+                                              className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                                                ${
+                                                  index === 0
+                                                    ? "rounded-t-md"
+                                                    : ""
+                                                }
+                                                ${
+                                                  index === arr.length - 1
+                                                    ? "rounded-b-md"
+                                                    : ""
+                                                }`}
+                                            >
+                                              {continent}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {/* 👇 Show country dropdown when "By Country" is selected */}
+                                  {selectedScope === "By Country" && (
+                                    <div className="mt-2 relative w-[250px]">
+                                      <button
+                                        onClick={() =>
+                                          setFloodCountryOpen((prev) => !prev)
+                                        }
+                                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                      >
+                                        <span>
+                                          {selectedFloodCountry ||
+                                            "Select Country"}
+                                        </span>
+                                        <ChevronDown
+                                          size={16}
+                                          className={`ml-2 transition-transform duration-200 ${
+                                            floodCountryOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+
+                                      {floodCountryOpen && (
+                                        <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg">
+                                          {/* Search Box */}
+                                          <div className="p-2">
+                                            <input
+                                              type="text"
+                                              placeholder="Search country..."
+                                              value={floodCountrySearch}
+                                              onChange={(e) =>
+                                                setFloodCountrySearch(
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-full p-2 text-white placeholder-gray-400 outline-none bg-transparent"
+                                            />
+                                          </div>
+
+                                          {/* Country List */}
+                                          <ul className="max-h-40 overflow-y-auto">
+                                            {[
+                                              "Philippines",
+                                              "South Africa",
+                                              "United States",
+                                            ]
+                                              .filter((c) =>
+                                                c
+                                                  .toLowerCase()
+                                                  .includes(
+                                                    floodCountrySearch.toLowerCase()
+                                                  )
+                                              )
+                                              .map((country, index, arr) => (
+                                                <li
+                                                  key={country}
+                                                  onClick={() => {
+                                                    setSelectedFloodCountry(
+                                                      country
+                                                    );
+                                                    setFloodCountryOpen(false);
+                                                    setFloodCountrySearch("");
+                                                  }}
+                                                  className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                                                    ${
+                                                      index === arr.length - 1
+                                                        ? "rounded-b-md"
+                                                        : ""
+                                                    }`}
+                                                >
+                                                  {country}
+                                                </li>
+                                              ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {selectedFloodCountry === "Philippines" && (
+                                    <div className="mt-2 relative w-[250px]">
+                                      <button
+                                        onClick={() =>
+                                          setScopeLevelOpen((prev) => !prev)
+                                        }
+                                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                      >
+                                        <span>
+                                          {selectedScopeLevel ||
+                                            "Select Scope Level"}
+                                        </span>
+                                        <ChevronDown
+                                          size={16}
+                                          className={`ml-2 transition-transform duration-200 ${
+                                            scopeLevelOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+
+                                      {scopeLevelOpen && (
+                                        <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+                                          {[
+                                            "National",
+                                            "By Region",
+                                            "By Province / District",
+                                            "By Municipality / City",
+                                          ].map((level, index, arr) => (
+                                            <div
+                                              key={level}
+                                              onClick={() => {
+                                                setSelectedScopeLevel(level);
+                                                setScopeLevelOpen(false);
+                                              }}
+                                              className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+              ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                            >
+                                              {level}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* 👇 Show source dropdown when "National" is selected */}
+                                  {selectedScopeLevel === "National" && (
+                                    <div className="mt-2 relative w-[250px]">
+                                      <button
+                                        onClick={() =>
+                                          setSourceOpen((prev) => !prev)
+                                        }
+                                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                      >
+                                        <span className="truncate max-w-[200px]">
+                                          {selectedSource || "Select Source"}
+                                        </span>
+                                        <ChevronDown
+                                          size={16}
+                                          className={`ml-2 transition-transform duration-200 ${
+                                            sourceOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+
+                                      {sourceOpen && (
+                                        <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+                                          {[
+                                            "MGB (Mines and Geosciences Bureau)",
+                                            "NOAH (Nationwide Operational Assessment of Hazards)",
+                                          ].map((src, index, arr) => (
+                                            <div
+                                              key={src}
+                                              onClick={() => {
+                                                setSelectedSource(src);
+                                                setSourceOpen(false);
+                                              }}
+                                              className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+              ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                            >
+                                              {src}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* 👇 Show region dropdown when "By region" is selected */}
+                                  {selectedScopeLevel === "By Region" && (
+                                    <div className="mt-2 relative w-[250px]">
+                                      <button
+                                        onClick={() =>
+                                          setRegionOpen((prev) => !prev)
+                                        }
+                                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                      >
+                                        <span className="truncate max-w-[200px]">
+                                          {selectedRegion || "Select Region"}
+                                        </span>
+                                        <ChevronDown
+                                          size={16}
+                                          className={`ml-2 transition-transform duration-200 ${
+                                            regionOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+
+                                      {regionOpen && (
+                                        <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg">
+                                          {/* Search Box */}
+                                          <div className="p-2">
+                                            <input
+                                              type="text"
+                                              placeholder="Search region..."
+                                              value={regionSearch}
+                                              onChange={(e) =>
+                                                setRegionSearch(e.target.value)
+                                              }
+                                              className="w-full p-2 text-white placeholder-gray-400 outline-none bg-transparent"
+                                            />
+                                          </div>
+
+                                          {/* Region List */}
+                                          <ul className="max-h-40 overflow-y-auto">
+                                            {[
+                                              "Region I - Ilocos Region",
+                                              "Region II - Cagayan Valley",
+                                              "Region III - Central Luzon",
+                                              "National Capital Region (NCR)",
+                                            ]
+                                              .filter((r) =>
+                                                r
+                                                  .toLowerCase()
+                                                  .includes(
+                                                    regionSearch.toLowerCase()
+                                                  )
+                                              )
+                                              .map((region, index, arr) => (
+                                                <li
+                                                  key={region}
+                                                  onClick={() => {
+                                                    setSelectedRegion(region);
+                                                    setRegionOpen(false);
+                                                    setRegionSearch("");
+                                                  }}
+                                                  className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                  ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                                >
+                                                  {region}
+                                                </li>
+                                              ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* 👇 Show province/district dropdown when "By Province / District" is selected */}
+                                  {selectedScopeLevel ===
+                                    "By Province / District" && (
+                                    <div className="mt-2 relative w-[250px]">
+                                      <button
+                                        onClick={() =>
+                                          setProvinceOpen((prev) => !prev)
+                                        }
+                                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                      >
+                                        <span className="truncate max-w-[200px]">
+                                          {selectedProvince ||
+                                            "Select Province / District"}
+                                        </span>
+                                        <ChevronDown
+                                          size={16}
+                                          className={`ml-2 transition-transform duration-200 ${
+                                            provinceOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+
+                                      {provinceOpen && (
+                                        <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg">
+                                          {/* Search Box */}
+                                          <div className="p-2">
+                                            <input
+                                              type="text"
+                                              placeholder="Search province..."
+                                              value={provinceSearch}
+                                              onChange={(e) =>
+                                                setProvinceSearch(
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-full p-2 text-white placeholder-gray-400 outline-none bg-transparent"
+                                            />
+                                          </div>
+
+                                          {/* Province List */}
+                                          <ul className="max-h-40 overflow-y-auto">
+                                            {[
+                                              "Abra",
+                                              "Agusan del Norte",
+                                              "Agusan del Sur",
+                                              "Aklan",
+                                              "Albay",
+                                              "Antique",
+                                              "Apayao",
+                                              "Aurora",
+                                              "Basilan",
+                                              "Bataan",
+                                              "Batanes",
+                                              "Batangas",
+                                              "Benguet",
+                                              "Biliran",
+                                              "Bohol",
+                                              "Bukidnon",
+                                              "Bulacan",
+                                            ]
+                                              .filter((p) =>
+                                                p
+                                                  .toLowerCase()
+                                                  .includes(
+                                                    provinceSearch.toLowerCase()
+                                                  )
+                                              )
+                                              .map((province, index, arr) => (
+                                                <li
+                                                  key={province}
+                                                  onClick={() => {
+                                                    setSelectedProvince(
+                                                      province
+                                                    );
+                                                    setProvinceOpen(false);
+                                                    setProvinceSearch("");
+                                                  }}
+                                                  className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                  ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                                >
+                                                  {province}
+                                                </li>
+                                              ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* 👇 Show source dropdown when a province/district is selected */}
+                                  {selectedProvince && (
+                                    <div className="mt-2 relative w-[250px]">
+                                      <button
+                                        onClick={() =>
+                                          setSourceOpen((prev) => !prev)
+                                        }
+                                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                      >
+                                        <span className="truncate max-w-[200px]">
+                                          {selectedSource || "Select Source"}
+                                        </span>
+                                        <ChevronDown
+                                          size={16}
+                                          className={`ml-2 transition-transform duration-200 ${
+                                            sourceOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+
+                                      {sourceOpen && (
+                                        <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+                                          {[
+                                            "MGB (Mines and Geosciences Bureau)",
+                                            "NOAH (Nationwide Operational Assessment of Hazards)",
+                                          ].map((src, index, arr) => (
+                                            <div
+                                              key={src}
+                                              onClick={() => {
+                                                setSelectedSource(src);
+                                                setSourceOpen(false);
+                                              }}
+                                              className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+              ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                            >
+                                              {src}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* 👇 Show NOAH return period checkboxes when NOAH is selected */}
+                                  {selectedSource ===
+                                    "NOAH (Nationwide Operational Assessment of Hazards)" && (
+                                    <div className="mt-2 ml-1">
+                                      <span className="text-white text-sm">
+                                        Return Period:
+                                      </span>
+                                      <div className="flex flex-col gap-1 mt-2">
+                                        <label className="flex items-center gap-2 text-white text-sm">
+                                          <Checkbox
+                                            className="w-[16px] h-[16px]"
+                                            checked={returnPeriods.five}
+                                            onCheckedChange={() =>
+                                              setReturnPeriods((prev) => ({
+                                                ...prev,
+                                                five: !prev.five,
+                                              }))
+                                            }
+                                          />
+                                          <span className="min-w-[70px]">
+                                            5-Year
+                                          </span>
+                                        </label>
+                                        <label className="flex items-center gap-2 text-white text-sm">
+                                          <Checkbox
+                                            className="w-[16px] h-[16px]"
+                                            checked={returnPeriods.twentyFive}
+                                            onCheckedChange={() =>
+                                              setReturnPeriods((prev) => ({
+                                                ...prev,
+                                                twentyFive: !prev.twentyFive,
+                                              }))
+                                            }
+                                          />
+                                          <span className="min-w-[70px]">
+                                            25-Year
+                                          </span>
+                                        </label>
+                                        <label className="flex items-center gap-2 text-white text-sm">
+                                          <Checkbox
+                                            className="w-[16px] h-[16px]"
+                                            checked={returnPeriods.hundred}
+                                            onCheckedChange={() =>
+                                              setReturnPeriods((prev) => ({
+                                                ...prev,
+                                                hundred: !prev.hundred,
+                                              }))
+                                            }
+                                          />
+                                          <span className="min-w-[70px]">
+                                            100-Year
+                                          </span>
+                                        </label>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 👇 Show municipality/city dropdown when "By Municipality / City" is selected */}
+                                  {selectedScopeLevel ===
+                                    "By Municipality / City" && (
+                                    <div className="mt-2 relative w-[250px]">
+                                      <button
+                                        onClick={() =>
+                                          setMunicipalityOpen((prev) => !prev)
+                                        }
+                                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                                      >
+                                        <span className="truncate max-w-[200px]">
+                                          {selectedMunicipality ||
+                                            "Select Municipality / City"}
+                                        </span>
+                                        <ChevronDown
+                                          size={16}
+                                          className={`ml-2 transition-transform duration-200 ${
+                                            municipalityOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+
+                                      {municipalityOpen && (
+                                        <div className="absolute left-0 z-10 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg">
+                                          {/* Search Box */}
+                                          <div className="p-2">
+                                            <input
+                                              type="text"
+                                              placeholder="Search municipality..."
+                                              value={municipalitySearch}
+                                              onChange={(e) =>
+                                                setMunicipalitySearch(
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-full p-2 text-white placeholder-gray-400 outline-none bg-transparent"
+                                            />
+                                          </div>
+
+                                          {/* Municipality List */}
+                                          <ul className="max-h-40 overflow-y-auto">
+                                            {[
+                                              "City of Mandaluyong",
+                                              "City of Marikina",
+                                              "City of Pasig",
+                                              "City of San Juan",
+                                              "Quezon City",
+                                            ]
+                                              .filter((m) =>
+                                                m
+                                                  .toLowerCase()
+                                                  .includes(
+                                                    municipalitySearch.toLowerCase()
+                                                  )
+                                              )
+                                              .map(
+                                                (municipality, index, arr) => (
+                                                  <li
+                                                    key={municipality}
+                                                    onClick={() => {
+                                                      setSelectedMunicipality(
+                                                        municipality
+                                                      );
+                                                      setMunicipalityOpen(
+                                                        false
+                                                      );
+                                                      setMunicipalitySearch("");
+                                                    }}
+                                                    className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                  ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                                  >
+                                                    {municipality}
+                                                  </li>
+                                                )
+                                              )}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                           </div>
                         ))}
                       </div>
