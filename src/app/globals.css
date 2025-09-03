@@ -198,3 +198,95 @@ body,
 .mapboxgl-popup {
   z-index: 0 !important;
 }
+
+/* Make scrollbar background transparent */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px; /* adjust as needed */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* transparent background */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(199, 199, 199, 0.6); /* visible thumb */
+  border-radius: 4px;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(199, 199, 199, 0.6) transparent; /* thumb + transparent bg for Firefox */
+}
+
+/* Slow globe spin */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin-slow {
+  animation: spin-slow 4s linear infinite;
+}
+
+/* Reverse spin for dashed ring */
+@keyframes spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+.animate-spin-reverse {
+  animation: spin-reverse 6s linear infinite;
+}
+
+/* Orbit paths */
+@keyframes orbit-0 {
+  from {
+    transform: rotate(0deg) translateX(55px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(55px) rotate(-360deg);
+  }
+}
+.animate-orbit-0 {
+  animation: orbit-0 5s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes orbit-90 {
+  from {
+    transform: rotate(90deg) translateX(55px) rotate(0deg);
+  }
+  to {
+    transform: rotate(450deg) translateX(55px) rotate(-360deg);
+  }
+}
+.animate-orbit-90 {
+  animation: orbit-90 5s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes orbit-180 {
+  from {
+    transform: rotate(180deg) translateX(55px) rotate(0deg);
+  }
+  to {
+    transform: rotate(540deg) translateX(55px) rotate(-360deg);
+  }
+}
+.animate-orbit-180 {
+  animation: orbit-180 5s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes orbit-270 {
+  from {
+    transform: rotate(270deg) translateX(55px) rotate(0deg);
+  }
+  to {
+    transform: rotate(630deg) translateX(55px) rotate(-360deg);
+  }
+}
+.animate-orbit-270 {
+  animation: orbit-270 5s linear infinite;
+  transform-origin: center;
+}
