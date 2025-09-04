@@ -321,16 +321,16 @@ export default function PathfinderControls({
       style={{ maxHeight: "calc(100vh - 36px)", overflowY: "auto" }}
     >
       <Tabs defaultValue="destination" className="w-full flex flex-col gap-4">
-        <TabsList className="bg-[#5A5A5A] rounded-xl w-full grid grid-cols-2 p-[6px] h-[48px]">
+        <TabsList className="bg-[#5A5A5A] rounded-lg w-full grid grid-cols-2 p-[5px] h-[44px]">
           <TabsTrigger
             value="destination"
-            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] text-[#FFFFFF] text-[14px] font-medium rounded-lg flex items-center justify-center h-full"
+            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] text-[#FFFFFF] text-[14px] font-medium rounded-sm flex items-center justify-center h-[34px] px-2"
           >
             Set Destination
           </TabsTrigger>
           <TabsTrigger
             value="evacuation"
-            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] text-[#FFFFFF] text-[14px] font-medium rounded-lg flex items-center justify-center h-full"
+            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] text-[#FFFFFF] text-[14px] font-medium rounded-sm flex items-center justify-center h-[34px] px-2"
           >
             Find Evacuation Area
           </TabsTrigger>
@@ -339,7 +339,7 @@ export default function PathfinderControls({
         <div className="flex flex-col gap-3">
           {/* Inputs */}
           <div className="relative" ref={startContainerRef}>
-            <div className="bg-[#5A5A5A] h-[48px] flex items-center gap-3 px-4 rounded-xl shadow-md">
+            <div className="bg-[#5A5A5A] h-[45px] flex items-center gap-3 px-4 rounded-lg shadow-md">
               <MapPin width={25} height={25} color="#75F7A9" />
               <input
                 ref={startRef}
@@ -408,7 +408,7 @@ export default function PathfinderControls({
           </div>
 
           <div className="relative" ref={destinationContainerRef}>
-            <div className="bg-[#5A5A5A] h-[48px] flex items-center gap-3 px-4 rounded-xl shadow-md">
+            <div className="bg-[#5A5A5A] h-[45px] flex items-center gap-3 px-4 rounded-lg shadow-md">
               <MapPin width={25} height={25} color="#FF9494" />
               <input
                 ref={destinationRef}
