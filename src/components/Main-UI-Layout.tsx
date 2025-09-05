@@ -32,7 +32,7 @@ import {
 import { useEffect, useRef, useState, useCallback } from "react";
 
 import MapComponent from "./Map";
-import SafeGISAIChat from "./SafeGIS-AI-Chat";
+import SafeGISAIChat from "./controls/SafeGIS AI/SafeGIS-AI-Chat";
 import SelectMaps from "./controls/Maps/SelectMaps";
 import PathfinderControls from "./controls/Pathfinder/PathfinderControls";
 import SelectPlanningTools from "./controls/Planning Suite/SelectPlanningTools";
@@ -1341,7 +1341,7 @@ export default function MainUILayout() {
             </div>
           </div>
 
-          <SafeGISAIChat isVisible={showChat} />
+          <SafeGISAIChat isVisible={showChat} mapRef={mapRef} />
 
           <button
             onClick={() => setShowChat((prev) => !prev)}

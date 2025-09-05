@@ -2,22 +2,19 @@
 
 import { useEffect, useState, useRef } from "react";
 import {
-  Send,
   History,
   Expand,
   Plus,
   ChevronDown,
   ChevronUp,
-  ArrowBigUp,
   ArrowUp,
   MessageCirclePlus,
   Mic,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import AgentFns from "./Agent Functions/Map-Search";
 
-type Props = {
-  isVisible: boolean;
-};
+type Props = { isVisible: boolean; mapRef?: any };
 
 type Message = {
   role: "user" | "assistant";
@@ -47,7 +44,7 @@ function ThinkingLoader() {
   );
 }
 
-export default function SafeGISAIChat({ isVisible }: Props) {
+export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -84,56 +81,114 @@ export default function SafeGISAIChat({ isVisible }: Props) {
   const handleSend = async () => {
     if (!inputText.trim()) return;
 
+    const userText = inputText;
     const newMessages: Message[] = [
       ...messages,
-      { role: "user", content: inputText },
+      { role: "user", content: userText },
     ];
     setMessages(newMessages);
     setInputText("");
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model:
-              selectedModel === "Gemma 3 27B"
-                ? "google/gemma-3-27b-it:free"
-                : "deepseek/deepseek-r1-0528:free",
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are SafeGIS AI. Only answer questions related to disaster management, GIS, and mapping. If the user asks about unrelated topics, politely refuse and remind them you are specialized only in these domains.",
-              },
-              ...newMessages,
-            ],
-          }),
+      let agentHandled = false;
+
+      // --- Step 1: Classify Intent using a lightweight LLM call ---
+      let intent: "map" | "qa" = "qa"; // default
+      try {
+        const intentResponse = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemma-3-27b-it:free", // fast + free
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are an intent classifier. Decide if the user wants to see a PLACE ON THE MAP (respond with 'map') or if it's a GENERAL QUESTION (respond with 'qa'). Respond with only one word: 'map' or 'qa'.",
+                },
+                { role: "user", content: userText },
+              ],
+            }),
+          }
+        );
+
+        const intentData = await intentResponse.json();
+        const rawIntent = intentData?.choices?.[0]?.message?.content
+          ?.toLowerCase()
+          .trim();
+        if (rawIntent === "map" || rawIntent === "qa") {
+          intent = rawIntent;
         }
-      );
+      } catch (err) {
+        console.warn("Intent classification failed, defaulting to qa", err);
+      }
 
-      const data = await response.json();
-      const aiMessage =
-        data?.choices?.[0]?.message?.content ||
-        "Sorry, I couldn’t generate a response.";
+      // --- Step 2: If intent is map → run SafeGIS Agent ---
+      if (intent === "map") {
+        try {
+          await AgentFns.runAgent(userText, mapRef, (role, content) => {
+            setMessages((prev) => [...prev, { role, content }]);
+          });
+          agentHandled = true;
+        } catch (agentErr) {
+          console.error("Agent error:", agentErr);
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: "Agent failed: " + String(agentErr) },
+          ]);
+        }
+      }
 
-      const formattedMessage = aiMessage
-        .split("\n")
-        .map((line: string) => line.trim())
-        .join("\n\n");
+      // --- Step 3: If not handled by agent → normal LLM Q&A ---
+      if (!agentHandled) {
+        const response = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model:
+                selectedModel === "Gemma 3 27B"
+                  ? "google/gemma-3-27b-it:free"
+                  : "deepseek/deepseek-r1-0528:free",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are SafeGIS AI. Only answer questions related to disaster management, GIS, and mapping. If the user asks about unrelated topics, politely refuse and remind them you are specialized only in these domains.",
+                },
+                ...newMessages,
+              ],
+            }),
+          }
+        );
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: formattedMessage },
-      ]);
+        const data = await response.json();
+        const aiMessage =
+          data?.choices?.[0]?.message?.content ||
+          "Sorry, I couldn’t generate a response.";
+
+        const formattedMessage = aiMessage
+          .split("\n")
+          .map((line: string) => line.trim())
+          .join("\n\n");
+
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: formattedMessage },
+        ]);
+      }
     } catch (err) {
-      console.error("Error fetching AI response:", err);
+      console.error("Error in handleSend:", err);
       setMessages((prev) => [
         ...prev,
         {
@@ -162,11 +217,11 @@ export default function SafeGISAIChat({ isVisible }: Props) {
   return (
     <div
       className={`absolute bottom-[18px] right-[109px] w-[400px] rounded-[15px] z-50 shadow-md origin-bottom-right flex flex-col
-        ${
-          isVisible
-            ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
-            : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
-        }`}
+    ${
+      isVisible
+        ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
+        : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
+    } py-3`} // <-- Added equal padding top & bottom
       style={{
         height: "calc(100% - 2 * 220px)",
         background: "linear-gradient(to bottom, #5A5C99, #232323)",
@@ -187,7 +242,7 @@ export default function SafeGISAIChat({ isVisible }: Props) {
             <p className="text-white opacity-70 text-[20px] font-semibold mt-[12px]">
               SafeGIS AI
             </p>
-            <p className="text-[#C7C7C7] text-[14px] font-[400] mt-[8px] mb-[70px]">
+            <p className="text-[#C7C7C7] text-[14px] font-[400] mt-[8px] mb-[80px]">
               Need assistance? Ask away!
             </p>
           </div>
@@ -203,7 +258,7 @@ export default function SafeGISAIChat({ isVisible }: Props) {
               }`}
             >
               <div
-                className={`p-4 prose prose-invert break-words ${
+                className={`p-4 prose prose-invert break-words select-text ${
                   msg.role === "user"
                     ? "bg-[#3e3f68] text-white rounded-xl max-w-[75%]"
                     : "text-[#C7C7C7] w-full px-2 bg-transparent"
@@ -266,8 +321,8 @@ export default function SafeGISAIChat({ isVisible }: Props) {
                         key={model}
                         onClick={() => handleModelSelect(model)}
                         className={`px-3 py-2 cursor-pointer text-white text-[13px] hover:bg-[#3a3a3a] transition
-      ${idx === 0 ? "rounded-t-md" : ""}
-      ${idx === arr.length - 1 ? "rounded-b-md" : ""}`}
+                          ${idx === 0 ? "rounded-t-md" : ""}
+                          ${idx === arr.length - 1 ? "rounded-b-md" : ""}`}
                       >
                         {model}
                         {model === "Gemma 3 27B" ? " (Default)" : ""}
@@ -299,7 +354,7 @@ export default function SafeGISAIChat({ isVisible }: Props) {
           </div>
 
           {/* Input with integrated Send button container */}
-          <div className="flex flex-col w-full h-[110px] bg-white/5 backdrop-blur-xl border-[2px] border-[#C7C7C7] rounded-xl shadow-lg p-1.5">
+          <div className="flex flex-col w-full h-[110px] bg-white/5 backdrop-blur-xl rounded-xl shadow-lg p-1.5 border-animated">
             {/* Scrollable Textarea */}
             <textarea
               value={inputText}

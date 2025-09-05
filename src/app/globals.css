@@ -290,3 +290,33 @@ body,
   animation: orbit-270 5s linear infinite;
   transform-origin: center;
 }
+
+@keyframes border-move {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.border-animated {
+  position: relative;
+  border-radius: 0.75rem; /* same as rounded-xl */
+  overflow: hidden;
+}
+
+.border-animated::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px; /* thickness of border */
+  background: linear-gradient(90deg, #505290, #c7c7c7, #505290);
+  background-size: 200% 200%; /* makes the gradient longer so it can move */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: border-move 2s linear infinite;
+  pointer-events: none; /* <-- allows typing/clicking inside */
+}
