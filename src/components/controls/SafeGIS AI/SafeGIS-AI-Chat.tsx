@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import AgentFns from "./Agent Functions/Map-Search";
+import { runQandA } from "./Agent Functions/QandA";
 
 type Props = { isVisible: boolean; mapRef?: any };
 
@@ -147,41 +148,11 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
 
       // --- Step 3: If not handled by agent → normal LLM Q&A ---
       if (!agentHandled) {
-        const response = await fetch(
-          "https://openrouter.ai/api/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model:
-                selectedModel === "Gemma 3 27B"
-                  ? "google/gemma-3-27b-it:free"
-                  : "deepseek/deepseek-r1-0528:free",
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are SafeGIS AI. Only answer questions related to disaster management, GIS, and mapping. If the user asks about unrelated topics, politely refuse and remind them you are specialized only in these domains.",
-                },
-                ...newMessages,
-              ],
-            }),
-          }
+        const formattedMessage = await runQandA(
+          newMessages,
+          userText,
+          selectedModel
         );
-
-        const data = await response.json();
-        const aiMessage =
-          data?.choices?.[0]?.message?.content ||
-          "Sorry, I couldn’t generate a response.";
-
-        const formattedMessage = aiMessage
-          .split("\n")
-          .map((line: string) => line.trim())
-          .join("\n\n");
-
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: formattedMessage },

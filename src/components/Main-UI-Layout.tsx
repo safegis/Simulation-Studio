@@ -38,8 +38,6 @@ import PathfinderControls from "./controls/Pathfinder/PathfinderControls";
 import SelectPlanningTools from "./controls/Planning Suite/SelectPlanningTools";
 import ToolPanel from "./controls/ToolPanel";
 import SyncIcon from "@mui/icons-material/Sync";
-import shp from "shpjs";
-import * as toGeoJSON from "@mapbox/togeojson";
 import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 
 export default function MainUILayout() {
