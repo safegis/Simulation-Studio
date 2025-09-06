@@ -1157,7 +1157,7 @@ export default function MainUILayout() {
                       viewMode === "2d" ? "text-[#2E2E2E]" : "text-[#C7C7C7]"
                     }`}
                   >
-                    <Square width={26} height={26} />
+                    <span className="font-semibold text-lg">2D</span>
                   </button>
                   <button
                     onClick={switchTo3D}
@@ -1165,7 +1165,7 @@ export default function MainUILayout() {
                       viewMode === "3d" ? "text-[#2E2E2E]" : "text-[#C7C7C7]"
                     }`}
                   >
-                    <Box width={28} height={28} />
+                    <span className="font-semibold text-lg">3D</span>
                   </button>
                 </div>
               </div>
@@ -1334,9 +1334,10 @@ export default function MainUILayout() {
               )}
             </div>
 
+            {/* Boundaries Button */}
             <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
               <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
-                <RotateCcw width={28} height={28} />
+                B
               </button>
             </div>
           </div>

@@ -41,10 +41,10 @@ interface Props {
 }
 
 const displayNameMap: Record<string, string> = {
-  "Hazard Map": "Hazard Map",
-  "Exposure Map": "Exposure Map",
-  "Vulnerability Map": "Vulnerability Map",
-  "Critical Facility Map": "Critical Facility Map",
+  "Hazard Mapper": "Hazard Mapper",
+  "Exposure Analyzer": "Exposure Analyzer",
+  "Vulnerability Analyzer": "Vulnerability Analyzer",
+  "Critical Facility Mapper": "Critical Facility Mapper",
 };
 
 const displayNamePlanningTools: Record<string, string> = {
@@ -1210,7 +1210,7 @@ export default function ToolPanel({
 
             {isExpanded && (
               <div className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2">
-                {label === "Hazard Map" && (
+                {label === "Hazard Mapper" && (
                   <>
                     {/* Hydro */}
                     <button
@@ -1912,7 +1912,7 @@ export default function ToolPanel({
                   </>
                 )}
 
-                {label === "Exposure Map" && (
+                {label === "Exposure Analyzer" && (
                   <>
                     <PanelToggle
                       title="Population"
@@ -1924,7 +1924,7 @@ export default function ToolPanel({
                       onCheck={togglePopulationItem}
                     />
                     <PanelToggle
-                      title="Biological"
+                      title="Biological Assets"
                       icon={<Sprout size={20} />}
                       expanded={biologicalExpanded}
                       onToggle={() => setBiologicalExpanded((prev) => !prev)}
@@ -1933,7 +1933,7 @@ export default function ToolPanel({
                       onCheck={toggleBiologicalItem}
                     />
                     <PanelToggle
-                      title="Non-Biological"
+                      title="Non-Biological Assets"
                       icon={<Building2 size={20} />}
                       expanded={nonBiologicalExpanded}
                       onToggle={() => setNonBiologicalExpanded((prev) => !prev)}
@@ -1944,24 +1944,24 @@ export default function ToolPanel({
                   </>
                 )}
 
-                {label === "Vulnerability Map" && (
+                {label === "Vulnerability Analyzer" && (
                   <>
                     <TransparentButton
                       label="Population"
                       icon={<PersonStanding size={20} />}
                     />
                     <TransparentButton
-                      label="Biological"
+                      label="Biological Assets"
                       icon={<Sprout size={20} />}
                     />
                     <TransparentButton
-                      label="Non-Biological"
+                      label="Non-Biological Assets"
                       icon={<Building2 size={20} />}
                     />
                   </>
                 )}
 
-                {label === "Critical Facility Map" && (
+                {label === "Critical Facility Mapper" && (
                   <>
                     <TransparentButton
                       label="Active Evacuation Area"

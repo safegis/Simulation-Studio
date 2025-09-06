@@ -18,10 +18,10 @@ export default function SelectMaps({
   if (!isVisible) return null;
 
   const mapOptions = [
-    "Hazard Map",
-    "Exposure Map",
-    "Vulnerability Map",
-    "Critical Facility Map",
+    "Hazard Mapper",
+    "Exposure Analyzer",
+    "Vulnerability Analyzer",
+    "Critical Facility Mapper",
   ];
 
   const handleToggle = (label: string) => {
@@ -38,7 +38,7 @@ export default function SelectMaps({
     >
       <div className="flex items-center justify-between px-4 pt-4 pb-3 z-10">
         <span className="text-[15px] font-medium text-[#C7C7C7]">
-          Select maps to include:
+          Select tools to include:
         </span>
         <button
           onClick={selectedMaps.length === 0 ? undefined : onGoToToolPanel}
