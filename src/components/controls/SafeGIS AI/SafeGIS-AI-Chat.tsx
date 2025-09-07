@@ -10,6 +10,7 @@ import {
   ArrowUp,
   MessageCirclePlus,
   Mic,
+  Globe,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import AgentFns from "./Agent Functions/Map-Search";
@@ -55,6 +56,7 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const dropdownButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   useEffect(() => {
     if (chatEndRef.current)
@@ -245,23 +247,36 @@ User: ${userText}
         {/* Floating Bottom Chat Bar */}
         <div
           className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-[10px] flex flex-col gap-2 flex-shrink-0
-                        w-[370px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg"
+            w-[370px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg"
         >
-          <div className="flex justify-between items-center mb-1">
-            {/* Buttons */}
-            <div className="flex gap-2">
+          <div className="flex justify-between items-center mb-0.5">
+            {/* Web Search Toggle Button - left side */}
+            <button
+              onClick={() => setWebSearchEnabled((prev) => !prev)}
+              className={`px-[8px] py-[17px] text-[13px] rounded-lg border transition-all duration-200 flex items-center justify-center h-[32px] gap-1.5 ${
+                webSearchEnabled
+                  ? "bg-[#5A5C99]/35 border-[#8183c8] text-[#c6c8fb]"
+                  : "bg-white/5 border-white/20 text-white/70 hover:text-white"
+              }`}
+            >
+              <Globe size={16} />
+              Web Search
+            </button>
+
+            {/* Action Buttons - right side */}
+            <div className="flex items-center">
               <button
                 onClick={handleNewSession}
-                className="text-white hover:text-gray-200"
+                className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
               >
                 <MessageCirclePlus size={20} />
               </button>
-              <button className="text-white hover:text-gray-200">
+              <button className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center">
                 <History size={20} />
               </button>
               <button
                 onClick={() => setIsExpanded((prev) => !prev)}
-                className="text-white hover:text-gray-200"
+                className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
               >
                 <Expand size={20} />
               </button>
@@ -309,11 +324,11 @@ User: ${userText}
                   onClick={handleSend}
                   disabled={loading || !inputText.trim()}
                   className={`h-8 w-8 flex items-center justify-center rounded-lg text-white transition
-        ${
-          loading || !inputText.trim()
-            ? "bg-[#676767] opacity-50 cursor-not-allowed"
-            : "bg-[#676767] hover:bg-[#737373]"
-        }`}
+${
+  loading || !inputText.trim()
+    ? "bg-[#676767] opacity-50 cursor-not-allowed"
+    : "bg-[#676767] hover:bg-[#737373]"
+}`}
                 >
                   <ArrowUp size={18} />
                 </button>

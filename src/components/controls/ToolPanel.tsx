@@ -1058,7 +1058,7 @@ export default function ToolPanel({
 
       // Fetch scraper data
       const resScraper = await fetch(
-        "http://localhost:8001/earthquakes/latest"
+        "http://localhost:8000/earthquakes/latest"
       );
       const dataScraper = await resScraper.json();
 
