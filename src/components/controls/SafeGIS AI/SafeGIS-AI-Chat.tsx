@@ -52,8 +52,6 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("Gemma 3 27B");
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const dropdownButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -95,34 +93,32 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
       let agentHandled = false;
 
       // --- Step 1: Classify Intent using a lightweight LLM call ---
+      // --- Step 1: Classify Intent using local Gemma backend ---
       let intent: "map" | "qa" = "qa"; // default
       try {
         const intentResponse = await fetch(
-          "https://openrouter.ai/api/v1/chat/completions",
+          process.env.NEXT_PUBLIC_MODEL_ENDPOINT!,
           {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemma-3-27b-it:free", // fast + free
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are an intent classifier. Decide if the user wants to see a PLACE ON THE MAP (respond with 'map') or if it's a GENERAL QUESTION (respond with 'qa'). Respond with only one word: 'map' or 'qa'.",
-                },
-                { role: "user", content: userText },
-              ],
+              prompt: `
+You are an intent classifier.
+Decide if the user wants to see a PLACE ON THE MAP (respond with 'map')
+or if it's a GENERAL QUESTION (respond with 'qa').
+Respond with only one word: 'map' or 'qa'.
+
+User: ${userText}
+`,
+              max_tokens: 4,
             }),
           }
         );
 
         const intentData = await intentResponse.json();
-        const rawIntent = intentData?.choices?.[0]?.message?.content
-          ?.toLowerCase()
-          .trim();
+        const rawIntent = intentData?.response?.toLowerCase().trim();
         if (rawIntent === "map" || rawIntent === "qa") {
           intent = rawIntent;
         }
@@ -148,11 +144,7 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
 
       // --- Step 3: If not handled by agent → normal LLM Q&A ---
       if (!agentHandled) {
-        const formattedMessage = await runQandA(
-          newMessages,
-          userText,
-          selectedModel
-        );
+        const formattedMessage = await runQandA(newMessages, userText);
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: formattedMessage },
@@ -176,13 +168,6 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
     setMessages([]);
     setInputText("");
     setLoading(false);
-  };
-
-  const toggleModelDropdown = () => setModelDropdownOpen(!modelDropdownOpen);
-
-  const handleModelSelect = (model: string) => {
-    setSelectedModel(model);
-    setModelDropdownOpen(false);
   };
 
   return (
@@ -263,47 +248,6 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
                         w-[370px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg"
         >
           <div className="flex justify-between items-center mb-1">
-            {/* Model Dropdown */}
-            <div className="relative">
-              <button
-                ref={dropdownButtonRef}
-                onClick={toggleModelDropdown}
-                className="flex items-center justify-between px-3 py-1 bg-[#2E2E2E]/80 rounded-md text-white text-[13px] hover:bg-[#3a3a3a]/80 transition min-w-[200px]"
-              >
-                <span className="flex-1 text-left pr-2">
-                  {selectedModel}
-                  {selectedModel === "Gemma 3 27B" ? " (Default)" : ""}
-                </span>
-                {modelDropdownOpen ? (
-                  <ChevronDown size={16} />
-                ) : (
-                  <ChevronUp size={16} />
-                )}
-              </button>
-
-              {modelDropdownOpen && (
-                <div
-                  className="absolute bottom-full left-0 mb-1 bg-[#2E2E2E]/90 rounded-md shadow-lg z-50"
-                  style={{ width: dropdownButtonRef.current?.offsetWidth }}
-                >
-                  {["Gemma 3 27B", "DeepSeek: R1 0528"].map(
-                    (model, idx, arr) => (
-                      <div
-                        key={model}
-                        onClick={() => handleModelSelect(model)}
-                        className={`px-3 py-2 cursor-pointer text-white text-[13px] hover:bg-[#3a3a3a] transition
-                          ${idx === 0 ? "rounded-t-md" : ""}
-                          ${idx === arr.length - 1 ? "rounded-b-md" : ""}`}
-                      >
-                        {model}
-                        {model === "Gemma 3 27B" ? " (Default)" : ""}
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Buttons */}
             <div className="flex gap-2">
               <button

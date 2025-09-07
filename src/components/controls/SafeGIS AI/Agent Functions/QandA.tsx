@@ -7,40 +7,31 @@ type Message = {
 
 export async function runQandA(
   messages: Message[],
-  userText: string,
-  selectedModel: string
+  userText: string
 ): Promise<string> {
   try {
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model:
-            selectedModel === "Gemma 3 27B"
-              ? "google/gemma-3-27b-it:free"
-              : "deepseek/deepseek-r1-0528:free",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are SafeGIS AI. Only answer questions related to disaster management, GIS, and mapping. If the user asks about unrelated topics, politely refuse and remind them you are specialized only in these domains.",
-            },
-            ...messages,
-            { role: "user", content: userText },
-          ],
-        }),
-      }
-    );
+    const response = await fetch(process.env.NEXT_PUBLIC_MODEL_ENDPOINT!, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt: `
+You are SafeGIS AI. Only answer questions related to disaster management, GIS, and mapping. 
+If the user asks about unrelated topics, politely refuse and remind them you are specialized only in these domains.
+
+Conversation so far:
+${messages.map((m) => `${m.role}: ${m.content}`).join("\n")}
+
+User: ${userText}
+`,
+        max_tokens: 256,
+      }),
+    });
 
     const data = await response.json();
     const aiMessage =
-      data?.choices?.[0]?.message?.content ||
-      "Sorry, I couldn’t generate a response.";
+      data?.response || "Sorry, I couldn’t generate a response.";
 
     return aiMessage
       .split("\n")

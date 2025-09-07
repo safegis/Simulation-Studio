@@ -40,7 +40,6 @@ async function canonicalizeLocation(
   context: string = ""
 ): Promise<string> {
   try {
-    // Step 0: remove common leading words
     let cleaned = query
       .replace(
         /^(go to|show me|i want to see|look up|find|please show|display|fly the map to|now fly the map to)\s+/i,
@@ -49,32 +48,27 @@ async function canonicalizeLocation(
       .replace(/in the map$/i, "")
       .trim();
 
-    const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const resp = await fetch(process.env.NEXT_PUBLIC_MODEL_ENDPOINT!, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemma-3-27b-it:free",
-        messages: [
-          {
-            role: "system",
-            content: `
+        prompt: `
 You are a geolocation cleaner. Output ONLY the canonical place name suitable for geocoding APIs.
-Preserve specific landmarks (monuments, towers, walls, palaces, temples, bridges, stadiums, POIs), but do NOT block other locations like malls, circles, streets, or cities.
+Preserve specific landmarks (monuments, towers, walls, palaces, temples, bridges, stadiums, POIs).
 Use conversation context to resolve vague references.
 Do NOT include extra words or punctuation.
+
+Context: ${context}
+User: ${cleaned}
 `,
-          },
-          { role: "user", content: "Context: " + context },
-          { role: "user", content: cleaned },
-        ],
+        max_tokens: 64,
       }),
     });
 
     const data = await resp.json();
-    let text = data?.choices?.[0]?.message?.content?.trim() || cleaned;
+    let text = data?.response?.trim() || cleaned;
 
     return text;
   } catch (err) {
