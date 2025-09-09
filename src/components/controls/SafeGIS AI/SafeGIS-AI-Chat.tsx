@@ -16,7 +16,11 @@ import ReactMarkdown from "react-markdown";
 import AgentFns from "./Agent Functions/Map-Search";
 import { runQandA } from "./Agent Functions/QandA";
 
-type Props = { isVisible: boolean; mapRef?: any };
+type Props = {
+  isVisible: boolean;
+  mapRef?: any;
+  toggleChat: () => void;
+};
 
 type Message = {
   role: "user" | "assistant";
@@ -46,7 +50,11 @@ function ThinkingLoader() {
   );
 }
 
-export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
+export default function SafeGISAIChat({
+  isVisible,
+  mapRef,
+  toggleChat,
+}: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -77,7 +85,26 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
     }
   }, [isVisible]);
 
-  if (!isVisible && !animateVisible) return null;
+  if (!isVisible && !animateVisible) {
+    return (
+      <>
+        {/* SafeGIS AI Chat Button */}
+        <button
+          onClick={toggleChat}
+          className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
+          style={{
+            background: "linear-gradient(to bottom, #5A5C99, #232323)",
+          }}
+        >
+          <img
+            src="/Images/SafeGIS-AI-Logo.png"
+            alt="SafeGIS AI Logo"
+            className="w-12 h-12 -mt-[2.5px]"
+          />
+        </button>
+      </>
+    );
+  }
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
@@ -94,8 +121,7 @@ export default function SafeGISAIChat({ isVisible, mapRef }: Props) {
     try {
       let agentHandled = false;
 
-      // --- Step 1: Classify Intent using a lightweight LLM call ---
-      // --- Step 1: Classify Intent using local Gemma backend ---
+      // Intent classification
       let intent: "map" | "qa" = "qa"; // default
       try {
         const intentResponse = await fetch(
@@ -128,7 +154,7 @@ User: ${userText}
         console.warn("Intent classification failed, defaulting to qa", err);
       }
 
-      // --- Step 2: If intent is map → run SafeGIS Agent ---
+      // Run Agent
       if (intent === "map") {
         try {
           await AgentFns.runAgent(userText, mapRef, (role, content) => {
@@ -144,7 +170,7 @@ User: ${userText}
         }
       }
 
-      // --- Step 3: If not handled by agent → normal LLM Q&A ---
+      // Run Q&A
       if (!agentHandled) {
         const formattedMessage = await runQandA(newMessages, userText);
         setMessages((prev) => [
@@ -173,170 +199,177 @@ User: ${userText}
   };
 
   return (
-    <div
-      className={`absolute bottom-[18px] right-[109px] w-[400px] rounded-[15px] z-50 shadow-md origin-bottom-right flex flex-col
-    ${
-      isVisible
-        ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
-        : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
-    } py-3`} // <-- Added equal padding top & bottom
-      style={{
-        height: "calc(100% - 2 * 220px)",
-        background: "linear-gradient(to bottom, #5A5C99, #232323)",
-        overflow: "hidden",
-      }}
-    >
-      <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
-        {messages.length === 0 && (
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-6"
-            style={{ transform: "translateY(-50px)" }} // slightly down
-          >
-            <img
-              src="/Images/SafeGIS-AI-Logo.png"
-              alt="SafeGIS AI Logo"
-              className="opacity-50 w-[120px]"
-            />
-            <p className="text-white opacity-70 text-[20px] font-semibold mt-[12px]">
-              SafeGIS AI
-            </p>
-            <p className="text-[#C7C7C7] text-[14px] font-[400] mt-[8px] mb-[80px]">
-              Need assistance? Ask away!
-            </p>
-          </div>
-        )}
-
-        {/* Messages Container */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3 relative custom-scrollbar bg-transparent pb-[180px]">
-          {messages.map((msg, idx) => (
+    <>
+      <div
+        className={`absolute bottom-[18px] right-[109px] w-[400px] rounded-[15px] z-50 shadow-md origin-bottom-right flex flex-col 
+      ${
+        isVisible
+          ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
+          : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
+      } py-3`}
+        style={{
+          height: "calc(100% - 2 * 220px)",
+          background: "linear-gradient(to bottom, #5A5C99, #232323)",
+          overflow: "hidden",
+        }}
+      >
+        <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
+          {messages.length === 0 && (
             <div
-              key={idx}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-center"
-              }`}
+              className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-6"
+              style={{ transform: "translateY(-50px)" }}
             >
+              <img
+                src="/Images/SafeGIS-AI-Logo.png"
+                alt="SafeGIS AI Logo"
+                className="opacity-50 w-[120px]"
+              />
+              <p className="text-white opacity-70 text-[20px] font-semibold mt-[12px]">
+                SafeGIS AI
+              </p>
+              <p className="text-[#C7C7C7] text-[14px] font-[400] mt-[8px] mb-[80px]">
+                Need assistance? Ask away!
+              </p>
+            </div>
+          )}
+
+          {/* Messages */}
+          <div className="flex-1 p-4 overflow-y-auto space-y-3 relative custom-scrollbar bg-transparent pb-[180px]">
+            {messages.map((msg, idx) => (
               <div
-                className={`p-4 prose prose-invert break-words select-text ${
-                  msg.role === "user"
-                    ? "bg-[#3e3f68] text-white rounded-xl max-w-[75%]"
-                    : "text-[#C7C7C7] w-full px-2 bg-transparent"
+                key={idx}
+                className={`flex ${
+                  msg.role === "user" ? "justify-end" : "justify-center"
                 }`}
               >
-                <ReactMarkdown
-                  components={{
-                    p: ({ node, ...props }) => (
-                      <p
-                        className="mb-4 leading-relaxed text-[14px]" // <-- changed from text-base
-                        {...props}
-                      />
-                    ),
-                    li: ({ node, ...props }) => (
-                      <li className="ml-6 list-disc text-[14px]" {...props} /> // optional for list items
-                    ),
-                  }}
+                <div
+                  className={`p-4 prose prose-invert break-words select-text ${
+                    msg.role === "user"
+                      ? "bg-[#3e3f68] text-white rounded-xl max-w-[75%]"
+                      : "text-[#C7C7C7] w-full px-2 bg-transparent"
+                  }`}
                 >
-                  {msg.content}
-                </ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      p: ({ node, ...props }) => (
+                        <p
+                          className="mb-4 leading-relaxed text-[14px]"
+                          {...props}
+                        />
+                      ),
+                      li: ({ node, ...props }) => (
+                        <li className="ml-6 list-disc text-[14px]" {...props} />
+                      ),
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
               </div>
-            </div>
-          ))}
-          {loading && <ThinkingLoader />}
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Floating Bottom Chat Bar */}
-        <div
-          className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-[10px] flex flex-col gap-2 flex-shrink-0
-            w-[370px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg"
-        >
-          <div className="flex justify-between items-center mb-0.5">
-            {/* Web Search Toggle Button - left side */}
-            <button
-              onClick={() => setWebSearchEnabled((prev) => !prev)}
-              className={`px-[8px] py-[17px] text-[13px] rounded-lg border transition-all duration-200 flex items-center justify-center h-[32px] gap-1.5 ${
-                webSearchEnabled
-                  ? "bg-[#5A5C99]/35 border-[#8183c8] text-[#c6c8fb]"
-                  : "bg-white/5 border-white/20 text-white/70 hover:text-white"
-              }`}
-            >
-              <Globe size={16} />
-              Web Search
-            </button>
-
-            {/* Action Buttons - right side */}
-            <div className="flex items-center">
-              <button
-                onClick={handleNewSession}
-                className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
-              >
-                <MessageCirclePlus size={20} />
-              </button>
-              <button className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center">
-                <History size={20} />
-              </button>
-              <button
-                onClick={() => setIsExpanded((prev) => !prev)}
-                className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
-              >
-                <Expand size={20} />
-              </button>
-            </div>
+            ))}
+            {loading && <ThinkingLoader />}
+            <div ref={chatEndRef} />
           </div>
 
-          {/* Input with integrated Send button container */}
-          <div className="flex flex-col w-full h-[110px] bg-white/5 backdrop-blur-xl rounded-xl shadow-lg p-1.5 border-animated">
-            {/* Scrollable Textarea */}
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Ask a question or define a task..."
-              className="flex-1 resize-none overflow-y-auto bg-transparent text-[#C7C7C7] placeholder-[#C7C7C7]/70 text-[14px] rounded-md px-2 py-1 outline-none border-none custom-scrollbar"
-            />
-
-            {/* Button Row */}
-            <div className="flex justify-between mt-1.5">
-              {/* Plus Button on the far left */}
+          {/* Chat Input */}
+          <div
+            className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-[10px] flex flex-col gap-2 flex-shrink-0 
+              w-[370px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg"
+          >
+            <div className="flex justify-between items-center mb-0.5">
+              {/* Web Search */}
               <button
-                onClick={() => console.log("Plus button clicked")}
-                className="h-8 w-8 flex items-center justify-center rounded-lg text-white hover:text-gray-200 transition bg-transparent"
+                onClick={() => setWebSearchEnabled((prev) => !prev)}
+                className={`px-[8px] py-[17px] text-[13px] rounded-lg border transition-all duration-200 flex items-center justify-center h-[32px] gap-1.5 ${
+                  webSearchEnabled
+                    ? "bg-[#5A5C99]/35 border-[#8183c8] text-[#c6c8fb]"
+                    : "bg-white/5 border-white/20 text-white/70 hover:text-white"
+                }`}
               >
-                <Plus size={18} />
+                <Globe size={16} />
+                Web Search
               </button>
 
-              {/* Right-side buttons: Mic and Send */}
-              <div className="flex gap-1">
-                {/* Mic Button */}
+              {/* Actions */}
+              <div className="flex items-center">
                 <button
-                  onClick={() => console.log("Mic button clicked")}
+                  onClick={handleNewSession}
+                  className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
+                >
+                  <MessageCirclePlus size={20} />
+                </button>
+                <button className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center">
+                  <History size={20} />
+                </button>
+                <button
+                  onClick={() => setIsExpanded((prev) => !prev)}
+                  className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
+                >
+                  <Expand size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Textarea */}
+            <div className="flex flex-col w-full h-[110px] bg-white/5 backdrop-blur-xl rounded-xl shadow-lg p-1.5 border-animated">
+              <textarea
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Ask a question or define a task..."
+                className="flex-1 resize-none overflow-y-auto bg-transparent text-[#C7C7C7] placeholder-[#C7C7C7]/70 text-[14px] rounded-md px-2 py-1 outline-none border-none custom-scrollbar"
+              />
+              <div className="flex justify-between mt-1.5">
+                <button
+                  onClick={() => console.log("Plus button clicked")}
                   className="h-8 w-8 flex items-center justify-center rounded-lg text-white hover:text-gray-200 transition bg-transparent"
                 >
-                  <Mic size={18} />
+                  <Plus size={18} />
                 </button>
-
-                {/* Send Button */}
-                <button
-                  onClick={handleSend}
-                  disabled={loading || !inputText.trim()}
-                  className={`h-8 w-8 flex items-center justify-center rounded-lg text-white transition
-${
-  loading || !inputText.trim()
-    ? "bg-[#676767] opacity-50 cursor-not-allowed"
-    : "bg-[#676767] hover:bg-[#737373]"
-}`}
-                >
-                  <ArrowUp size={18} />
-                </button>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => console.log("Mic button clicked")}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg text-white hover:text-gray-200 transition bg-transparent"
+                  >
+                    <Mic size={18} />
+                  </button>
+                  <button
+                    onClick={handleSend}
+                    disabled={loading || !inputText.trim()}
+                    className={`h-8 w-8 flex items-center justify-center rounded-lg text-white transition ${
+                      loading || !inputText.trim()
+                        ? "bg-[#676767] opacity-50 cursor-not-allowed"
+                        : "bg-[#676767] hover:bg-[#737373]"
+                    }`}
+                  >
+                    <ArrowUp size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Chat Button when Open */}
+      <button
+        onClick={toggleChat}
+        className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
+        style={{
+          background: "linear-gradient(to bottom, #6B6DCC, #2E2E2E)",
+        }}
+      >
+        <img
+          src="/Images/SafeGIS-AI-Logo.png"
+          alt="SafeGIS AI Logo"
+          className="w-12 h-12 -mt-[2.5px]"
+        />
+      </button>
+    </>
   );
 }

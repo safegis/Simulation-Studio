@@ -29,7 +29,7 @@ import {
   Trash,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { healthFacilities } from "./HealthFacilities";
+import { healthFacilities } from "./Features/Maps/HealthFacilities";
 
 interface Props {
   isVisible: boolean;
