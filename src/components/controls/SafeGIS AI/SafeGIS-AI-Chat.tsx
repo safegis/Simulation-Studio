@@ -1,12 +1,9 @@
 "use client";
-
 import { useEffect, useState, useRef } from "react";
 import {
   History,
   Expand,
   Plus,
-  ChevronDown,
-  ChevronUp,
   ArrowUp,
   MessageCirclePlus,
   Mic,
@@ -14,12 +11,18 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import AgentFns from "./Agent Functions/Map-Search";
+import ViewSwitchAgent from "./Agent Functions/SwitchMapView";
 import { runQandA } from "./Agent Functions/QandA";
 
 type Props = {
   isVisible: boolean;
   mapRef?: any;
   toggleChat: () => void;
+  // New props for view switching
+  viewMode?: "2d" | "3d";
+  switchTo2D?: () => void;
+  switchTo3D?: () => void;
+  setViewMode?: (mode: "2d" | "3d") => void;
 };
 
 type Message = {
@@ -54,6 +57,10 @@ export default function SafeGISAIChat({
   isVisible,
   mapRef,
   toggleChat,
+  viewMode = "2d",
+  switchTo2D,
+  switchTo3D,
+  setViewMode,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
@@ -61,7 +68,6 @@ export default function SafeGISAIChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const dropdownButtonRef = useRef<HTMLButtonElement | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -121,8 +127,9 @@ export default function SafeGISAIChat({
     try {
       let agentHandled = false;
 
-      // Intent classification
-      let intent: "map" | "qa" = "qa"; // default
+      // Default intent
+      let intent: "map" | "view" | "qa" = "qa";
+
       try {
         const intentResponse = await fetch(
           process.env.NEXT_PUBLIC_MODEL_ENDPOINT!,
@@ -133,10 +140,47 @@ export default function SafeGISAIChat({
             },
             body: JSON.stringify({
               prompt: `
-You are an intent classifier.
-Decide if the user wants to see a PLACE ON THE MAP (respond with 'map')
-or if it's a GENERAL QUESTION (respond with 'qa').
-Respond with only one word: 'map' or 'qa'.
+You are an intent classifier for a mapping application. 
+Return ONE WORD ONLY: map, view, or qa. 
+Do not explain. Do not add punctuation. Do not add sentences. 
+If you output anything else, the system will fail. 
+
+Rules:
+1. 'view' → when the user wants to CHANGE HOW THE MAP IS DISPLAYED.  
+   - Keywords: "2D", "3D", "2d", "3d", "perspective", "satellite view",
+     "terrain view", "street view", "rotate map", "tilt map", 
+     "switch view", "switch to [mode]", "display in [mode]",
+     "enable [mode]", "turn on/off 3D", "map orientation".
+   - If both a location AND a view are mentioned (e.g., "show New York in 3D"), classify as 'view'.
+
+2. 'map' → when the user wants to SEARCH FOR OR DISPLAY A SPECIFIC LOCATION.  
+   - Includes: city names, landmarks, addresses.
+   - Phrases: "show me [place]", "go to [place]", "find [location]".
+   - Only choose 'map' if no display/view change is requested.
+
+3. 'qa' → everything else (general questions, explanations, non-map queries).
+
+Decision hierarchy: 
+- If both 'map' and 'view' apply → choose 'view'. 
+- Else if location → 'map'. 
+- Else → 'qa'.
+
+Examples:
+- "Now I want to see the map in 3D." → view
+- "Switch to 2D mode" → view
+- "Enable satellite view" → view
+- "Rotate the map perspective" → view
+- "Show me Paris" → map
+- "Go to Tokyo station" → map
+- "What is GIS?" → qa
+- "Show New York in 3D" → view
+
+Respond with ONLY:
+map
+view
+qa
+
+Nothing else.
 
 User: ${userText}
 `,
@@ -146,16 +190,41 @@ User: ${userText}
         );
 
         const intentData = await intentResponse.json();
-        const rawIntent = intentData?.response?.toLowerCase().trim();
-        if (rawIntent === "map" || rawIntent === "qa") {
+        let rawIntent = intentData?.response?.toLowerCase().trim();
+
+        // Safety filter – only accept exact values
+        if (rawIntent === "map" || rawIntent === "view" || rawIntent === "qa") {
           intent = rawIntent;
+        } else {
+          console.warn(
+            "Invalid classifier output, defaulting to qa:",
+            rawIntent
+          );
+          intent = "qa";
         }
       } catch (err) {
         console.warn("Intent classification failed, defaulting to qa", err);
       }
 
-      // Run Agent
-      if (intent === "map") {
+      // Handle intents
+      if (intent === "view") {
+        if (switchTo2D && switchTo3D && setViewMode) {
+          const viewSwitchHandled = await ViewSwitchAgent.runViewSwitchAgent(
+            userText,
+            mapRef,
+            {
+              switchTo2D,
+              switchTo3D,
+              setViewMode,
+            },
+            (role, content) => {
+              setMessages((prev) => [...prev, { role, content }]);
+            },
+            viewMode
+          );
+          agentHandled = viewSwitchHandled;
+        }
+      } else if (intent === "map") {
         try {
           await AgentFns.runAgent(userText, mapRef, (role, content) => {
             setMessages((prev) => [...prev, { role, content }]);
@@ -170,7 +239,7 @@ User: ${userText}
         }
       }
 
-      // Run Q&A
+      // Default to Q&A if not handled by an agent
       if (!agentHandled) {
         const formattedMessage = await runQandA(newMessages, userText);
         setMessages((prev) => [
@@ -201,12 +270,12 @@ User: ${userText}
   return (
     <>
       <div
-        className={`absolute bottom-[18px] right-[109px] w-[400px] rounded-[15px] z-50 shadow-md origin-bottom-right flex flex-col 
-      ${
-        isVisible
-          ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
-          : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
-      } py-3`}
+        className={`absolute bottom-[18px] right-[109px] w-[400px] rounded-[15px] z-50 shadow-md origin-bottom-right flex flex-col
+        ${
+          isVisible
+            ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
+            : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
+        } py-3`}
         style={{
           height: "calc(100% - 2 * 220px)",
           background: "linear-gradient(to bottom, #5A5C99, #232323)",
@@ -272,10 +341,7 @@ User: ${userText}
           </div>
 
           {/* Chat Input */}
-          <div
-            className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-[10px] flex flex-col gap-2 flex-shrink-0 
-              w-[370px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg"
-          >
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-[10px] flex flex-col gap-2 flex-shrink-0 w-[370px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg">
             <div className="flex justify-between items-center mb-0.5">
               {/* Web Search */}
               <button

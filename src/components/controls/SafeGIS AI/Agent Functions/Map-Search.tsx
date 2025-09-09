@@ -184,7 +184,7 @@ export async function runAgent(
   pushMessage: (role: "assistant" | "user", content: string) => void
 ): Promise<void> {
   try {
-    pushMessage("assistant", `Looking up "${prompt}"...`);
+    pushMessage("assistant", `Searching location from: "${prompt}"...`);
 
     // Step 1: Use context-aware canonicalizer
     let cleanedPrompt = await canonicalizeLocation(prompt, lastMapLocation);

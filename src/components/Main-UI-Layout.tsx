@@ -8,7 +8,7 @@ import SelectMaps from "./controls/Features/Maps/SelectMaps";
 import PathfinderControls from "./controls/Features/Pathfinder/PathfinderControls";
 import LocationSearchBar from "./controls/Main/LocationSearchBar";
 import SelectPlanningTools from "./controls/Features/Planning Suite/SelectPlanningTools";
-import RightSideControls from "./controls/Main/RightSideControls";
+import RightSideControls from "./controls/Main/CenterRightControls";
 import CenterLeftControls from "./controls/Main/CenterLeftControls";
 import PlanEditor from "./controls/Features/Planning Suite/PlanEditor";
 
@@ -16,8 +16,6 @@ import UserSettings from "./controls/Main/UserSettings";
 import CenterTopControls from "./controls/Main/CenterTopControls";
 import CenterBottomClock from "./controls/Main/CenterBottomClock";
 import ToolPanel from "./controls/ToolPanel";
-
-import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
@@ -59,102 +57,6 @@ export default function MainUILayout() {
 
   const squareRatio = 1; // 1:1 square
   const rectangleRatio = 16 / 9; // rectangle ratio (can change to 4/3 etc.)
-
-  // NEW: Track uploaded files
-  const [uploadedFiles, setUploadedFiles] = useState<
-    { name: string; layerName: string }[]
-  >([]);
-
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFiles = async (files: FileList) => {
-    for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      try {
-        let geojson:
-          | FeatureCollection<Geometry, GeoJsonProperties>
-          | FeatureCollection<Geometry, GeoJsonProperties>[]
-          | null = null;
-
-        if (ext === "geojson" || ext === "json") {
-          const text = await file.text();
-          geojson = JSON.parse(text);
-        } else if (ext === "kml") {
-          const text = await file.text();
-          const dom = new DOMParser().parseFromString(text, "text/xml");
-          const toGeoJSON = await import("@mapbox/togeojson");
-          geojson = toGeoJSON.kml(dom) as FeatureCollection<
-            Geometry,
-            GeoJsonProperties
-          >;
-        } else if (ext === "zip" || ext === "shp") {
-          const arrayBuffer = await file.arrayBuffer();
-          const shp = (await import("shpjs")).default;
-          geojson = await shp(arrayBuffer);
-        }
-
-        if (geojson) {
-          if (Array.isArray(geojson)) {
-            geojson.forEach((fc, i) => {
-              mapRef.current?.addGeoJSONLayer(fc, `${file.name}-layer${i + 1}`);
-            });
-          } else {
-            mapRef.current?.addGeoJSONLayer(geojson, file.name);
-            setUploadedFiles((prev) => [
-              ...prev,
-              { name: file.name, layerName: file.name },
-            ]);
-          }
-        }
-      } catch (err) {
-        console.error("Error processing file:", file.name, err);
-      }
-    }
-  };
-
-  // --- Drag & Drop handlers ---
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFiles(e.dataTransfer.files);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => setIsDragging(false);
-
-  const handleRemoveFile = (layerName: string) => {
-    if (!mapRef.current) return;
-
-    // Sanitize the layerName (must match how you added it on map)
-    const safeName = layerName.replace(/[^a-zA-Z0-9_-]/g, "");
-    const sourceId = `upload-${safeName}`;
-    const baseId = `${sourceId}-layer`;
-
-    // Remove layers and source from map
-    const map = mapRef.current.getMap();
-    if (map) {
-      ["fill", "line", "circle"].forEach((type) => {
-        const layerId = `${baseId}-${type}`;
-        if (map.getLayer(layerId)) map.removeLayer(layerId);
-      });
-
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
-    }
-
-    // Remove from state list
-    setUploadedFiles((prev) => prev.filter((f) => f.layerName !== layerName));
-
-    // 🔑 Reset file input so same file can be uploaded again
-    const inputEl = document.getElementById("geo-upload") as HTMLInputElement;
-    if (inputEl) inputEl.value = "";
-  };
 
   const mapStyleRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -712,6 +614,10 @@ export default function MainUILayout() {
             isVisible={showChat}
             mapRef={mapRef}
             toggleChat={() => setShowChat((prev) => !prev)}
+            viewMode={viewMode}
+            switchTo2D={switchTo2D}
+            switchTo3D={switchTo3D}
+            setViewMode={setViewMode}
           />
 
           {/* Center Bottom Clock */}
