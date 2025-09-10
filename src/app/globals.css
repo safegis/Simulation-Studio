@@ -320,3 +320,64 @@ body,
   animation: border-move 2s linear infinite;
   pointer-events: none; /* <-- allows typing/clicking inside */
 }
+.animated-border {
+  stroke-dasharray: 150 2000; /* one visible dash + big gap */
+  stroke-dashoffset: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.group:hover .animated-border {
+  opacity: 0.5;
+  animation: dashOnce 0.6s linear forwards; /* was 1.5s */
+}
+
+@keyframes dashOnce {
+  to {
+    stroke-dashoffset: -1014; /* exactly one lap = full perimeter */
+  }
+}
+
+@keyframes orbit-breath-rotate {
+  0% {
+    transform: rotate(var(--angle)) translateX(56px)
+      rotate(calc(-1 * var(--angle)));
+  }
+  25% {
+    transform: rotate(calc(var(--angle) + 90deg)) translateX(45px)
+      rotate(calc(-1 * (var(--angle) + 90deg)));
+  }
+  50% {
+    transform: rotate(calc(var(--angle) + 180deg)) translateX(38px)
+      rotate(calc(-1 * (var(--angle) + 180deg)));
+  }
+  75% {
+    transform: rotate(calc(var(--angle) + 270deg)) translateX(45px)
+      rotate(calc(-1 * (var(--angle) + 270deg)));
+  }
+  100% {
+    transform: rotate(calc(var(--angle) + 360deg)) translateX(56px)
+      rotate(calc(-1 * (var(--angle) + 360deg)));
+  }
+}
+
+/* Orbiting dots with breathing effect and continuous rotation */
+.animate-orbit-breath-0 {
+  --angle: 0deg;
+  animation: orbit-breath-rotate 2.5s linear infinite;
+}
+
+.animate-orbit-breath-90 {
+  --angle: 90deg;
+  animation: orbit-breath-rotate 2.5s linear infinite;
+}
+
+.animate-orbit-breath-180 {
+  --angle: 180deg;
+  animation: orbit-breath-rotate 2.5s linear infinite;
+}
+
+.animate-orbit-breath-270 {
+  --angle: 270deg;
+  animation: orbit-breath-rotate 2.5s linear infinite;
+}

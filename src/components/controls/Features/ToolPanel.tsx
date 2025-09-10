@@ -24,12 +24,10 @@ import {
   Bus,
   Antenna,
   Building,
-  Route,
-  SquareStack,
-  Trash,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { healthFacilities } from "./Features/Maps/HealthFacilities";
+import { healthFacilities } from "./Maps/Critical Facility Map/HealthFacilities";
+import ExposureAssessmentControls from "./Maps/Exposure Assessment/ExposureAssessmentControls";
 
 interface Props {
   isVisible: boolean;
@@ -41,18 +39,15 @@ interface Props {
 }
 
 const displayNameMap: Record<string, string> = {
-  "Hazard Mapper": "Hazard Mapper",
-  "Exposure Analyzer": "Exposure Analyzer",
-  "Vulnerability Analyzer": "Vulnerability Analyzer",
-  "Critical Facility Mapper": "Critical Facility Mapper",
+  "Hazard Map": "Hazard Map",
+  "Critical Facility Map": "Critical Facility Map",
+  "Exposure Assessment": "Exposure Assessment",
 };
 
 const displayNamePlanningTools: Record<string, string> = {
-  "Evacuation Planner": "Evacuation Planner",
   "Resource Planner": "Resource Planner",
+  "Evacuation Planner": "Evacuation Planner",
   "Recovery Planner": "Recovery Planner",
-  "Medical Response Planner": "Medical Response Planner",
-  "Communication & Alert Planner": "Communication & Alert Planner",
 };
 
 const populationCheckboxItems = ["Urban", "Rural", "Vulnerable Population"];
@@ -1210,7 +1205,8 @@ export default function ToolPanel({
 
             {isExpanded && (
               <div className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2">
-                {label === "Hazard Mapper" && (
+                {/* Hazard Map Controls */}
+                {label === "Hazard Map" && (
                   <>
                     {/* Hydro */}
                     <button
@@ -1277,8 +1273,14 @@ export default function ToolPanel({
                                             setFloodScopeOpen(false);
                                           }}
                                           className={`px-3 py-2 hover:bg-[#505050] cursor-pointer 
-          ${index === 0 ? "rounded-t-md" : ""} 
-          ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                            ${
+                                              index === 0 ? "rounded-t-md" : ""
+                                            } 
+                                            ${
+                                              index === arr.length - 1
+                                                ? "rounded-b-md"
+                                                : ""
+                                            }`}
                                         >
                                           {option}
                                         </div>
@@ -1455,7 +1457,11 @@ export default function ToolPanel({
                                                 setScopeLevelOpen(false);
                                               }}
                                               className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
-              ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                                ${
+                                                  index === arr.length - 1
+                                                    ? "rounded-b-md"
+                                                    : ""
+                                                }`}
                                             >
                                               {level}
                                             </div>
@@ -1498,7 +1504,11 @@ export default function ToolPanel({
                                                 setSourceOpen(false);
                                               }}
                                               className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
-              ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                                ${
+                                                  index === arr.length - 1
+                                                    ? "rounded-b-md"
+                                                    : ""
+                                                }`}
                                             >
                                               {src}
                                             </div>
@@ -1700,7 +1710,11 @@ export default function ToolPanel({
                                                 setSourceOpen(false);
                                               }}
                                               className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
-              ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                                                ${
+                                                  index === arr.length - 1
+                                                    ? "rounded-b-md"
+                                                    : ""
+                                                }`}
                                             >
                                               {src}
                                             </div>
@@ -1912,56 +1926,29 @@ export default function ToolPanel({
                   </>
                 )}
 
-                {label === "Exposure Analyzer" && (
-                  <>
-                    <PanelToggle
-                      title="Population"
-                      icon={<PersonStanding size={20} />}
-                      expanded={populationExpanded}
-                      onToggle={() => setPopulationExpanded((prev) => !prev)}
-                      items={populationCheckboxItems}
-                      checkedItems={populationCheckedItems}
-                      onCheck={togglePopulationItem}
-                    />
-                    <PanelToggle
-                      title="Biological Assets"
-                      icon={<Sprout size={20} />}
-                      expanded={biologicalExpanded}
-                      onToggle={() => setBiologicalExpanded((prev) => !prev)}
-                      items={biologicalCheckboxItems}
-                      checkedItems={biologicalCheckedItems}
-                      onCheck={toggleBiologicalItem}
-                    />
-                    <PanelToggle
-                      title="Non-Biological Assets"
-                      icon={<Building2 size={20} />}
-                      expanded={nonBiologicalExpanded}
-                      onToggle={() => setNonBiologicalExpanded((prev) => !prev)}
-                      items={nonBiologicalCheckboxItems}
-                      checkedItems={nonBiologicalCheckedItems}
-                      onCheck={toggleNonBiologicalItem}
-                    />
-                  </>
+                {label === "Exposure Assessment" && (
+                  <ExposureAssessmentControls
+                    populationExpanded={populationExpanded}
+                    setPopulationExpanded={setPopulationExpanded}
+                    populationCheckboxItems={populationCheckboxItems}
+                    populationCheckedItems={populationCheckedItems}
+                    togglePopulationItem={togglePopulationItem}
+                    biologicalExpanded={biologicalExpanded}
+                    setBiologicalExpanded={setBiologicalExpanded}
+                    biologicalCheckboxItems={biologicalCheckboxItems}
+                    biologicalCheckedItems={biologicalCheckedItems}
+                    toggleBiologicalItem={toggleBiologicalItem}
+                    nonBiologicalExpanded={nonBiologicalExpanded}
+                    setNonBiologicalExpanded={setNonBiologicalExpanded}
+                    nonBiologicalCheckboxItems={nonBiologicalCheckboxItems}
+                    nonBiologicalCheckedItems={nonBiologicalCheckedItems}
+                    toggleNonBiologicalItem={toggleNonBiologicalItem}
+                    PanelToggle={PanelToggle} // 👈 pass the function
+                  />
                 )}
 
-                {label === "Vulnerability Analyzer" && (
-                  <>
-                    <TransparentButton
-                      label="Population"
-                      icon={<PersonStanding size={20} />}
-                    />
-                    <TransparentButton
-                      label="Biological Assets"
-                      icon={<Sprout size={20} />}
-                    />
-                    <TransparentButton
-                      label="Non-Biological Assets"
-                      icon={<Building2 size={20} />}
-                    />
-                  </>
-                )}
-
-                {label === "Critical Facility Mapper" && (
+                {/* Critical Facility Map Controls */}
+                {label === "Critical Facility Map" && (
                   <>
                     <TransparentButton
                       label="Active Evacuation Area"
@@ -2114,150 +2101,6 @@ export default function ToolPanel({
                       label="Command & Response"
                       icon={<Siren size={20} />}
                     />
-                  </>
-                )}
-
-                {label === "Evacuation Planner" && (
-                  <>
-                    <div className="text-left text-white font-semibold mb-2">
-                      Available Plans:
-                    </div>
-
-                    {/* Wrapper */}
-                    {plans.length === 0 ? (
-                      // Empty state (centered)
-                      <div className="border-2 border-dashed border-gray-400 rounded-lg mb-4 min-h-[120px] flex flex-col items-center justify-center text-center p-6">
-                        <div className="text-md font-medium text-gray-400">
-                          -- No plans yet --
-                        </div>
-                        <div className="text-xs text-gray-400">Create one</div>
-                      </div>
-                    ) : (
-                      // Plans list (scrollable)
-                      <div className="border-2 border-dashed border-gray-400 rounded-lg mb-4 min-h-[120px] max-h-60 overflow-y-auto px-2 py-2">
-                        <ul className="space-y-2">
-                          {plans.map((plan, idx) => {
-                            const isActive =
-                              activePlan?.name === plan.name &&
-                              activePlan?.date === plan.date;
-
-                            return (
-                              <li
-                                key={idx}
-                                onClick={() => onPlanSelect?.(plan)}
-                                className={`w-full py-2 px-3 rounded-md flex justify-between items-center cursor-pointer transition
-          ${
-            isActive
-              ? "bg-gradient-to-r from-[#9699FF] to-[#5A5C99] text-white"
-              : "bg-[#3a3a3a] text-white hover:bg-[#505050]"
-          }`}
-                              >
-                                <div>
-                                  <div className="font-semibold">
-                                    {plan.name}
-                                  </div>
-                                  <div
-                                    className={`text-xs ${
-                                      isActive ? "text-black" : "text-gray-400"
-                                    }`}
-                                  >
-                                    Created on: {plan.date}
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPlanToDelete(idx);
-                                  }}
-                                  className="p-1 transition"
-                                >
-                                  <Trash
-                                    size={16}
-                                    className="text-red-400 hover:text-red-500 transition-colors"
-                                  />
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    )}
-
-                    <button
-                      className="w-full py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition"
-                      onClick={() => setIsPlanModalOpen(true)}
-                    >
-                      Create new plan
-                    </button>
-
-                    {/* Modal */}
-                    {isPlanModalOpen && (
-                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
-                        <div className="bg-[#2E2E2E] p-6 rounded-lg w-96 shadow-2xl">
-                          <h2 className="text-lg font-bold text-white mb-4">
-                            Create New Plan
-                          </h2>
-                          <input
-                            type="text"
-                            value={newPlanName}
-                            onChange={(e) => setNewPlanName(e.target.value)}
-                            placeholder="Enter plan name"
-                            className="w-full p-2 mb-4 rounded-md bg-[#3a3a3a] text-white outline-none"
-                          />
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => setIsPlanModalOpen(false)}
-                              className="px-4 py-2 rounded-md bg-gray-500 text-white hover:opacity-80"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={handleCreatePlan}
-                              className="px-4 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90"
-                            >
-                              Create
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Delete Confirmation Modal */}
-                    {planToDelete !== null && (
-                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
-                        <div className="bg-[#2E2E2E] p-6 rounded-lg w-96 shadow-2xl">
-                          <h2 className="text-lg font-bold text-white mb-4">
-                            Delete Plan
-                          </h2>
-                          <p className="text-gray-300 mb-6">
-                            Are you sure you want to delete{" "}
-                            <span className="font-semibold">
-                              {plans[planToDelete].name}
-                            </span>
-                            ?
-                          </p>
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => setPlanToDelete(null)}
-                              className="px-4 py-2 rounded-md bg-gray-500 text-white hover:opacity-80"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => {
-                                setPlans(
-                                  plans.filter((_, i) => i !== planToDelete)
-                                );
-                                setPlanToDelete(null);
-                              }}
-                              className="px-4 py-2 rounded-md bg-red-600 text-white hover:opacity-90"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </>
                 )}
 

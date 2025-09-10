@@ -35,19 +35,26 @@ function ThinkingLoader() {
   return (
     <div className="flex flex-col items-center justify-center py-4">
       <div className="relative w-28 h-28">
+        {/* Centered spinning circles */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 z-10">
-          <div className="absolute inset-0 rounded-full border-4 border-t-transparent border-[#9699FF] animate-spin-slow"></div>
-          <div className="absolute inset-[6px] rounded-full border-2 border-dashed border-[#C7C7C7] animate-spin-reverse"></div>
+          {/* Outer solid spinner */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-4 border-t-transparent border-[#9699FF] animate-spin-slow"></div>
+          {/* Inner smaller dashed spinner */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full border-2 border-dashed border-[#C7C7C7] animate-spin-reverse"></div>
         </div>
+
+        {/* Orbiting dots with breathing effect */}
         <div className="absolute top-1/2 left-1/2 w-full h-full">
-          <div className="absolute w-3 h-3 bg-[#9699FF] rounded-full animate-orbit-0 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-3 h-3 bg-[#C7C7C7] rounded-full animate-orbit-90 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-3 h-3 bg-[#5A5C99] rounded-full animate-orbit-180 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-3 h-3 bg-[#ffffff] rounded-full animate-orbit-270 -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute w-3 h-3 bg-[#9699FF] rounded-full animate-orbit-breath-0 -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute w-3 h-3 bg-[#C7C7C7] rounded-full animate-orbit-breath-90 -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute w-3 h-3 bg-[#5A5C99] rounded-full animate-orbit-breath-180 -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute w-3 h-3 bg-[#ffffff] rounded-full animate-orbit-breath-270 -translate-x-1/2 -translate-y-1/2"></div>
         </div>
       </div>
+
+      {/* Loading text */}
       <p className="mt-4 mb-6 text-[#C7C7C7] text-sm animate-pulse text-center">
-        SafeGIS AI is mapping your answer...
+        SafeGIS AI is mapping your query...
       </p>
     </div>
   );
@@ -69,7 +76,6 @@ export default function SafeGISAIChat({
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
-  const dropdownButtonRef = useRef<HTMLButtonElement | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   useEffect(() => {
@@ -103,7 +109,7 @@ export default function SafeGISAIChat({
           }}
         >
           <img
-            src="/Images/SafeGIS-AI-Logo.png"
+            src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
             alt="SafeGIS AI Logo"
             className="w-12 h-12 -mt-[2.5px]"
           />
@@ -289,7 +295,7 @@ User: ${userText}
               style={{ transform: "translateY(-50px)" }}
             >
               <img
-                src="/Images/SafeGIS-AI-Logo.png"
+                src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
                 alt="SafeGIS AI Logo"
                 className="opacity-50 w-[120px]"
               />
@@ -431,7 +437,7 @@ User: ${userText}
         }}
       >
         <img
-          src="/Images/SafeGIS-AI-Logo.png"
+          src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
           alt="SafeGIS AI Logo"
           className="w-12 h-12 -mt-[2.5px]"
         />

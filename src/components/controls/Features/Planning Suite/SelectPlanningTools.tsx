@@ -20,11 +20,9 @@ export default function SelectPlanningTools({
   if (!isVisible) return null;
 
   const toolOptions = [
-    "Evacuation Planner",
     "Resource Planner",
+    "Evacuation Planner",
     "Recovery Planner",
-    "Medical Response Planner",
-    "Communication & Alert Planner", // ✅ Added this line
   ];
 
   const handleToggle = (label: string) => {
@@ -38,7 +36,7 @@ export default function SelectPlanningTools({
     <div
       className="mt-[18px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] flex flex-col pb-[25px]"
       style={{
-        height: "calc(100vh - 91px - 18px)",
+        maxHeight: "calc(100vh - 91px - 18px)",
       }}
     >
       {/* Header */}

@@ -10,12 +10,11 @@ import LocationSearchBar from "./controls/Main/LocationSearchBar";
 import SelectPlanningTools from "./controls/Features/Planning Suite/SelectPlanningTools";
 import RightSideControls from "./controls/Main/CenterRightControls";
 import CenterLeftControls from "./controls/Main/CenterLeftControls";
-import PlanEditor from "./controls/Features/Planning Suite/PlanEditor";
 
 import UserSettings from "./controls/Main/UserSettings";
 import CenterTopControls from "./controls/Main/CenterTopControls";
 import CenterBottomClock from "./controls/Main/CenterBottomClock";
-import ToolPanel from "./controls/ToolPanel";
+import ToolPanel from "./controls/Features/ToolPanel";
 
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
@@ -484,17 +483,6 @@ export default function MainUILayout() {
       ) : (
         <>
           <MapComponent ref={mapRef} />
-
-          <PlanEditor
-            selectedPlan={selectedPlan}
-            shapeDrawn={shapeDrawn}
-            scopeConfirmed={scopeConfirmed}
-            setIsDrawingBox={setIsDrawingBox}
-            setIsDrawingRectangle={setIsDrawingRectangle}
-            setShapeDrawn={setShapeDrawn}
-            setScopeConfirmed={setScopeConfirmed}
-            mapRef={mapRef}
-          />
 
           {/* Center Top Controls */}
           <CenterTopControls
