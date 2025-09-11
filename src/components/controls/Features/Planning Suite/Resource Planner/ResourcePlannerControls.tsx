@@ -1,14 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { ChevronDown, Users, Building, ShoppingBasket } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface Props {
-  personnelExpanded: boolean;
-  setPersonnelExpanded: React.Dispatch<React.SetStateAction<boolean>>;
-  infraExpanded: boolean;
-  setInfraExpanded: React.Dispatch<React.SetStateAction<boolean>>;
-  suppliesExpanded: boolean;
-  setSuppliesExpanded: React.Dispatch<React.SetStateAction<boolean>>;
   resourcesOnMap: {
     id: string;
     type: string;
@@ -20,16 +14,14 @@ interface Props {
 }
 
 export default function ResourcePlannerControls({
-  personnelExpanded,
-  setPersonnelExpanded,
-  infraExpanded,
-  setInfraExpanded,
-  suppliesExpanded,
-  setSuppliesExpanded,
   resourcesOnMap,
   mapRef,
   exportAsGeoJSON,
 }: Props) {
+  const [personnelExpanded, setPersonnelExpanded] = useState(false);
+  const [infraExpanded, setInfraExpanded] = useState(false);
+  const [suppliesExpanded, setSuppliesExpanded] = useState(false);
+
   return (
     <>
       {/* Personnel Section */}
@@ -57,10 +49,7 @@ export default function ResourcePlannerControls({
             {[
               { name: "Health / Medical", type: "personnel" },
               { name: "Response and Rescue", type: "personnel" },
-              {
-                name: "Security / Law Enforcement",
-                type: "personnel",
-              },
+              { name: "Security / Law Enforcement", type: "personnel" },
               { name: "Logistics", type: "personnel" },
               { name: "Administrative", type: "personnel" },
               { name: "Others", type: "personnel" },
@@ -104,42 +93,15 @@ export default function ResourcePlannerControls({
           <div className="grid grid-cols-3 gap-3">
             {[
               { name: "Health Facility", type: "infrastructure" },
-              {
-                name: "Water Distribution Hub",
-                type: "infrastructure",
-              },
-              {
-                name: "Evacuation Shelter",
-                type: "infrastructure",
-              },
-              {
-                name: "Transport Hub",
-                type: "infrastructure",
-              },
-              {
-                name: "Comm Hub",
-                type: "infrastructure",
-              },
-              {
-                name: "Power / Generator Hub",
-                type: "infrastructure",
-              },
-              {
-                name: "Supply Distribution Hub",
-                type: "infrastructure",
-              },
-              {
-                name: "Sanitation Facility",
-                type: "infrastructure",
-              },
-              {
-                name: "Field Command Post",
-                type: "infrastructure",
-              },
-              {
-                name: "Others",
-                type: "infrastructure",
-              },
+              { name: "Water Distribution Hub", type: "infrastructure" },
+              { name: "Evacuation Shelter", type: "infrastructure" },
+              { name: "Transport Hub", type: "infrastructure" },
+              { name: "Comm Hub", type: "infrastructure" },
+              { name: "Power / Generator Hub", type: "infrastructure" },
+              { name: "Supply Distribution Hub", type: "infrastructure" },
+              { name: "Sanitation Facility", type: "infrastructure" },
+              { name: "Field Command Post", type: "infrastructure" },
+              { name: "Others", type: "infrastructure" },
             ].map((res, index) => (
               <div
                 key={`${res.type}-${index}`}

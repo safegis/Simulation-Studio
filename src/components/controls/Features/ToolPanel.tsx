@@ -29,26 +29,6 @@ const displayNamePlanningTools: Record<string, string> = {
   "Recovery Planner": "Recovery Planner",
 };
 
-const populationCheckboxItems = ["Urban", "Rural", "Vulnerable Population"];
-const biologicalCheckboxItems = [
-  "Forest Cover",
-  "Agro-Ecosystem",
-  "Mangrove Areas",
-  "National Parks",
-  "Critical Habitats",
-  "Wetlands / Water Bodies",
-];
-const nonBiologicalCheckboxItems = [
-  "Road Networks",
-  "Bridges",
-  "Schools / Universities",
-  "Active Evacuation Areas",
-  "National / Local Gov’t Offices",
-  "Power / Energy Plants",
-  "Telecommunication Towers",
-  "Water Supply Infrastructure",
-  "Residential Buildings",
-];
 const hydroMeteorologicalCheckboxItems = [
   "Weather",
   "Storm Surge",
@@ -79,18 +59,7 @@ export default function ToolPanel({
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
   );
-  const [populationExpanded, setPopulationExpanded] = useState(false);
-  const [populationCheckedItems, setPopulationCheckedItems] = useState<
-    string[]
-  >([]);
-  const [biologicalExpanded, setBiologicalExpanded] = useState(false);
-  const [nonBiologicalExpanded, setNonBiologicalExpanded] = useState(false);
-  const [biologicalCheckedItems, setBiologicalCheckedItems] = useState<
-    string[]
-  >([]);
-  const [nonBiologicalCheckedItems, setNonBiologicalCheckedItems] = useState<
-    string[]
-  >([]);
+
   const [hydroExpanded, setHydroExpanded] = useState(false);
   const [hydroCheckedItems, setHydroCheckedItems] = useState<string[]>([]);
   const [geologicalExpanded, setGeologicalExpanded] = useState(false);
@@ -111,10 +80,6 @@ export default function ToolPanel({
       coords: { lng: number; lat: number };
     }[]
   >([]);
-
-  const [personnelExpanded, setPersonnelExpanded] = useState(false);
-  const [infraExpanded, setInfraExpanded] = useState(false);
-  const [suppliesExpanded, setSuppliesExpanded] = useState(false);
 
   useEffect(() => {
     if (mapRef.current?.onResourcesChanged) {
@@ -149,24 +114,6 @@ export default function ToolPanel({
       ...prev,
       [key]: !prev[key],
     }));
-  };
-
-  const togglePopulationItem = (item: string) => {
-    setPopulationCheckedItems((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
-    );
-  };
-
-  const toggleBiologicalItem = (item: string) => {
-    setBiologicalCheckedItems((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
-    );
-  };
-
-  const toggleNonBiologicalItem = (item: string) => {
-    setNonBiologicalCheckedItems((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
-    );
   };
 
   const toggleHydroItem = (item: string) => {
@@ -1118,35 +1065,12 @@ export default function ToolPanel({
 
                 {/* Exposure Assessment Controls */}
                 {label === "Exposure Assessment" && (
-                  <ExposureAssessmentControls
-                    populationExpanded={populationExpanded}
-                    setPopulationExpanded={setPopulationExpanded}
-                    populationCheckboxItems={populationCheckboxItems}
-                    populationCheckedItems={populationCheckedItems}
-                    togglePopulationItem={togglePopulationItem}
-                    biologicalExpanded={biologicalExpanded}
-                    setBiologicalExpanded={setBiologicalExpanded}
-                    biologicalCheckboxItems={biologicalCheckboxItems}
-                    biologicalCheckedItems={biologicalCheckedItems}
-                    toggleBiologicalItem={toggleBiologicalItem}
-                    nonBiologicalExpanded={nonBiologicalExpanded}
-                    setNonBiologicalExpanded={setNonBiologicalExpanded}
-                    nonBiologicalCheckboxItems={nonBiologicalCheckboxItems}
-                    nonBiologicalCheckedItems={nonBiologicalCheckedItems}
-                    toggleNonBiologicalItem={toggleNonBiologicalItem}
-                    PanelToggle={PanelToggle} // 👈 pass the function
-                  />
+                  <ExposureAssessmentControls PanelToggle={PanelToggle} />
                 )}
 
                 {/* Resource Planner Controls */}
                 {label === "Resource Planner" && (
                   <ResourcePlannerControls
-                    personnelExpanded={personnelExpanded}
-                    setPersonnelExpanded={setPersonnelExpanded}
-                    infraExpanded={infraExpanded}
-                    setInfraExpanded={setInfraExpanded}
-                    suppliesExpanded={suppliesExpanded}
-                    setSuppliesExpanded={setSuppliesExpanded}
                     resourcesOnMap={resourcesOnMap}
                     mapRef={mapRef}
                     exportAsGeoJSON={exportAsGeoJSON}
