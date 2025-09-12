@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-import MapComponent from "./Map";
+import MapComponent from "./Map/MainCanvas";
 import SafeGISAIChat from "./controls/SafeGIS AI/SafeGIS-AI-Chat";
 import SelectMaps from "./controls/Features/Maps/SelectMaps";
 import PathfinderControls from "./controls/Features/Pathfinder/PathfinderControls";
