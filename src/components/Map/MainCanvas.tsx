@@ -8,8 +8,6 @@ import {
 } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Users, ShoppingBasket, Building } from "lucide-react";
-import ReactDOMServer from "react-dom/server";
 import { drawVolcanoDots as drawVolcanoDotsHelper } from "./Markers/Hazard Map/VolcanoListMarker";
 import { drawEarthquakeDots as drawEarthquakeDotsHelper } from "./Markers/Hazard Map/EarthquakeMarker";
 import { drawActiveFaults as drawActiveFaultsHelper } from "./Markers/Hazard Map/ActiveFaultsMarker";
@@ -25,6 +23,13 @@ import {
   clearHealthFacilities as clearHealthFacilitiesHelper,
   useHealthFacilitiesRestore,
 } from "./Markers/Critical Facility Map/HealthFacilitiesMarker";
+import {
+  drawRoutes as drawRoutesHelper,
+  highlightRouteByFeatureIndex,
+} from "./Markers/Pathfinder/RouteLines";
+import { useResources } from "./Markers/Planning Suite/ResourcesMarker";
+import { switchTo2D } from "./Switch View/SwitchTo2DView";
+import { switchTo3D } from "./Switch View/SwitchTo3DView";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -66,25 +71,6 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const roadClosureMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const laneClosureMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const selectedFeatureIndexRef = useRef<number | null>(null);
-  // NEW: bring the route-<i>-outline and route-<i> layers to the top of the layer stack
-  const bringRouteToFront = (featureIndex: number | null) => {
-    const map = mapInstance.current;
-    if (!map || featureIndex === null) return;
-    const routeId = `route-${featureIndex}`;
-    const outlineId = `${routeId}-outline`;
-    try {
-      // Move outline first, then inner line — moving without the 'beforeId' param
-      // will place the layer at the top of the stack.
-      if (map.getLayer(outlineId)) map.moveLayer(outlineId);
-    } catch (e) {
-      // ignore - may happen if layer not yet added
-    }
-    try {
-      if (map.getLayer(routeId)) map.moveLayer(routeId);
-    } catch (e) {
-      // ignore
-    }
-  };
   const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const destinationMarkerRef = useRef<mapboxgl.Marker | null>(null);
@@ -157,228 +143,15 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     }
     return undefined;
   };
-  const drawRoutes = (geojson: GeoJSON.FeatureCollection) => {
-    const map = mapInstance.current;
-    if (!map || !mapIsLoaded.current) return;
-    latestRoutesGeoJSON.current = geojson;
-    // cleanup old
-    const style = map.getStyle();
-    if (!style?.layers) return;
-    style.layers.forEach((layer) => {
-      if (layer.id.startsWith("route-")) {
-        if (map.getLayer(layer.id)) map.removeLayer(layer.id);
-        if (map.getSource(layer.id)) map.removeSource(layer.id);
-      }
-    });
-    const beforeId = getTopSymbolLayerId(map);
-    geojson.features.forEach((feature, index) => {
-      const id = `route-${index}`;
-      const isSelected = selectedFeatureIndexRef.current === index;
-      map.addSource(id, {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [feature] },
-      });
-      map.addLayer(
-        {
-          id: `${id}-outline`,
-          type: "line",
-          source: id,
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": "#9699FF",
-            "line-width": 10,
-            "line-opacity": 0.9,
-          },
-        },
-        beforeId // ensure above roads/labels
-      );
-      map.addLayer(
-        {
-          id,
-          type: "line",
-          source: id,
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": isSelected ? "#9699FF" : "#ffffff",
-            "line-width": 6,
-            "line-opacity": 0.85,
-          },
-        },
-        beforeId
-      );
-    });
-    if (selectedFeatureIndexRef.current !== null) {
-      bringRouteToFront(selectedFeatureIndexRef.current);
-    }
-  };
 
-  const resourceMarkersRef = useRef<
-    {
-      id: string;
-      type: string;
-      marker: mapboxgl.Marker;
-      data: { name: string; description: string };
-      coords: mapboxgl.LngLat;
-    }[]
-  >([]);
-  const resourceListenersRef = useRef<((resources: any[]) => void)[]>([]);
-  const notifyResourcesChanged = () => {
-    const snapshot = resourceMarkersRef.current.map((r) => ({
-      id: r.id,
-      type: r.type,
-      data: r.data,
-      coords: r.marker.getLngLat(), // include live coords
-    }));
-    resourceListenersRef.current.forEach((cb) => cb(snapshot));
-  };
-  const addResourceMarker = (
-    lngLat: mapboxgl.LngLat,
-    type: string,
-    initialData?: { name: string; description: string }
-  ) => {
-    const id = `${type}-${Date.now()}`;
-    let icon;
-    let borderColor = "black"; // default border
+  const {
+    addResourceMarker,
+    clearAllResources,
+    flyToResource,
+    getResourcesOnMap,
+    onResourcesChanged,
+  } = useResources(mapInstance);
 
-    // Pick icon + color based on resource type
-    switch (type) {
-      case "personnel":
-        icon = <Users size={20} color="red" />;
-        borderColor = "red";
-        break;
-      case "infrastructure":
-        icon = <Building size={20} color="green" />;
-        borderColor = "green";
-        break;
-      case "supplies":
-        icon = <ShoppingBasket size={20} color="blue" />;
-        borderColor = "blue";
-        break;
-      default:
-        icon = <Users size={20} />;
-    }
-
-    // ✅ Wrap icon inside white circle with colored border
-    const markerWrapper = (
-      <div
-        style={{
-          backgroundColor: "white",
-          borderRadius: "50%",
-          width: "38px",
-          height: "38px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          border: `2px solid ${borderColor}`,
-          boxShadow: "0 0 4px rgba(0,0,0,0.3)",
-        }}
-      >
-        {icon}
-      </div>
-    );
-
-    // Create DOM element for marker
-    const el = document.createElement("div");
-    el.innerHTML = ReactDOMServer.renderToString(markerWrapper);
-
-    // Create marker
-    const marker = new mapboxgl.Marker({ element: el, draggable: true })
-      .setLngLat(lngLat)
-      .addTo(mapInstance.current!);
-
-    // Default resource details
-    let resourceData = {
-      type,
-      name: initialData?.name ?? type.charAt(0).toUpperCase() + type.slice(1),
-      description: initialData?.description ?? "",
-    };
-
-    // Create popup HTML with editable form
-    const createPopupHTML = () => `
-    <div style="min-width:200px;">
-      <strong>Edit Resource</strong>
-      <div style="margin-top:8px;">
-        <label>Name:</label><br/>
-        <input type="text" id="res-name" value="${resourceData.name}" style="width:100%; margin-bottom:6px;"/>
-        <label>Description:</label><br/>
-        <textarea id="res-desc" rows="3" style="width:100%;">${resourceData.description}</textarea>
-      </div>
-      <div style="margin-top:10px; display:flex; justify-content:space-between;">
-        <button id="save-btn" style="background:#5A5C99; color:white; padding:4px 8px; border-radius:4px;">Save</button>
-        <button id="delete-btn" style="background:#B33A3A; color:white; padding:4px 8px; border-radius:4px;">Delete</button>
-      </div>
-    </div>
-  `;
-
-    const popup = new mapboxgl.Popup({ offset: 25 })
-      .setLngLat(lngLat)
-      .setHTML(createPopupHTML());
-
-    // Attach popup to marker
-    marker.setPopup(popup);
-
-    // Resource object stored in ref
-    const resourceObj = {
-      id,
-      type,
-      marker,
-      data: resourceData,
-      coords: lngLat,
-    };
-
-    // Event: When popup opens, attach listeners to Save/Delete
-    marker.getElement().addEventListener("click", () => {
-      setTimeout(() => {
-        const saveBtn = document.getElementById("save-btn");
-        const deleteBtn = document.getElementById("delete-btn");
-        const nameInput = document.getElementById(
-          "res-name"
-        ) as HTMLInputElement;
-        const descInput = document.getElementById(
-          "res-desc"
-        ) as HTMLTextAreaElement;
-
-        if (saveBtn) {
-          saveBtn.onclick = () => {
-            resourceData.name = nameInput.value;
-            resourceData.description = descInput.value;
-            popup.setHTML(createPopupHTML()); // refresh popup with updated values
-            notifyResourcesChanged();
-          };
-        }
-
-        if (deleteBtn) {
-          deleteBtn.onclick = () => {
-            marker.remove();
-            popup.remove();
-            resourceMarkersRef.current = resourceMarkersRef.current.filter(
-              (r) => r.marker !== marker
-            );
-            notifyResourcesChanged();
-          };
-        }
-      }, 50); // allow popup to render before attaching events
-    });
-
-    // Update coordinates when marker is dragged
-    marker.on("dragend", () => {
-      const newPos = marker.getLngLat();
-      resourceObj.coords = newPos; // update coords in object
-      notifyResourcesChanged(); // refresh UI instantly
-    });
-
-    // Add to resources list
-    resourceMarkersRef.current.push(resourceObj);
-    notifyResourcesChanged();
-  };
-
-  const clearAllResources = () => {
-    resourceMarkersRef.current.forEach((r) => {
-      r.marker.remove();
-    });
-    resourceMarkersRef.current = [];
-    notifyResourcesChanged();
-  };
   useImperativeHandle(ref, () => ({
     flyTo: (opts: FlyToOptions) => {
       if (!mapIsLoaded.current) return;
@@ -435,99 +208,35 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       return mapInstance.current?.getZoom?.() ?? 0;
     },
 
-    switchTo2D: (label: string) => {
-      const map = mapInstance.current;
-      if (!map || !mapIsLoaded.current || !is3DMode.current) return;
-      is3DMode.current = false;
-      let style = "mapbox://styles/mapbox/streets-v12";
-      switch (label) {
-        case "Satellite":
-          style = "mapbox://styles/mapbox/standard-satellite";
-          break;
-        case "Outdoors":
-          style = "mapbox://styles/mapbox/outdoors-v12";
-          break;
-        case "Light":
-          style = "mapbox://styles/mapbox/light-v11";
-          break;
-        case "Dark":
-          style = "mapbox://styles/mapbox/dark-v11";
-          break;
-        case "Navigation (Day)":
-          style = "mapbox://styles/mapbox/navigation-day-v1";
-          break;
-        case "Navigation (Night)":
-          style = "mapbox://styles/mapbox/navigation-night-v1";
-          break;
-      }
-      map.setStyle(style);
-      map.once("style.load", () => {
-        map.setTerrain(null);
-        map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
-        // Call draw functions only here with stored data
-        if (latestRoutesGeoJSON.current)
-          drawRoutes(latestRoutesGeoJSON.current);
-        if (latestVolcanoes.current.length > 0)
-          drawVolcanoDotsHelper(
-            mapInstance.current,
-            mapIsLoaded.current,
-            latestVolcanoes,
-            latestVolcanoes.current
-          );
-        if (latestEarthquakes.current.length > 0)
-          drawEarthquakeDotsHelper(
-            mapInstance.current,
-            mapIsLoaded.current,
-            latestEarthquakes,
-            latestEarthquakes.current
-          );
-        if (latestActiveFaults.current)
-          drawActiveFaultsHelper(
-            mapInstance.current,
-            mapIsLoaded.current,
-            latestActiveFaults,
-            latestActiveFaults.current
-          );
-      });
-    },
-    switchTo3D: (label: string) => {
-      const map = mapInstance.current;
-      if (!map || !mapIsLoaded.current || is3DMode.current) return;
-      is3DMode.current = true;
-      let style = "mapbox://styles/shain34/cmesokqei00z501sdedixesto";
-      if (label === "Satellite") {
-        style = "mapbox://styles/mapbox/standard-satellite";
-      }
-      map.setStyle(style);
-      map.once("style.load", () => {
-        addTerrainOnly(map);
-        map.easeTo({ pitch: 60, bearing: 30, duration: 1000 });
-        // Call draw functions only here with stored data
-        if (latestRoutesGeoJSON.current)
-          drawRoutes(latestRoutesGeoJSON.current);
-        if (latestVolcanoes.current.length > 0)
-          drawVolcanoDotsHelper(
-            mapInstance.current,
-            mapIsLoaded.current,
-            latestVolcanoes,
-            latestVolcanoes.current
-          );
-        if (latestEarthquakes.current.length > 0)
-          drawEarthquakeDotsHelper(
-            mapInstance.current,
-            mapIsLoaded.current,
-            latestEarthquakes,
-            latestEarthquakes.current
-          );
-        if (latestActiveFaults.current)
-          drawActiveFaultsHelper(
-            mapInstance.current,
-            mapIsLoaded.current,
-            latestActiveFaults,
-            latestActiveFaults.current
-          );
-      });
-    },
+    switchTo2D: (label: string) =>
+      switchTo2D(
+        label,
+        mapInstance,
+        mapIsLoaded,
+        is3DMode,
+        latestRoutesGeoJSON,
+        latestVolcanoes,
+        latestEarthquakes,
+        latestActiveFaults,
+        selectedFeatureIndexRef,
+        getTopSymbolLayerId
+      ),
+
+    switchTo3D: (label: string) =>
+      switchTo3D(
+        label,
+        mapInstance,
+        mapIsLoaded,
+        is3DMode,
+        latestRoutesGeoJSON,
+        latestVolcanoes,
+        latestEarthquakes,
+        latestActiveFaults,
+        selectedFeatureIndexRef,
+        getTopSymbolLayerId,
+        addTerrainOnly
+      ),
+
     setLightPreset: (preset: "dawn" | "day" | "dusk" | "night") => {
       const map = mapInstance.current;
       if (!map || !mapIsLoaded.current || !is3DMode.current) return;
@@ -551,7 +260,13 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         }
         // Call draw functions only here with stored data
         if (latestRoutesGeoJSON.current)
-          drawRoutes(latestRoutesGeoJSON.current);
+          drawRoutesHelper(
+            mapInstance.current,
+            mapIsLoaded,
+            latestRoutesGeoJSON,
+            selectedFeatureIndexRef,
+            getTopSymbolLayerId
+          );
         if (latestVolcanoes.current.length > 0)
           drawVolcanoDotsHelper(
             mapInstance.current,
@@ -575,39 +290,23 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           );
       });
     },
-    drawRoutes,
-    // new: highlight by geojson feature index (the same index drawRoutes used)
+    drawRoutes: (geojson: GeoJSON.FeatureCollection) => {
+      latestRoutesGeoJSON.current = geojson;
+      drawRoutesHelper(
+        mapInstance.current,
+        mapIsLoaded,
+        latestRoutesGeoJSON,
+        selectedFeatureIndexRef,
+        getTopSymbolLayerId
+      );
+    },
     highlightRouteByFeatureIndex: (featureIndex: number | null) => {
-      const map = mapInstance.current;
-      selectedFeatureIndexRef.current = featureIndex;
-      if (!map || !mapIsLoaded.current) return;
-      try {
-        // set each inner route layer to white except the selected featureIndex -> purple
-        const style = map.getStyle();
-        if (!style?.layers) return;
-        style.layers.forEach((layer) => {
-          // inner layer has id `route-<i>` and there's also route-<i>-outline
-          const m = layer.id.match(/^route-(\d+)$/);
-          if (!m) return;
-          const idx = Number(m[1]);
-          const layerId = `route-${idx}`;
-          try {
-            map.setPaintProperty(
-              layerId,
-              "line-color",
-              idx === featureIndex ? "#9699FF" : "#ffffff"
-            );
-          } catch (e) {
-            // ignore missing layers / race conditions
-          }
-        });
-        // NEW: bring selected route layers to top so they're not visually occluded
-        if (featureIndex !== null) {
-          bringRouteToFront(featureIndex);
-        }
-      } catch (e) {
-        console.warn("highlightRouteByFeatureIndex failed", e);
-      }
+      highlightRouteByFeatureIndex(
+        mapInstance.current,
+        mapIsLoaded,
+        selectedFeatureIndexRef,
+        featureIndex
+      );
     },
     drawVolcanoDots: (volcanoes: any[]) => {
       drawVolcanoDotsHelper(
@@ -866,20 +565,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       }
     },
     getMap: () => mapInstance.current,
-    getResourcesOnMap: () => resourceMarkersRef.current,
-    flyToResource: (id: string) => {
-      const res = resourceMarkersRef.current.find((r) => r.id === id);
-      if (res) {
-        mapInstance.current?.flyTo({
-          center: res.marker.getLngLat(),
-          zoom: 14,
-        });
-        res.marker.togglePopup();
-      }
-    },
-    onResourcesChanged: (cb: (resources: any[]) => void) => {
-      resourceListenersRef.current.push(cb);
-    },
+    getResourcesOnMap,
+    flyToResource,
+    onResourcesChanged,
     clearAllResources,
   }));
   return (
