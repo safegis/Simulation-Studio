@@ -17,17 +17,12 @@ export default function SelectMaps({
 }: Props) {
   if (!isVisible) return null;
 
-  const mapOptions = [
-    "Hazard Map",
-    "Critical Facility Map",
-    "Exposure Assessment",
-  ];
+  const mapOptions = ["Hazard Layers", "Critical Facility Layers"];
 
   // Map each option to its background image
   const bgImages: Record<string, string> = {
-    "Hazard Map": "/Images/Background/HazardMap.png",
-    "Critical Facility Map": "/Images/Background/CriticalFacilityMap.png",
-    "Exposure Assessment": "/Images/Background/ExposureAssessment.png",
+    "Hazard Layers": "/Images/Background/HazardMap.png",
+    "Critical Facility Layers": "/Images/Background/CriticalFacilityMap.png",
   };
 
   const handleToggle = (label: string) => {
@@ -44,8 +39,8 @@ export default function SelectMaps({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3 z-10">
-        <span className="text-[15px] font-medium text-[#C7C7C7]">
-          Select tools to include:
+        <span className="text-[14px] font-medium text-[#C7C7C7]">
+          Select layers to include:
         </span>
         <button
           onClick={selectedMaps.length === 0 ? undefined : onGoToToolPanel}
@@ -69,12 +64,12 @@ export default function SelectMaps({
           return (
             <div
               key={i}
-              className={`option-card group h-[147px] px-4 py-3 rounded-lg transition flex items-center relative overflow-hidden
-    ${
-      bgImage
-        ? "bg-cover bg-center text-white hover:brightness-110"
-        : "bg-[#3a3a3a] hover:bg-[#4a4a4a]"
-    }`}
+              className={`option-card group h-[160px] px-4 py-3 rounded-lg transition flex items-center relative overflow-hidden
+              ${
+                bgImage
+                  ? "bg-cover bg-center text-white hover:brightness-110"
+                  : "bg-[#3a3a3a] hover:bg-[#4a4a4a]"
+              }`}
               style={bgImage ? { backgroundImage: `url('${bgImage}')` } : {}}
             >
               {/* Dark overlay */}

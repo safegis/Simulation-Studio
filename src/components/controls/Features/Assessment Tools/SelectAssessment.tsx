@@ -1,35 +1,30 @@
 "use client";
-
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface Props {
   isVisible: boolean;
-  selectedPlanningTools: string[];
+  selectedAssessmentTools: string[];
   onGoToToolPanel: () => void;
-  onSelectedPlanningToolsChange: (tools: string[]) => void;
+  onSelectedAssessmentToolsChange: (tools: string[]) => void;
 }
 
-export default function SelectPlanningTools({
+export default function SelectAssessment({
   isVisible,
-  selectedPlanningTools,
+  selectedAssessmentTools,
   onGoToToolPanel,
-  onSelectedPlanningToolsChange,
+  onSelectedAssessmentToolsChange,
 }: Props) {
   if (!isVisible) return null;
 
-  const toolOptions = [
-    "Resource Planner",
-    "Evacuation Planner",
-    "Recovery Planner",
-  ];
+  const assessmentOptions = ["Exposure Assessment", "Vulnerability Assessment"];
 
   const handleToggle = (label: string) => {
-    const updated = selectedPlanningTools.includes(label)
-      ? selectedPlanningTools.filter((item) => item !== label)
-      : [...selectedPlanningTools, label];
-    onSelectedPlanningToolsChange(updated);
+    const updated = selectedAssessmentTools.includes(label)
+      ? selectedAssessmentTools.filter((item) => item !== label)
+      : [...selectedAssessmentTools, label];
+    onSelectedAssessmentToolsChange(updated);
   };
 
   return (
@@ -42,15 +37,15 @@ export default function SelectPlanningTools({
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3 z-10">
         <span className="text-[14px] font-medium text-[#C7C7C7]">
-          Select planners to include:
+          Select tools to include:
         </span>
         <button
           onClick={
-            selectedPlanningTools.length === 0 ? undefined : onGoToToolPanel
+            selectedAssessmentTools.length === 0 ? undefined : onGoToToolPanel
           }
-          disabled={selectedPlanningTools.length === 0}
+          disabled={selectedAssessmentTools.length === 0}
           className={`text-sm flex items-center gap-1 transition ${
-            selectedPlanningTools.length === 0
+            selectedAssessmentTools.length === 0
               ? "text-[#555] cursor-not-allowed"
               : "text-[#8183e5] hover:text-[#a7a9fa]"
           }`}
@@ -62,13 +57,13 @@ export default function SelectPlanningTools({
 
       {/* Scrollable Tool List */}
       <div className="scrollbar-rounded overflow-y-auto px-4 pb-4 flex-1 space-y-3">
-        {toolOptions.map((label, i) => (
+        {assessmentOptions.map((label, i) => (
           <div
             key={i}
             className="bg-[#3a3a3a] h-[160px] px-4 py-3 rounded-lg hover:bg-[#4a4a4a] transition flex items-center"
           >
             <Checkbox
-              checked={selectedPlanningTools.includes(label)}
+              checked={selectedAssessmentTools.includes(label)}
               onCheckedChange={() => handleToggle(label)}
               className="mr-4 w-[18px] h-[18px]"
             />

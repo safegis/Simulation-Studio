@@ -8,6 +8,7 @@ import SelectMaps from "./controls/Features/Maps/SelectMaps";
 import PathfinderControls from "./controls/Features/Pathfinder/PathfinderControls";
 import LocationSearchBar from "./controls/Main/LocationSearchBar";
 import SelectPlanningTools from "./controls/Features/Planning Suite/SelectPlanningTools";
+import SelectAssessment from "./controls/Features/Assessment Tools/SelectAssessment";
 import RightSideControls from "./controls/Main/CenterRightControls";
 import CenterLeftControls from "./controls/Main/CenterLeftControls";
 
@@ -47,6 +48,10 @@ export default function MainUILayout() {
     name: string;
     date: string;
   } | null>(null);
+  const [showAssessmentTools, setShowAssessmentTools] = useState(false);
+  const [selectedAssessmentTools, setSelectedAssessmentTools] = useState<
+    string[]
+  >([]);
 
   const [isDrawingBox, setIsDrawingBox] = useState(false); // Square
   const [isDrawingRectangle, setIsDrawingRectangle] = useState(false); // Rectangle
@@ -507,10 +512,13 @@ export default function MainUILayout() {
             setShowPathfinder={setShowPathfinder}
             showPlanningTools={showPlanningTools}
             setShowPlanningTools={setShowPlanningTools}
+            showAssessmentTools={showAssessmentTools}
+            setShowAssessmentTools={setShowAssessmentTools}
             showToolPanel={showToolPanel}
             setShowToolPanel={setShowToolPanel}
             selectedMaps={selectedMaps}
             selectedPlanningTools={selectedPlanningTools}
+            selectedAssessmentTools={selectedAssessmentTools}
           />
 
           {/* Location Search Bar or Pathfinder Controls*/}
@@ -543,6 +551,7 @@ export default function MainUILayout() {
                   setShowSelectMaps(false);
                   setShowPathfinder(false);
                   setShowPlanningTools(false);
+                  setShowAssessmentTools(false);
                 }}
                 onSelectedMapsChange={setSelectedMaps}
               />
@@ -559,20 +568,40 @@ export default function MainUILayout() {
                   setShowSelectMaps(false);
                   setShowPathfinder(false);
                   setShowPlanningTools(false);
+                  setShowAssessmentTools(false);
                 }}
                 onSelectedPlanningToolsChange={setSelectedPlanningTools}
               />
             </div>
           )}
+
+          {showAssessmentTools && (
+            <div className="absolute left-[96px] top-[73px] w-96 z-40">
+              <SelectAssessment
+                isVisible={true}
+                selectedAssessmentTools={selectedAssessmentTools}
+                onGoToToolPanel={() => {
+                  setShowToolPanel(true);
+                  setShowSelectMaps(false);
+                  setShowPathfinder(false);
+                  setShowPlanningTools(false);
+                  setShowAssessmentTools(false);
+                }}
+                onSelectedAssessmentToolsChange={setSelectedAssessmentTools}
+              />
+            </div>
+          )}
+
           {showToolPanel && (
             <div className="absolute left-[96px] top-[73px] w-96 z-40">
               <ToolPanel
                 isVisible={true}
                 selectedMaps={selectedMaps}
                 selectedPlanningTools={selectedPlanningTools}
+                selectedAssessmentTools={selectedAssessmentTools}
                 mapRef={mapRef}
                 onPlanSelect={(plan) => {
-                  // ✅ toggle selection
+                  // toggle selection
                   setSelectedPlan((prev) =>
                     prev?.name === plan.name && prev?.date === plan.date
                       ? null

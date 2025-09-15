@@ -3,7 +3,7 @@ import {
   Earth,
   MapPinned,
   ListTodo,
-  OctagonAlert,
+  ChartColumn,
   PanelLeft,
 } from "lucide-react";
 
@@ -14,10 +14,13 @@ interface CenterLeftControlsProps {
   setShowPathfinder: React.Dispatch<React.SetStateAction<boolean>>;
   showPlanningTools: boolean;
   setShowPlanningTools: React.Dispatch<React.SetStateAction<boolean>>;
+  showAssessmentTools: boolean;
+  setShowAssessmentTools: React.Dispatch<React.SetStateAction<boolean>>;
   showToolPanel: boolean;
   setShowToolPanel: React.Dispatch<React.SetStateAction<boolean>>;
   selectedMaps: string[];
   selectedPlanningTools: string[];
+  selectedAssessmentTools: string[];
 }
 
 export default function CenterLeftControls({
@@ -27,10 +30,13 @@ export default function CenterLeftControls({
   setShowPathfinder,
   showPlanningTools,
   setShowPlanningTools,
+  showAssessmentTools,
+  setShowAssessmentTools,
   showToolPanel,
   setShowToolPanel,
   selectedMaps,
   selectedPlanningTools,
+  selectedAssessmentTools,
 }: CenterLeftControlsProps) {
   return (
     <div className="absolute top-1/2 left-[18px] -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
@@ -43,6 +49,7 @@ export default function CenterLeftControls({
               if (newState) {
                 setShowPathfinder(false);
                 setShowPlanningTools(false);
+                setShowAssessmentTools(false);
                 setShowToolPanel(false);
               }
               return newState;
@@ -64,6 +71,7 @@ export default function CenterLeftControls({
               if (newState) {
                 setShowSelectMaps(false);
                 setShowPlanningTools(false);
+                setShowAssessmentTools(false);
                 setShowToolPanel(false);
               }
               return newState;
@@ -80,11 +88,34 @@ export default function CenterLeftControls({
 
         <button
           onClick={() =>
+            setShowAssessmentTools((prev) => {
+              const newState = !prev;
+              if (newState) {
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowToolPanel(false);
+              }
+              return newState;
+            })
+          }
+          className={`p-2 rounded-lg transition ${
+            showAssessmentTools
+              ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
+              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+          }`}
+        >
+          <ChartColumn width={28} height={28} />
+        </button>
+
+        <button
+          onClick={() =>
             setShowPlanningTools((prev) => {
               const newState = !prev;
               if (newState) {
                 setShowSelectMaps(false);
                 setShowPathfinder(false);
+                setShowAssessmentTools(false);
                 setShowToolPanel(false);
               }
               return newState;
@@ -98,14 +129,12 @@ export default function CenterLeftControls({
         >
           <ListTodo width={28} height={28} />
         </button>
-
-        <button className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition">
-          <OctagonAlert width={28} height={28} />
-        </button>
       </div>
 
       {/* PanelLeft Button */}
-      {(selectedMaps.length > 0 || selectedPlanningTools.length > 0) && (
+      {(selectedMaps.length > 0 ||
+        selectedPlanningTools.length > 0 ||
+        selectedAssessmentTools.length > 0) && (
         <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
           <button
             onClick={() =>
@@ -115,6 +144,7 @@ export default function CenterLeftControls({
                   setShowSelectMaps(false);
                   setShowPathfinder(false);
                   setShowPlanningTools(false);
+                  setShowAssessmentTools(false);
                 }
                 return newState;
               })

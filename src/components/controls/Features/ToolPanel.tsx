@@ -3,30 +3,36 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import ExposureAssessmentControls from "./Maps/Exposure Assessment/ExposureAssessmentControls";
-import CriticalFacilityMapControls from "./Maps/Critical Facility Map/CriticalFacilityMapControls";
+import CriticalFacilityMapControls from "./Maps/Critical Facility Layers/CriticalFacilityLayersControls";
 import ResourcePlannerControls from "./Planning Suite/Resource Planner/ResourcePlannerControls";
-import HazardMapControls from "./Maps/Hazard Map/HazardMapControls";
+import HazardMapControls from "./Maps/Hazard Layers/HazardLayersControls";
+import ExposureAssessmentControls from "./Assessment Tools/Exposure Assessment/ExposureAssessmentControls";
+import VulnerabilityAssessmentControls from "./Assessment Tools/Vulnerability Assessment/VulnerabilityAssessmentControls";
 
 interface Props {
   isVisible: boolean;
   selectedMaps: string[];
   selectedPlanningTools: string[];
+  selectedAssessmentTools: string[];
   mapRef: React.RefObject<any>;
   onPlanSelect?: (plan: { name: string; date: string }) => void;
   activePlan?: { name: string; date: string } | null;
 }
 
 const displayNameMap: Record<string, string> = {
-  "Hazard Map": "Hazard Map",
-  "Critical Facility Map": "Critical Facility Map",
-  "Exposure Assessment": "Exposure Assessment",
+  "Hazard Layers": "Hazard Layers",
+  "Critical Facility Layers": "Critical Facility Layers",
 };
 
 const displayNamePlanningTools: Record<string, string> = {
   "Resource Planner": "Resource Planner",
   "Evacuation Planner": "Evacuation Planner",
   "Recovery Planner": "Recovery Planner",
+};
+
+const displayNameAssessmentTools: Record<string, string> = {
+  "Exposure Assessment": "Exposure Assessment",
+  "Vulnerability Assessment": "Vulnerability Assessment",
 };
 
 const hydroMeteorologicalCheckboxItems = [
@@ -54,6 +60,7 @@ export default function ToolPanel({
   isVisible,
   selectedMaps,
   selectedPlanningTools,
+  selectedAssessmentTools,
   mapRef,
 }: Props) {
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
@@ -1005,12 +1012,26 @@ export default function ToolPanel({
       className="mt-[18px] w-full bg-transparent rounded-xl shadow-md text-[#C7C7C7] flex flex-col overflow-y-auto scrollbar-rounded"
       style={{ maxHeight: "calc(100vh - 91px - 18px)", padding: "0px" }}
     >
-      {[...selectedMaps, ...selectedPlanningTools].map((label, index, arr) => {
+      {[
+        ...selectedMaps,
+        ...selectedPlanningTools,
+        ...selectedAssessmentTools,
+      ].map((label, index, arr) => {
         const isMap = label in displayNameMap;
+        const isPlanningTool = label in displayNamePlanningTools;
+        const isAssessmentTool = label in displayNameAssessmentTools;
+
         const displayName = isMap
           ? displayNameMap[label]
-          : displayNamePlanningTools[label] || label;
-        const key = `${isMap ? "map" : "tool"}-${label}`;
+          : isPlanningTool
+          ? displayNamePlanningTools[label]
+          : isAssessmentTool
+          ? displayNameAssessmentTools[label]
+          : label;
+
+        const key = `${
+          isMap ? "map" : isPlanningTool ? "planning" : "assessment"
+        }-${label}`;
         const isExpanded = expandedPanels[key];
 
         return (
@@ -1033,8 +1054,8 @@ export default function ToolPanel({
 
             {isExpanded && (
               <div className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2">
-                {/* Hazard Map Controls */}
-                {label === "Hazard Map" && (
+                {/* Hazard Layers Controls */}
+                {label === "Hazard Layers" && (
                   <HazardMapControls
                     hydroExpanded={hydroExpanded}
                     setHydroExpanded={setHydroExpanded}
@@ -1058,14 +1079,9 @@ export default function ToolPanel({
                   />
                 )}
 
-                {/* Critical Facility Map Controls */}
-                {label === "Critical Facility Map" && (
+                {/* Critical Facility Layers Controls */}
+                {label === "Critical Facility Layers" && (
                   <CriticalFacilityMapControls mapRef={mapRef} />
-                )}
-
-                {/* Exposure Assessment Controls */}
-                {label === "Exposure Assessment" && (
-                  <ExposureAssessmentControls PanelToggle={PanelToggle} />
                 )}
 
                 {/* Resource Planner Controls */}
@@ -1075,6 +1091,16 @@ export default function ToolPanel({
                     mapRef={mapRef}
                     exportAsGeoJSON={exportAsGeoJSON}
                   />
+                )}
+
+                {/* Exposure Assessment Controls */}
+                {label === "Exposure Assessment" && (
+                  <ExposureAssessmentControls PanelToggle={PanelToggle} />
+                )}
+
+                {/* Vulnerability Assessment Controls */}
+                {label === "Vulnerability Assessment" && (
+                  <VulnerabilityAssessmentControls PanelToggle={PanelToggle} />
                 )}
               </div>
             )}
