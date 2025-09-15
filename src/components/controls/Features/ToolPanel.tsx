@@ -17,6 +17,9 @@ interface Props {
   mapRef: React.RefObject<any>;
   onPlanSelect?: (plan: { name: string; date: string }) => void;
   activePlan?: { name: string; date: string } | null;
+  // Earthquake state synchronization
+  earthquakeEnabled?: boolean;
+  onEarthquakeToggle?: (enabled: boolean) => void;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -62,6 +65,8 @@ export default function ToolPanel({
   selectedPlanningTools,
   selectedAssessmentTools,
   mapRef,
+  earthquakeEnabled = false,
+  onEarthquakeToggle,
 }: Props) {
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
@@ -72,7 +77,7 @@ export default function ToolPanel({
   const [geologicalExpanded, setGeologicalExpanded] = useState(false);
   const [geologicalCheckedItems, setGeologicalCheckedItems] = useState<
     string[]
-  >([]);
+  >(earthquakeEnabled ? ["Earthquake"] : []);
 
   const [trafficExpanded, setTrafficExpanded] = useState(false);
   const [trafficCheckedItems, setTrafficCheckedItems] = useState<string[]>([]);
@@ -964,9 +969,13 @@ export default function ToolPanel({
         const combinedFeatures = await fetchCombinedEarthquakeData();
         mapRef.current?.drawEarthquakeDots(combinedFeatures);
         startEarthquakePolling();
+        // Notify parent of state change
+        onEarthquakeToggle?.(true);
       } else {
         mapRef.current?.drawEarthquakeDots([]);
         stopEarthquakePolling();
+        // Notify parent of state change
+        onEarthquakeToggle?.(false);
       }
     }
 
@@ -1000,6 +1009,51 @@ export default function ToolPanel({
       }
     }
   };
+
+  // Synchronize earthquake state with parent
+  // AFTER (replace the previous useEffect)
+  useEffect(() => {
+    const shouldHaveEarthquake = earthquakeEnabled;
+    const hasEarthquake = geologicalCheckedItems.includes("Earthquake");
+
+    if (shouldHaveEarthquake === hasEarthquake) return;
+
+    if (shouldHaveEarthquake) {
+      // add checkbox if not present
+      setGeologicalCheckedItems((prev) =>
+        prev.includes("Earthquake") ? prev : [...prev, "Earthquake"]
+      );
+
+      // fetch once and start child polling so the child's interval is active
+      (async () => {
+        try {
+          const combinedFeatures = await fetchCombinedEarthquakeData();
+          mapRef.current?.drawEarthquakeDots(combinedFeatures);
+          // Start the ToolPanel's own polling loop
+          startEarthquakePolling();
+          // Also notify parent via onEarthquakeToggle if you want (parent already set earthquakeEnabled)
+          // onEarthquakeToggle?.(true); // optional, avoid loop if parent already set it
+        } catch (err) {
+          console.error("ToolPanel: failed to sync earthquake on enable:", err);
+        }
+      })();
+    } else {
+      // parent says disable -> ensure child stops its polling and clears map
+      setGeologicalCheckedItems((prev) =>
+        prev.filter((item) => item !== "Earthquake")
+      );
+
+      try {
+        stopEarthquakePolling();
+      } catch (err) {
+        console.warn("ToolPanel: stopEarthquakePolling error:", err);
+      }
+
+      // Clear earthquake dots immediately
+      mapRef.current?.drawEarthquakeDots([]);
+      // Also notify parent if needed: onEarthquakeToggle?.(false);
+    }
+  }, [earthquakeEnabled]);
 
   useEffect(() => {
     return () => {

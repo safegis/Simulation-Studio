@@ -53,6 +53,10 @@ export default function MainUILayout() {
     string[]
   >([]);
 
+  // Earthquake hazard control states
+  const [earthquakeEnabled, setEarthquakeEnabled] = useState(false);
+  const earthquakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const [isDrawingBox, setIsDrawingBox] = useState(false); // Square
   const [isDrawingRectangle, setIsDrawingRectangle] = useState(false); // Rectangle
 
@@ -477,6 +481,29 @@ export default function MainUILayout() {
     return preset;
   };
 
+  // Earthquake control functions
+  const enableEarthquakeHazard = () => {
+    setEarthquakeEnabled(true);
+  };
+
+  const disableEarthquakeHazard = () => {
+    console.log("Disabling earthquake hazard from agent");
+    setEarthquakeEnabled(false);
+    // Clear any existing interval
+    if (earthquakeIntervalRef.current) {
+      clearInterval(earthquakeIntervalRef.current);
+      earthquakeIntervalRef.current = null;
+    }
+    // Also clear earthquake data from map immediately
+    if (mapRef.current?.drawEarthquakeDots) {
+      mapRef.current.drawEarthquakeDots([]);
+    }
+  };
+
+  const isEarthquakeEnabled = () => {
+    return earthquakeEnabled;
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       {!isDesktop ? (
@@ -609,6 +636,14 @@ export default function MainUILayout() {
                   );
                 }}
                 activePlan={selectedPlan}
+                earthquakeEnabled={earthquakeEnabled}
+                onEarthquakeToggle={(enabled) => {
+                  setEarthquakeEnabled(enabled);
+                  if (!enabled && earthquakeIntervalRef.current) {
+                    clearInterval(earthquakeIntervalRef.current);
+                    earthquakeIntervalRef.current = null;
+                  }
+                }}
               />
             </div>
           )}
@@ -635,6 +670,17 @@ export default function MainUILayout() {
             switchTo2D={switchTo2D}
             switchTo3D={switchTo3D}
             setViewMode={setViewMode}
+            earthquakeControlCallbacks={{
+              enableEarthquakeHazard,
+              disableEarthquakeHazard,
+              isEarthquakeEnabled,
+              stopEarthquakePolling: () => {
+                if (earthquakeIntervalRef.current) {
+                  clearInterval(earthquakeIntervalRef.current);
+                  earthquakeIntervalRef.current = null;
+                }
+              },
+            }}
           />
 
           {/* Center Bottom Clock */}

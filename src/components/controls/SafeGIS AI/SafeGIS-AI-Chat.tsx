@@ -15,6 +15,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import AgentFns from "./Agent Functions/Map-Search";
 import ViewSwitchAgent from "./Agent Functions/SwitchMapView";
+import EarthquakeAgent from "./Agent Functions/Control Hazard Layers/Toggle-Earthquake";
 import { runQandA } from "./Agent Functions/QandA";
 
 type Props = {
@@ -26,6 +27,13 @@ type Props = {
   switchTo2D?: () => void;
   switchTo3D?: () => void;
   setViewMode?: (mode: "2d" | "3d") => void;
+  // Earthquake control callbacks
+  earthquakeControlCallbacks?: {
+    enableEarthquakeHazard: () => void;
+    disableEarthquakeHazard: () => void;
+    isEarthquakeEnabled: () => boolean;
+    stopEarthquakePolling?: () => void;
+  };
 };
 
 type Message = {
@@ -148,6 +156,7 @@ export default function SafeGISAIChat({
   switchTo2D,
   switchTo3D,
   setViewMode,
+  earthquakeControlCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
@@ -339,7 +348,7 @@ export default function SafeGISAIChat({
     try {
       let agentHandled = false;
       // Default intent
-      let intent: "map" | "view" | "qa" = "qa";
+      let intent: "earthquake" | "map" | "view" | "qa" = "qa";
 
       try {
         const intentResponse = await fetch(
@@ -351,47 +360,20 @@ export default function SafeGISAIChat({
             },
             body: JSON.stringify({
               prompt: `
-You are an intent classifier for a mapping application.
-Return ONE WORD ONLY: map, view, or qa.
-Do not explain. Do not add punctuation. Do not add sentences.
-If you output anything else, the system will fail.
+You are an intent classifier. 
+Return exactly one of these words: map, view, earthquake, qa.
 
 Rules:
-1. 'view' → when the user wants to CHANGE HOW THE MAP IS DISPLAYED.
-   - Keywords: "2D", "3D", "2d", "3d", "perspective", "satellite view",
-     "terrain view", "street view", "rotate map", "tilt map",
-     "switch view", "switch to [mode]", "display in [mode]",
-     "enable [mode]", "turn on/off 3D", "map orientation".
-   - If both a location AND a view are mentioned (e.g., "show New York in 3D"), classify as 'view'.
+- earthquake → only if the user wants to CONTROL earthquake hazard layers (enable, disable, show, hide, turn on/off, add, remove).
+- view → if the user wants to change how the map is displayed (2D, 3D, satellite, terrain, rotate, tilt, perspective, orientation). If both location + view, pick view.
+- map → if the user wants to search for or display a place (city, landmark, address) and no view change is requested.
+- qa → everything else (questions, definitions, explanations, general chat). If the user only *asks about* earthquakes (without controlling layers), classify as qa.
 
-2. 'map' → when the user wants to SEARCH FOR OR DISPLAY A SPECIFIC LOCATION.
-   - Includes: city names, landmarks, addresses.
-   - Phrases: "show me [place]", "go to [place]", "find [location]".
-   - Only choose 'map' if no display/view change is requested.
-
-3. 'qa' → everything else (general questions, explanations, non-map queries).
-
-Decision hierarchy:
-- If both 'map' and 'view' apply → choose 'view'.
-- Else if location → 'map'.
-- Else → 'qa'.
-
-Examples:
-- "Now I want to see the map in 3D." → view
-- "Switch to 2D mode" → view  
-- "Enable satellite view" → view
-- "Rotate the map perspective" → view
-- "Show me Paris" → map
-- "Go to Tokyo station" → map
-- "What is GIS?" → qa
-- "Show New York in 3D" → view
-
-Respond with ONLY:
+Answer ONLY:
 map
 view
+earthquake
 qa
-
-Nothing else.
 
 User: ${userText}
 `,
@@ -404,7 +386,12 @@ User: ${userText}
         let rawIntent = intentData?.response?.toLowerCase().trim();
 
         // Safety filter – only accept exact values
-        if (rawIntent === "map" || rawIntent === "view" || rawIntent === "qa") {
+        if (
+          rawIntent === "map" ||
+          rawIntent === "view" ||
+          rawIntent === "earthquake" ||
+          rawIntent === "qa"
+        ) {
           intent = rawIntent;
         } else {
           console.warn(
@@ -418,7 +405,20 @@ User: ${userText}
       }
 
       // Handle intents
-      if (intent === "view") {
+      if (intent === "earthquake") {
+        if (earthquakeControlCallbacks) {
+          const earthquakeHandled =
+            await EarthquakeAgent.runEarthquakeHazardAgent(
+              userText,
+              mapRef,
+              earthquakeControlCallbacks,
+              (role, content) => {
+                setMessages((prev) => [...prev, { role, content }]);
+              }
+            );
+          agentHandled = earthquakeHandled;
+        }
+      } else if (intent === "view") {
         if (switchTo2D && switchTo3D && setViewMode) {
           const viewSwitchHandled = await ViewSwitchAgent.runViewSwitchAgent(
             userText,
