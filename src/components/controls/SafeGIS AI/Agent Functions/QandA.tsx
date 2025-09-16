@@ -1,3 +1,4 @@
+// \components\controls\SafeGIS AI\Agent Functions\QandA.tsx
 "use client";
 
 type Message = {
@@ -17,26 +18,49 @@ export async function runQandA(
       },
       body: JSON.stringify({
         prompt: `
-You are SafeGIS AI. Only answer questions related to disaster management, GIS, and mapping. 
-If the user asks about unrelated topics, politely refuse and remind them you are specialized only in these domains.
-
 Conversation so far:
 ${messages.map((m) => `${m.role}: ${m.content}`).join("\n")}
 
 User: ${userText}
-`,
-        max_tokens: 256,
+        `,
+        max_tokens: 512,
       }),
     });
 
     const data = await response.json();
-    const aiMessage =
-      data?.response || "Sorry, I couldn’t generate a response.";
+    let aiMessage = data?.response || "Sorry, I couldn't generate a response.";
 
-    return aiMessage
+    // Clean up the response to remove any code blocks or tool syntax
+    aiMessage = aiMessage
+      .replace(/```[\s\S]*?```/g, "") // Remove code blocks
+      .replace(/`[^`]*`/g, "") // Remove inline code
+      .replace(/^tool_code[\s\S]*$/gm, "") // Remove tool_code lines
+      .replace(/import[\s\S]*?;/g, "") // Remove import statements
+      .replace(/folium[\s\S]*?html"/g, "") // Remove folium-specific code
       .split("\n")
+      .filter((line: string) => {
+        const trimmed = line.trim();
+        return (
+          trimmed &&
+          !trimmed.startsWith("import ") &&
+          !trimmed.startsWith("from ") &&
+          !trimmed.startsWith("#") &&
+          !trimmed.includes("folium") &&
+          !trimmed.includes(".save(") &&
+          !trimmed.includes("print(")
+        );
+      })
       .map((line: string) => line.trim())
-      .join("\n\n");
+      .join("\n\n")
+      .trim();
+
+    // If the response is empty after cleaning, provide a fallback
+    if (!aiMessage) {
+      aiMessage =
+        "I can help you with questions about GIS, disaster management, and mapping technologies. Please feel free to ask about these topics!";
+    }
+
+    return aiMessage;
   } catch (err) {
     console.error("Q&A error:", err);
     return "Error: Failed to connect to SafeGIS AI.";

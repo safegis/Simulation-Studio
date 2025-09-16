@@ -20,6 +20,9 @@ interface Props {
   // Earthquake state synchronization
   earthquakeEnabled?: boolean;
   onEarthquakeToggle?: (enabled: boolean) => void;
+  // Volcano list state synchronization
+  volcanoListEnabled?: boolean;
+  onVolcanoListToggle?: (enabled: boolean) => void;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -67,6 +70,8 @@ export default function ToolPanel({
   mapRef,
   earthquakeEnabled = false,
   onEarthquakeToggle,
+  volcanoListEnabled = false,
+  onVolcanoListToggle,
 }: Props) {
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
@@ -77,7 +82,12 @@ export default function ToolPanel({
   const [geologicalExpanded, setGeologicalExpanded] = useState(false);
   const [geologicalCheckedItems, setGeologicalCheckedItems] = useState<
     string[]
-  >(earthquakeEnabled ? ["Earthquake"] : []);
+  >(() => {
+    const items = [];
+    if (earthquakeEnabled) items.push("Earthquake");
+    if (volcanoListEnabled) items.push("Volcano List");
+    return items;
+  });
 
   const [trafficExpanded, setTrafficExpanded] = useState(false);
   const [trafficCheckedItems, setTrafficCheckedItems] = useState<string[]>([]);
@@ -985,11 +995,15 @@ export default function ToolPanel({
           const res = await fetch("http://localhost:8000/hazards/volcanoes");
           const data = await res.json();
           mapRef.current?.drawVolcanoDots(data);
+          // Notify parent of state change
+          onVolcanoListToggle?.(true);
         } catch (err) {
           console.error("Failed to fetch volcano data:", err);
         }
       } else {
         mapRef.current?.drawVolcanoDots([]); // remove volcano dots when unchecked
+        // Notify parent of state change
+        onVolcanoListToggle?.(false);
       }
     }
 
@@ -1054,6 +1068,41 @@ export default function ToolPanel({
       // Also notify parent if needed: onEarthquakeToggle?.(false);
     }
   }, [earthquakeEnabled]);
+
+  // Synchronize volcano list state with parent
+  useEffect(() => {
+    const shouldHaveVolcanoList = volcanoListEnabled;
+    const hasVolcanoList = geologicalCheckedItems.includes("Volcano List");
+
+    if (shouldHaveVolcanoList === hasVolcanoList) return;
+
+    if (shouldHaveVolcanoList) {
+      // add checkbox if not present
+      setGeologicalCheckedItems((prev) =>
+        prev.includes("Volcano List") ? prev : [...prev, "Volcano List"]
+      );
+      // fetch and display volcano data
+      (async () => {
+        try {
+          const res = await fetch("http://localhost:8000/hazards/volcanoes");
+          const data = await res.json();
+          mapRef.current?.drawVolcanoDots(data);
+        } catch (err) {
+          console.error(
+            "ToolPanel: failed to sync volcano list on enable:",
+            err
+          );
+        }
+      })();
+    } else {
+      // parent says disable -> ensure child removes checkbox and clears map
+      setGeologicalCheckedItems((prev) =>
+        prev.filter((item) => item !== "Volcano List")
+      );
+      // Clear volcano dots immediately
+      mapRef.current?.drawVolcanoDots([]);
+    }
+  }, [volcanoListEnabled]);
 
   useEffect(() => {
     return () => {

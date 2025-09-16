@@ -57,6 +57,9 @@ export default function MainUILayout() {
   const [earthquakeEnabled, setEarthquakeEnabled] = useState(false);
   const earthquakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Volcano list control states
+  const [volcanoListEnabled, setVolcanoListEnabled] = useState(false);
+
   const [isDrawingBox, setIsDrawingBox] = useState(false); // Square
   const [isDrawingRectangle, setIsDrawingRectangle] = useState(false); // Rectangle
 
@@ -504,6 +507,24 @@ export default function MainUILayout() {
     return earthquakeEnabled;
   };
 
+  // Volcano list control functions
+  const enableVolcanoList = () => {
+    setVolcanoListEnabled(true);
+  };
+
+  const disableVolcanoList = () => {
+    console.log("Disabling volcano list from agent");
+    setVolcanoListEnabled(false);
+    // Clear volcano data from map immediately
+    if (mapRef.current?.drawVolcanoDots) {
+      mapRef.current.drawVolcanoDots([]);
+    }
+  };
+
+  const isVolcanoListEnabled = () => {
+    return volcanoListEnabled;
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       {!isDesktop ? (
@@ -644,6 +665,10 @@ export default function MainUILayout() {
                     earthquakeIntervalRef.current = null;
                   }
                 }}
+                volcanoListEnabled={volcanoListEnabled}
+                onVolcanoListToggle={(enabled) => {
+                  setVolcanoListEnabled(enabled);
+                }}
               />
             </div>
           )}
@@ -680,6 +705,11 @@ export default function MainUILayout() {
                   earthquakeIntervalRef.current = null;
                 }
               },
+            }}
+            volcanoListControlCallbacks={{
+              enableVolcanoList,
+              disableVolcanoList,
+              isVolcanoListEnabled,
             }}
           />
 

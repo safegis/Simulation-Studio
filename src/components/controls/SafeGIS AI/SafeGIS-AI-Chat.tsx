@@ -16,6 +16,7 @@ import ReactMarkdown from "react-markdown";
 import AgentFns from "./Agent Functions/Map-Search";
 import ViewSwitchAgent from "./Agent Functions/SwitchMapView";
 import EarthquakeAgent from "./Agent Functions/Control Hazard Layers/Toggle-Earthquake";
+import VolcanoListAgent from "./Agent Functions/Control Hazard Layers/Toggle-VolcanoList";
 import { runQandA } from "./Agent Functions/QandA";
 
 type Props = {
@@ -33,6 +34,12 @@ type Props = {
     disableEarthquakeHazard: () => void;
     isEarthquakeEnabled: () => boolean;
     stopEarthquakePolling?: () => void;
+  };
+  // Volcano list control callbacks
+  volcanoListControlCallbacks?: {
+    enableVolcanoList: () => void;
+    disableVolcanoList: () => void;
+    isVolcanoListEnabled: () => boolean;
   };
 };
 
@@ -157,6 +164,7 @@ export default function SafeGISAIChat({
   switchTo3D,
   setViewMode,
   earthquakeControlCallbacks,
+  volcanoListControlCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
@@ -348,7 +356,7 @@ export default function SafeGISAIChat({
     try {
       let agentHandled = false;
       // Default intent
-      let intent: "earthquake" | "map" | "view" | "qa" = "qa";
+      let intent: "earthquake" | "volcano" | "map" | "view" | "qa" = "qa";
 
       try {
         const intentResponse = await fetch(
@@ -360,19 +368,21 @@ export default function SafeGISAIChat({
             },
             body: JSON.stringify({
               prompt: `
-You are an intent classifier. 
-Return exactly one of these words: map, view, earthquake, qa.
+You are an intent classifier.
+Return exactly one of these words: map, view, earthquake, volcano, qa.
 
 Rules:
 - earthquake → only if the user wants to CONTROL earthquake hazard layers (enable, disable, show, hide, turn on/off, add, remove).
+- volcano → only if the user wants to CONTROL volcano list layers (enable, disable, show, hide, turn on/off, add, remove, volcano list).
 - view → if the user wants to change how the map is displayed (2D, 3D, satellite, terrain, rotate, tilt, perspective, orientation). If both location + view, pick view.
 - map → if the user wants to search for or display a place (city, landmark, address) and no view change is requested.
-- qa → everything else (questions, definitions, explanations, general chat). If the user only *asks about* earthquakes (without controlling layers), classify as qa.
+- qa → questions, definitions, explanations, general chat about GIS, disaster management, mapping concepts, or anything that doesn't involve controlling the map interface. Examples: "what is GIS", "define disaster management", "explain mapping", "how does remote sensing work".
 
 Answer ONLY:
 map
 view
 earthquake
+volcano
 qa
 
 User: ${userText}
@@ -390,6 +400,7 @@ User: ${userText}
           rawIntent === "map" ||
           rawIntent === "view" ||
           rawIntent === "earthquake" ||
+          rawIntent === "volcano" ||
           rawIntent === "qa"
         ) {
           intent = rawIntent;
@@ -417,6 +428,18 @@ User: ${userText}
               }
             );
           agentHandled = earthquakeHandled;
+        }
+      } else if (intent === "volcano") {
+        if (volcanoListControlCallbacks) {
+          const volcanoHandled = await VolcanoListAgent.runVolcanoListAgent(
+            userText,
+            mapRef,
+            volcanoListControlCallbacks,
+            (role, content) => {
+              setMessages((prev) => [...prev, { role, content }]);
+            }
+          );
+          agentHandled = volcanoHandled;
         }
       } else if (intent === "view") {
         if (switchTo2D && switchTo3D && setViewMode) {
