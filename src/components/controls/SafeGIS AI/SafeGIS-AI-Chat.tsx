@@ -17,6 +17,7 @@ import AgentFns from "./Agent Functions/Map-Search";
 import ViewSwitchAgent from "./Agent Functions/SwitchMapView";
 import EarthquakeAgent from "./Agent Functions/Control Hazard Layers/Toggle-Earthquake";
 import VolcanoListAgent from "./Agent Functions/Control Hazard Layers/Toggle-VolcanoList";
+import ActiveFaultsAgent from "./Agent Functions/Control Hazard Layers/Toggle-ActiveFaults";
 import { runQandA } from "./Agent Functions/QandA";
 
 type Props = {
@@ -40,6 +41,12 @@ type Props = {
     enableVolcanoList: () => void;
     disableVolcanoList: () => void;
     isVolcanoListEnabled: () => boolean;
+  };
+  // Active faults control callbacks
+  activeFaultsControlCallbacks?: {
+    enableActiveFaults: () => void;
+    disableActiveFaults: () => void;
+    isActiveFaultsEnabled: () => boolean;
   };
 };
 
@@ -165,6 +172,7 @@ export default function SafeGISAIChat({
   setViewMode,
   earthquakeControlCallbacks,
   volcanoListControlCallbacks,
+  activeFaultsControlCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
@@ -356,7 +364,13 @@ export default function SafeGISAIChat({
     try {
       let agentHandled = false;
       // Default intent
-      let intent: "earthquake" | "volcano" | "map" | "view" | "qa" = "qa";
+      let intent:
+        | "earthquake"
+        | "volcano"
+        | "activefaults"
+        | "map"
+        | "view"
+        | "qa" = "qa";
 
       try {
         const intentResponse = await fetch(
@@ -374,6 +388,7 @@ Return exactly one of these words: map, view, earthquake, volcano, qa.
 Rules:
 - earthquake → only if the user wants to CONTROL earthquake hazard layers (enable, disable, show, hide, turn on/off, add, remove).
 - volcano → only if the user wants to CONTROL volcano list layers (enable, disable, show, hide, turn on/off, add, remove, volcano list).
+- activefaults → only if the user wants to CONTROL active faults layers (enable, disable, show, hide, turn on/off, add, remove, active faults, fault lines).
 - view → if the user wants to change how the map is displayed (2D, 3D, satellite, terrain, rotate, tilt, perspective, orientation). If both location + view, pick view.
 - map → if the user wants to search for or display a place (city, landmark, address) and no view change is requested.
 - qa → questions, definitions, explanations, general chat about GIS, disaster management, mapping concepts, or anything that doesn't involve controlling the map interface. Examples: "what is GIS", "define disaster management", "explain mapping", "how does remote sensing work".
@@ -383,6 +398,7 @@ map
 view
 earthquake
 volcano
+activefaults
 qa
 
 User: ${userText}
@@ -401,6 +417,7 @@ User: ${userText}
           rawIntent === "view" ||
           rawIntent === "earthquake" ||
           rawIntent === "volcano" ||
+          rawIntent === "activefaults" ||
           rawIntent === "qa"
         ) {
           intent = rawIntent;
@@ -440,6 +457,19 @@ User: ${userText}
             }
           );
           agentHandled = volcanoHandled;
+        }
+      } else if (intent === "activefaults") {
+        if (activeFaultsControlCallbacks) {
+          const activeFaultsHandled =
+            await ActiveFaultsAgent.runActiveFaultsAgent(
+              userText,
+              mapRef,
+              activeFaultsControlCallbacks,
+              (role, content) => {
+                setMessages((prev) => [...prev, { role, content }]);
+              }
+            );
+          agentHandled = activeFaultsHandled;
         }
       } else if (intent === "view") {
         if (switchTo2D && switchTo3D && setViewMode) {

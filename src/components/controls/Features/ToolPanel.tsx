@@ -23,6 +23,9 @@ interface Props {
   // Volcano list state synchronization
   volcanoListEnabled?: boolean;
   onVolcanoListToggle?: (enabled: boolean) => void;
+  // Active faults state synchronization
+  activeFaultsEnabled?: boolean;
+  onActiveFaultsToggle?: (enabled: boolean) => void;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -72,6 +75,8 @@ export default function ToolPanel({
   onEarthquakeToggle,
   volcanoListEnabled = false,
   onVolcanoListToggle,
+  activeFaultsEnabled = false,
+  onActiveFaultsToggle,
 }: Props) {
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
@@ -86,6 +91,7 @@ export default function ToolPanel({
     const items = [];
     if (earthquakeEnabled) items.push("Earthquake");
     if (volcanoListEnabled) items.push("Volcano List");
+    if (activeFaultsEnabled) items.push("Active Faults");
     return items;
   });
 
@@ -1015,11 +1021,15 @@ export default function ToolPanel({
           );
           const data = await res.json();
           mapRef.current?.drawActiveFaults(data);
+          // Notify parent of state change
+          onActiveFaultsToggle?.(true);
         } catch (err) {
           console.error("Failed to fetch Active Faults data:", err);
         }
       } else {
         mapRef.current?.drawActiveFaults(null); // remove faults when unchecked
+        // Notify parent of state change
+        onActiveFaultsToggle?.(false);
       }
     }
   };
@@ -1103,6 +1113,45 @@ export default function ToolPanel({
       mapRef.current?.drawVolcanoDots([]);
     }
   }, [volcanoListEnabled]);
+
+  // Synchronize active faults state with parent
+  useEffect(() => {
+    const shouldHaveActiveFaults = activeFaultsEnabled;
+    const hasActiveFaults = geologicalCheckedItems.includes("Active Faults");
+
+    if (shouldHaveActiveFaults === hasActiveFaults) return;
+
+    if (shouldHaveActiveFaults) {
+      // add checkbox if not present
+      setGeologicalCheckedItems((prev) =>
+        prev.includes("Active Faults") ? prev : [...prev, "Active Faults"]
+      );
+
+      // fetch and display active faults data
+      (async () => {
+        try {
+          const res = await fetch(
+            "http://localhost:8000/hazards/active-faults"
+          );
+          const data = await res.json();
+          mapRef.current?.drawActiveFaults(data);
+        } catch (err) {
+          console.error(
+            "ToolPanel: failed to sync active faults on enable:",
+            err
+          );
+        }
+      })();
+    } else {
+      // parent says disable -> ensure child removes checkbox and clears map
+      setGeologicalCheckedItems((prev) =>
+        prev.filter((item) => item !== "Active Faults")
+      );
+
+      // Clear active faults data immediately
+      mapRef.current?.drawActiveFaults(null);
+    }
+  }, [activeFaultsEnabled]);
 
   useEffect(() => {
     return () => {

@@ -60,6 +60,9 @@ export default function MainUILayout() {
   // Volcano list control states
   const [volcanoListEnabled, setVolcanoListEnabled] = useState(false);
 
+  // Active faults control states
+  const [activeFaultsEnabled, setActiveFaultsEnabled] = useState(false);
+
   const [isDrawingBox, setIsDrawingBox] = useState(false); // Square
   const [isDrawingRectangle, setIsDrawingRectangle] = useState(false); // Rectangle
 
@@ -525,6 +528,25 @@ export default function MainUILayout() {
     return volcanoListEnabled;
   };
 
+  // Active faults control functions
+  const enableActiveFaults = () => {
+    setActiveFaultsEnabled(true);
+  };
+
+  const disableActiveFaults = () => {
+    console.log("Disabling active faults from agent");
+    setActiveFaultsEnabled(false);
+
+    // Clear active faults data from map immediately
+    if (mapRef.current?.drawActiveFaults) {
+      mapRef.current.drawActiveFaults(null);
+    }
+  };
+
+  const isActiveFaultsEnabled = () => {
+    return activeFaultsEnabled;
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       {!isDesktop ? (
@@ -669,6 +691,10 @@ export default function MainUILayout() {
                 onVolcanoListToggle={(enabled) => {
                   setVolcanoListEnabled(enabled);
                 }}
+                activeFaultsEnabled={activeFaultsEnabled}
+                onActiveFaultsToggle={(enabled) => {
+                  setActiveFaultsEnabled(enabled);
+                }}
               />
             </div>
           )}
@@ -710,6 +736,11 @@ export default function MainUILayout() {
               enableVolcanoList,
               disableVolcanoList,
               isVolcanoListEnabled,
+            }}
+            activeFaultsControlCallbacks={{
+              enableActiveFaults,
+              disableActiveFaults,
+              isActiveFaultsEnabled,
             }}
           />
 
