@@ -348,6 +348,8 @@ export default function SafeGISAIChat({
     );
   }
 
+  // Replace the handleSend function in your SafeGIS-AI-Chat.tsx with this updated version
+
   const handleSend = async () => {
     if (!inputText.trim()) return;
 
@@ -356,14 +358,14 @@ export default function SafeGISAIChat({
       ...messages,
       { role: "user", content: userText },
     ];
-
     setMessages(newMessages);
     setInputText("");
     setLoading(true);
 
     try {
       let agentHandled = false;
-      // Default intent
+
+      // Use embedding-based intent classification
       let intent:
         | "earthquake"
         | "volcano"
@@ -373,66 +375,60 @@ export default function SafeGISAIChat({
         | "qa" = "qa";
 
       try {
+        console.log("Classifying intent with embeddings for:", userText);
+
         const intentResponse = await fetch(
-          process.env.NEXT_PUBLIC_MODEL_ENDPOINT!,
+          `${process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
+            "/generate",
+            "/classify-intent"
+          )}`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              prompt: `
-You are an intent classifier.
-Return exactly one of these words: map, view, earthquake, volcano, qa.
-
-Rules:
-- earthquake → only if the user wants to CONTROL earthquake hazard layers (enable, disable, show, hide, turn on/off, add, remove).
-- volcano → only if the user wants to CONTROL volcano list layers (enable, disable, show, hide, turn on/off, add, remove, volcano list).
-- activefaults → only if the user wants to CONTROL active faults layers (enable, disable, show, hide, turn on/off, add, remove, active faults, fault lines).
-- view → if the user wants to change how the map is displayed (2D, 3D, satellite, terrain, rotate, tilt, perspective, orientation). If both location + view, pick view.
-- map → if the user wants to search for or display a place (city, landmark, address) and no view change is requested.
-- qa → questions, definitions, explanations, general chat about GIS, disaster management, mapping concepts, or anything that doesn't involve controlling the map interface. Examples: "what is GIS", "define disaster management", "explain mapping", "how does remote sensing work".
-
-Answer ONLY:
-map
-view
-earthquake
-volcano
-activefaults
-qa
-
-User: ${userText}
-`,
-              max_tokens: 4,
+              prompt: userText,
             }),
           }
         );
 
         const intentData = await intentResponse.json();
-        let rawIntent = intentData?.response?.toLowerCase().trim();
 
-        // Safety filter – only accept exact values
-        if (
-          rawIntent === "map" ||
-          rawIntent === "view" ||
-          rawIntent === "earthquake" ||
-          rawIntent === "volcano" ||
-          rawIntent === "activefaults" ||
-          rawIntent === "qa"
-        ) {
-          intent = rawIntent;
+        if (intentData.error) {
+          console.warn("Intent classification error:", intentData.error);
+          intent = "qa"; // Safe fallback
         } else {
-          console.warn(
-            "Invalid classifier output, defaulting to qa:",
-            rawIntent
-          );
-          intent = "qa";
+          const classifiedIntent = intentData.intent;
+
+          // Log similarity scores for debugging
+          console.log("Intent similarities:", intentData.similarities);
+
+          // Validate the classified intent
+          if (
+            classifiedIntent === "map" ||
+            classifiedIntent === "view" ||
+            classifiedIntent === "earthquake" ||
+            classifiedIntent === "volcano" ||
+            classifiedIntent === "activefaults" ||
+            classifiedIntent === "qa"
+          ) {
+            intent = classifiedIntent;
+            console.log("Classified intent:", intent);
+          } else {
+            console.warn(
+              "Invalid intent from classifier, defaulting to qa:",
+              classifiedIntent
+            );
+            intent = "qa";
+          }
         }
       } catch (err) {
         console.warn("Intent classification failed, defaulting to qa", err);
+        intent = "qa";
       }
 
-      // Handle intents
+      // Handle intents (rest remains the same)
       if (intent === "earthquake") {
         if (earthquakeControlCallbacks) {
           const earthquakeHandled =
