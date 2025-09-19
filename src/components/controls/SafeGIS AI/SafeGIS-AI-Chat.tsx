@@ -18,6 +18,7 @@ import ViewSwitchAgent from "./Agent Functions/SwitchMapView";
 import EarthquakeAgent from "./Agent Functions/Control Hazard Layers/Toggle-Earthquake";
 import VolcanoListAgent from "./Agent Functions/Control Hazard Layers/Toggle-VolcanoList";
 import ActiveFaultsAgent from "./Agent Functions/Control Hazard Layers/Toggle-ActiveFaults";
+import CongestionAgent from "./Agent Functions/Control Hazard Layers/Toggle-Congestion";
 import { runQandA } from "./Agent Functions/QandA";
 
 type Props = {
@@ -47,6 +48,18 @@ type Props = {
     enableActiveFaults: () => void;
     disableActiveFaults: () => void;
     isActiveFaultsEnabled: () => boolean;
+  };
+  // Congestion control callbacks
+  congestionControlCallbacks?: {
+    enableCongestion: () => void;
+    disableCongestion: () => void;
+    isCongestionEnabled: () => boolean;
+    stopCongestionPolling?: () => void;
+    getCongestionSharedRefs?: () => {
+      intervalId: NodeJS.Timeout | null;
+      timerId: number | null;
+      boundsCallback: ((bbox: [number, number, number, number]) => void) | null;
+    };
   };
 };
 
@@ -173,6 +186,7 @@ export default function SafeGISAIChat({
   earthquakeControlCallbacks,
   volcanoListControlCallbacks,
   activeFaultsControlCallbacks,
+  congestionControlCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
@@ -370,6 +384,7 @@ export default function SafeGISAIChat({
         | "earthquake"
         | "volcano"
         | "activefaults"
+        | "congestion"
         | "map"
         | "view"
         | "qa" = "qa";
@@ -411,6 +426,7 @@ export default function SafeGISAIChat({
             classifiedIntent === "earthquake" ||
             classifiedIntent === "volcano" ||
             classifiedIntent === "activefaults" ||
+            classifiedIntent === "congestion" ||
             classifiedIntent === "qa"
           ) {
             intent = classifiedIntent;
@@ -466,6 +482,18 @@ export default function SafeGISAIChat({
               }
             );
           agentHandled = activeFaultsHandled;
+        }
+      } else if (intent === "congestion") {
+        if (congestionControlCallbacks) {
+          const congestionHandled = await CongestionAgent.runCongestionAgent(
+            userText,
+            mapRef,
+            congestionControlCallbacks,
+            (role, content) => {
+              setMessages((prev) => [...prev, { role, content }]);
+            }
+          );
+          agentHandled = congestionHandled;
         }
       } else if (intent === "view") {
         if (switchTo2D && switchTo3D && setViewMode) {

@@ -1,3 +1,4 @@
+// Main-UI-Layout.tsx
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -62,6 +63,8 @@ export default function MainUILayout() {
 
   // Active faults control states
   const [activeFaultsEnabled, setActiveFaultsEnabled] = useState(false);
+  // Congestion control states
+  const [congestionEnabled, setCongestionEnabled] = useState(false);
 
   const [isDrawingBox, setIsDrawingBox] = useState(false); // Square
   const [isDrawingRectangle, setIsDrawingRectangle] = useState(false); // Rectangle
@@ -547,6 +550,254 @@ export default function MainUILayout() {
     return activeFaultsEnabled;
   };
 
+  // Add shared refs to manage congestion state across UI and AI
+  const congestionSharedRefs = useRef({
+    intervalId: null as NodeJS.Timeout | null,
+    timerId: null as number | null,
+    boundsCallback: null as
+      | ((bbox: [number, number, number, number]) => void)
+      | null,
+  });
+
+  // Congestion control functions
+  const enableCongestion = async () => {
+    console.log("UI: Enabling congestion");
+    setCongestionEnabled(true);
+
+    // Set up the fetch and draw function (same logic as in the AI agent)
+    const fetchAndDrawCongestion = async () => {
+      const currentBbox = mapRef.current?.getBounds?.();
+      if (!currentBbox) return;
+
+      try {
+        const key = process.env.NEXT_PUBLIC_TOMTOM_API_KEY;
+        if (!key) return;
+
+        const limitBBoxToMaxArea = (
+          bbox: [number, number, number, number],
+          maxKm2 = 10000
+        ): [number, number, number, number] => {
+          const [minLon, minLat, maxLon, maxLat] = bbox;
+          const centerLon = (minLon + maxLon) / 2;
+          const centerLat = (minLat + maxLat) / 2;
+          const halfWidthDeg = (maxLon - minLon) / 2;
+          const halfHeightDeg = (maxLat - minLat) / 2;
+          const kmPerDegLat = 111.32;
+          const kmPerDegLon = 111.32 * Math.cos((centerLat * Math.PI) / 180);
+          const widthKm = halfWidthDeg * 2 * kmPerDegLon;
+          const heightKm = halfHeightDeg * 2 * kmPerDegLat;
+          const areaKm2 = Math.abs(widthKm * heightKm);
+          if (areaKm2 <= maxKm2) return [minLon, minLat, maxLon, maxLat];
+          const scale = Math.sqrt(maxKm2 / areaKm2);
+          const newHalfWidthDeg = halfWidthDeg * scale;
+          const newHalfHeightDeg = halfHeightDeg * scale;
+          let newMinLon = Math.max(
+            -180,
+            Math.min(180, centerLon - newHalfWidthDeg)
+          );
+          let newMaxLon = Math.max(
+            -180,
+            Math.min(180, centerLon + newHalfWidthDeg)
+          );
+          let newMinLat = Math.max(
+            -90,
+            Math.min(90, centerLat - newHalfHeightDeg)
+          );
+          let newMaxLat = Math.max(
+            -90,
+            Math.min(90, centerLat + newHalfHeightDeg)
+          );
+          return [newMinLon, newMinLat, newMaxLon, newMaxLat];
+        };
+
+        const clamped = limitBBoxToMaxArea(currentBbox, 10000);
+        const bboxStr = clamped.join(",");
+        const fieldsRaw =
+          "{incidents{type,geometry{type,coordinates},properties{iconCategory,startTime,endTime,from,to,length,events{description,code,iconCategory}}}}";
+        const fields = encodeURIComponent(fieldsRaw);
+        const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${key}&bbox=${bboxStr}&fields=${fields}&language=en-GB`;
+
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const incidents = (data.incidents || []).filter((inc: any) => {
+          const ic = inc.properties?.iconCategory ?? inc.ic ?? null;
+          return Number(ic) === 6;
+        });
+
+        const mapCongestionSeverity = (desc: string): number => {
+          switch (desc.toLowerCase()) {
+            case "free traffic":
+              return 1;
+            case "heavy traffic":
+              return 2;
+            case "slow traffic":
+              return 3;
+            case "queuing traffic":
+              return 4;
+            case "stationary traffic":
+              return 5;
+            default:
+              return 0;
+          }
+        };
+
+        const features = incidents.map((inc: any, idx: number) => {
+          const geom = inc.geometry || {};
+          const desc =
+            inc.properties?.events?.[0]?.description ??
+            inc.properties?.description ??
+            "";
+          const severity = mapCongestionSeverity(desc);
+          return {
+            type: "Feature",
+            id: inc.id ?? `tt-jam-${idx}`,
+            properties: {
+              description: desc,
+              severity,
+              startTime: inc.properties?.startTime ?? null,
+              endTime: inc.properties?.endTime ?? null,
+              iconCategory: inc.properties?.iconCategory ?? null,
+              raw: inc,
+            },
+            geometry: {
+              type: geom.type || "Point",
+              coordinates: geom.coordinates || [],
+            },
+          };
+        });
+
+        mapRef.current?.drawCongestion?.({
+          type: "FeatureCollection",
+          features,
+        });
+      } catch (err) {
+        console.error("fetchTomTomCongestion error", err);
+      }
+    };
+
+    // Initial draw
+    await fetchAndDrawCongestion();
+
+    // BEFORE: Could register multiple intervals without proper cleanup
+    // AFTER: Always clear existing interval before setting new one
+    if (congestionSharedRefs.current.intervalId) {
+      clearInterval(congestionSharedRefs.current.intervalId);
+      congestionSharedRefs.current.intervalId = null;
+    }
+    congestionSharedRefs.current.intervalId = setInterval(
+      fetchAndDrawCongestion,
+      60_000
+    );
+
+    // Set up bounds listener for map movement using shared ref
+    const congestionCallback = (newBbox: [number, number, number, number]) => {
+      if (congestionSharedRefs.current.timerId) {
+        window.clearTimeout(congestionSharedRefs.current.timerId);
+      }
+      congestionSharedRefs.current.timerId = window.setTimeout(async () => {
+        await fetchAndDrawCongestion();
+      }, 350) as unknown as number;
+    };
+
+    // BEFORE: Could register multiple bounds listeners without proper cleanup
+    // AFTER: Always unregister existing callback before registering new one
+    if (congestionSharedRefs.current.boundsCallback) {
+      console.log(
+        "UI: Removing existing bounds listener before adding new one"
+      );
+      mapRef.current?.unregisterBoundsListener?.(
+        congestionSharedRefs.current.boundsCallback
+      );
+    }
+
+    // Register bounds listener using shared ref
+    congestionSharedRefs.current.boundsCallback = congestionCallback;
+    mapRef.current?.registerBoundsListener?.(congestionCallback);
+
+    console.log("UI: Congestion enabled with bounds listener registered");
+  };
+
+  // BEFORE: disableCongestion had incomplete cleanup that left listeners active
+  // AFTER: Comprehensive cleanup that removes all listeners and clears all timers
+  const disableCongestion = () => {
+    console.log("UI: Disabling congestion from agent/UI");
+    console.log("UI: Shared refs before cleanup:", {
+      intervalId: congestionSharedRefs.current.intervalId,
+      timerId: congestionSharedRefs.current.timerId,
+      boundsCallback: congestionSharedRefs.current.boundsCallback,
+    });
+
+    // Set state to disabled FIRST
+    setCongestionEnabled(false);
+
+    // BEFORE: Bounds listener cleanup was not guaranteed to work
+    // AFTER: More robust bounds listener cleanup with verification
+    if (congestionSharedRefs.current.boundsCallback) {
+      console.log("UI: Removing bounds listener...");
+      const removed = mapRef.current?.unregisterBoundsListener?.(
+        congestionSharedRefs.current.boundsCallback
+      );
+      console.log("UI: Bounds listener removal result:", removed);
+      congestionSharedRefs.current.boundsCallback = null;
+    }
+
+    // Stop shared polling interval
+    if (congestionSharedRefs.current.intervalId) {
+      console.log(
+        "UI: Clearing interval:",
+        congestionSharedRefs.current.intervalId
+      );
+      clearInterval(congestionSharedRefs.current.intervalId);
+      congestionSharedRefs.current.intervalId = null;
+    }
+
+    // Clear shared timer
+    if (congestionSharedRefs.current.timerId) {
+      console.log("UI: Clearing timer:", congestionSharedRefs.current.timerId);
+      window.clearTimeout(congestionSharedRefs.current.timerId);
+      congestionSharedRefs.current.timerId = null;
+    }
+
+    // Clear congestion data from map
+    if (mapRef.current?.drawCongestion) {
+      mapRef.current.drawCongestion({
+        type: "FeatureCollection",
+        features: [],
+      });
+    }
+
+    // Clear markers if available
+    if (mapRef.current?.congestionMarkersRef) {
+      mapRef.current.congestionMarkersRef.current.forEach((m: any) =>
+        m.remove()
+      );
+      mapRef.current.congestionMarkersRef.current = [];
+    }
+
+    console.log("UI: Shared refs after cleanup:", {
+      intervalId: congestionSharedRefs.current.intervalId,
+      timerId: congestionSharedRefs.current.timerId,
+      boundsCallback: congestionSharedRefs.current.boundsCallback,
+    });
+  };
+
+  const isCongestionEnabled = () => {
+    return congestionEnabled;
+  };
+
+  const stopCongestionPolling = () => {
+    if (congestionSharedRefs.current.intervalId) {
+      clearInterval(congestionSharedRefs.current.intervalId);
+      congestionSharedRefs.current.intervalId = null;
+    }
+  };
+
+  const getCongestionSharedRefs = () => {
+    return congestionSharedRefs.current;
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       {!isDesktop ? (
@@ -695,6 +946,14 @@ export default function MainUILayout() {
                 onActiveFaultsToggle={(enabled) => {
                   setActiveFaultsEnabled(enabled);
                 }}
+                congestionEnabled={congestionEnabled}
+                onCongestionToggle={(enabled) => {
+                  if (enabled) {
+                    enableCongestion();
+                  } else {
+                    disableCongestion();
+                  }
+                }}
               />
             </div>
           )}
@@ -741,6 +1000,13 @@ export default function MainUILayout() {
               enableActiveFaults,
               disableActiveFaults,
               isActiveFaultsEnabled,
+            }}
+            congestionControlCallbacks={{
+              enableCongestion,
+              disableCongestion,
+              isCongestionEnabled,
+              stopCongestionPolling,
+              getCongestionSharedRefs,
             }}
           />
 

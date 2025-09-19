@@ -1,3 +1,4 @@
+// ToolPanel.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -26,6 +27,9 @@ interface Props {
   // Active faults state synchronization
   activeFaultsEnabled?: boolean;
   onActiveFaultsToggle?: (enabled: boolean) => void;
+  // Congestion state synchronization
+  congestionEnabled?: boolean;
+  onCongestionToggle?: (enabled: boolean) => void;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -77,6 +81,8 @@ export default function ToolPanel({
   onVolcanoListToggle,
   activeFaultsEnabled = false,
   onActiveFaultsToggle,
+  congestionEnabled = false,
+  onCongestionToggle,
 }: Props) {
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
     {}
@@ -96,7 +102,13 @@ export default function ToolPanel({
   });
 
   const [trafficExpanded, setTrafficExpanded] = useState(false);
-  const [trafficCheckedItems, setTrafficCheckedItems] = useState<string[]>([]);
+  const [trafficCheckedItems, setTrafficCheckedItems] = useState<string[]>(
+    () => {
+      const items = [];
+      if (congestionEnabled) items.push("Congestion");
+      return items;
+    }
+  );
 
   const earthquakeInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -561,19 +573,12 @@ export default function ToolPanel({
   const roadClosureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const laneClosureIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const congestionIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const congestionTimerRef = useRef<number | null>(null);
-  const registeredCongestionCallbackRef = useRef<
-    ((bbox: [number, number, number, number]) => void) | null
-  >(null);
-
   // --- Updated toggleTrafficItem ---
   const toggleTrafficItem = async (item: string) => {
     const isAlreadyChecked = trafficCheckedItems.includes(item);
     const newItems = isAlreadyChecked
       ? trafficCheckedItems.filter((i) => i !== item)
       : [...trafficCheckedItems, item];
-
     setTrafficCheckedItems(newItems);
 
     const fetchAndDrawRoads = async () => {
@@ -717,66 +722,11 @@ export default function ToolPanel({
     // ----- CONGESTION -----
     if (item === "Congestion") {
       if (!isAlreadyChecked) {
-        const fetchAndDrawCongestion = async () => {
-          const currentBbox = mapRef.current?.getBounds?.();
-          if (!currentBbox) return;
-          const jamGeo = await fetchTomTomCongestion(currentBbox);
-          mapRef.current?.drawCongestion?.(
-            jamGeo ?? { type: "FeatureCollection", features: [] }
-          );
-        };
-
-        // initial draw
-        fetchAndDrawCongestion();
-        // poll every 60s
-        congestionIntervalRef.current = setInterval(
-          fetchAndDrawCongestion,
-          60_000
-        );
-
-        // register bounds listener
-        const congestionCallback = (
-          newBbox: [number, number, number, number]
-        ) => {
-          if (congestionTimerRef.current)
-            window.clearTimeout(congestionTimerRef.current);
-
-          congestionTimerRef.current = window.setTimeout(async () => {
-            const refreshed = await fetchTomTomCongestion(newBbox);
-            mapRef.current?.drawCongestion?.(
-              refreshed ?? { type: "FeatureCollection", features: [] }
-            );
-          }, 350) as unknown as number;
-        };
-
-        registeredCongestionCallbackRef.current = congestionCallback;
-        mapRef.current?.registerBoundsListener?.(congestionCallback);
+        // Notify parent to enable (which handles all the shared state)
+        onCongestionToggle?.(true);
       } else {
-        // clear map when unchecked
-        mapRef.current?.drawCongestion?.({
-          type: "FeatureCollection",
-          features: [],
-        });
-        if (mapRef.current?.congestionMarkersRef) {
-          mapRef.current.congestionMarkersRef.current.forEach((m: any) =>
-            m.remove()
-          );
-          mapRef.current.congestionMarkersRef.current = [];
-        }
-        if (congestionIntervalRef.current) {
-          clearInterval(congestionIntervalRef.current);
-          congestionIntervalRef.current = null;
-        }
-        if (registeredCongestionCallbackRef.current) {
-          mapRef.current?.unregisterBoundsListener?.(
-            registeredCongestionCallbackRef.current
-          );
-          registeredCongestionCallbackRef.current = null;
-        }
-        if (congestionTimerRef.current) {
-          window.clearTimeout(congestionTimerRef.current);
-          congestionTimerRef.current = null;
-        }
+        // Notify parent to disable (which handles all the cleanup)
+        onCongestionToggle?.(false);
       }
     }
     // ----- ROAD OBSTRUCTION -----
@@ -852,8 +802,9 @@ export default function ToolPanel({
         clearInterval(roadClosureIntervalRef.current);
       if (laneClosureIntervalRef.current)
         clearInterval(laneClosureIntervalRef.current);
-      if (congestionIntervalRef.current)
-        clearInterval(congestionIntervalRef.current);
+      // Remove congestion cleanup since it's handled by parent
+      // if (congestionIntervalRef.current)
+      //   clearInterval(congestionIntervalRef.current);
       if (obstructionIntervalRef.current)
         clearInterval(obstructionIntervalRef.current);
 
@@ -867,11 +818,12 @@ export default function ToolPanel({
           registeredLaneCallbackRef.current
         );
       }
-      if (registeredCongestionCallbackRef.current) {
-        mapRef.current?.unregisterBoundsListener?.(
-          registeredCongestionCallbackRef.current
-        );
-      }
+      // Remove congestion bounds listener cleanup since it's handled by parent
+      // if (registeredCongestionCallbackRef.current) {
+      //   mapRef.current?.unregisterBoundsListener?.(
+      //     registeredCongestionCallbackRef.current
+      //   );
+      // }
       if (registeredObstructionCallbackRef.current) {
         mapRef.current?.unregisterBoundsListener?.(
           registeredObstructionCallbackRef.current
@@ -1152,6 +1104,32 @@ export default function ToolPanel({
       mapRef.current?.drawActiveFaults(null);
     }
   }, [activeFaultsEnabled]);
+
+  // Synchronize congestion state with parent
+  useEffect(() => {
+    const shouldHaveCongestion = congestionEnabled;
+    const hasCongestion = trafficCheckedItems.includes("Congestion");
+
+    if (shouldHaveCongestion === hasCongestion) return;
+
+    if (shouldHaveCongestion) {
+      // add checkbox if not present
+      setTrafficCheckedItems((prev) =>
+        prev.includes("Congestion") ? prev : [...prev, "Congestion"]
+      );
+
+      // DON'T fetch here - let the parent handle all congestion logic
+      // The parent's enableCongestion() function will handle the fetching and intervals
+    } else {
+      // parent says disable -> ensure child removes checkbox and clears map
+      setTrafficCheckedItems((prev) =>
+        prev.filter((item) => item !== "Congestion")
+      );
+
+      // DON'T clear here - let the parent handle cleanup
+      // The parent's disableCongestion() function will handle the cleanup
+    }
+  }, [congestionEnabled]);
 
   useEffect(() => {
     return () => {

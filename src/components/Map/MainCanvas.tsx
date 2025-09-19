@@ -1,3 +1,4 @@
+// MainCanvas.tsx
 "use client";
 import {
   useRef,
@@ -99,6 +100,11 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
             b.getNorth(),
           ];
           // call all registered listeners
+          console.log(
+            "Map moveend, calling",
+            boundsListenersRef.current.size,
+            "listeners"
+          );
           boundsListenersRef.current.forEach((cb) => cb(bbox));
         } catch (e) {
           // ignore
@@ -390,7 +396,16 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     registerBoundsListener: (
       cb: (bbox: [number, number, number, number]) => void
     ) => {
+      console.log(
+        "Registering bounds listener, current count:",
+        boundsListenersRef.current.size
+      );
       boundsListenersRef.current.add(cb);
+      console.log(
+        "After registration, listener count:",
+        boundsListenersRef.current.size
+      );
+
       // call immediately with current bounds
       const map = mapInstance.current;
       if (!map || !mapIsLoaded.current) return;
@@ -408,10 +423,24 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         // ignore
       }
     },
+
+    // BEFORE: unregisterBoundsListener had unclear success feedback
+    // AFTER: Enhanced logging and clearer return value handling
     unregisterBoundsListener: (
       cb: (bbox: [number, number, number, number]) => void
     ) => {
-      boundsListenersRef.current.delete(cb);
+      const sizeBefore = boundsListenersRef.current.size;
+      const wasRemoved = boundsListenersRef.current.delete(cb);
+      const sizeAfter = boundsListenersRef.current.size;
+
+      console.log("Unregistering bounds listener:", {
+        wasRemoved,
+        sizeBefore,
+        sizeAfter,
+        remainingListeners: sizeAfter,
+      });
+
+      return wasRemoved;
     },
     drawHealthFacilities: (geojson: GeoJSON.FeatureCollection) => {
       drawHealthFacilitiesHelper(
