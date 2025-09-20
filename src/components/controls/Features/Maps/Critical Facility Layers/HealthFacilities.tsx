@@ -1,4 +1,4 @@
-// HealthFacilities.tsx
+// \SafeGIS\Simulation-Studio\frontend\src\components\controls\Features\Maps\Critical Facility Layers\HealthFacilities.tsx
 export interface HealthFacilityConfig {
   name: string;
   center: [number, number]; // [lng, lat]

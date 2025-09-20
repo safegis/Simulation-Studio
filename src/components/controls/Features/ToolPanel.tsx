@@ -1,4 +1,4 @@
-// ToolPanel.tsx
+// \SafeGIS\Simulation-Studio\frontend\src\components\controls\Features\ToolPanel.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";

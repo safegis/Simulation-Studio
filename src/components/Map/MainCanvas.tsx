@@ -1,4 +1,4 @@
-// MainCanvas.tsx
+// \SafeGIS\Simulation-Studio\frontend\src\components\Map\MainCanvas.tsx
 "use client";
 import {
   useRef,
@@ -31,6 +31,11 @@ import {
 import { useResources } from "./Markers/Planning Suite/ResourcesMarker";
 import { switchTo2D } from "./Switch View/SwitchTo2DView";
 import { switchTo3D } from "./Switch View/SwitchTo3DView";
+import {
+  drawFireStations as drawFireStationsHelper,
+  clearFireStations as clearFireStationsHelper,
+  useFireStationsRestore,
+} from "./Markers/Critical Facility Map/FireStationsMarker";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -58,6 +63,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
   // --- use the custom hook to restore health facility markers after style change ---
   useHealthFacilitiesRestore(mapInstance, mapIsLoaded);
+
+  // --- use the custom hook to restore fire station markers after style change ---
+  useFireStationsRestore(mapInstance, mapIsLoaded);
 
   // add this ref to hold the registered callback
   const boundsListenersRef = useRef<
@@ -451,6 +459,12 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
     clearHealthFacilities: () => {
       clearHealthFacilitiesHelper(mapInstance.current, mapIsLoaded.current);
+    },
+    drawFireStations: (geojson: GeoJSON.FeatureCollection) => {
+      drawFireStationsHelper(mapInstance.current, mapIsLoaded.current, geojson);
+    },
+    clearFireStations: () => {
+      clearFireStationsHelper(mapInstance.current, mapIsLoaded.current);
     },
 
     addGeoJSONLayer: async (

@@ -1,37 +1,36 @@
-// \SafeGIS\Simulation-Studio\frontend\src\components\Map\Markers\Critical Facility Map\HealthFacilitiesMarker.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import mapboxgl from "mapbox-gl";
 import ReactDOMServer from "react-dom/server";
-import { BriefcaseMedical } from "lucide-react";
+import { FireExtinguisher } from "lucide-react";
 
 // --- Refs for state management ---
-export const healthFacilityMarkersRef = { current: [] as mapboxgl.Marker[] };
-export const lastHealthFacilities = {
+export const fireStationMarkersRef = { current: [] as mapboxgl.Marker[] };
+export const lastFireStations = {
   current: null as GeoJSON.FeatureCollection | null,
 };
-export const healthPopupRef = { current: null as mapboxgl.Popup | null };
+export const fireStationPopupRef = { current: null as mapboxgl.Popup | null };
 
 // --- Draw function ---
-export const drawHealthFacilities = (
+export const drawFireStations = (
   map: mapboxgl.Map | null,
   mapIsLoaded: boolean,
   geojson: GeoJSON.FeatureCollection
 ) => {
   if (!map || !mapIsLoaded) return;
 
-  lastHealthFacilities.current = geojson;
+  lastFireStations.current = geojson;
 
   // Remove existing markers
-  healthFacilityMarkersRef.current.forEach((m) => m.remove());
-  healthFacilityMarkersRef.current = [];
+  fireStationMarkersRef.current.forEach((m) => m.remove());
+  fireStationMarkersRef.current = [];
 
   geojson.features.forEach((f) => {
     if (f.geometry.type === "Point") {
       const coords = f.geometry.coordinates as [number, number];
       const iconSVG = ReactDOMServer.renderToString(
-        <BriefcaseMedical size={24} color="#ffffff" />
+        <FireExtinguisher size={24} color="#FF0000" />
       );
 
       const el = document.createElement("div");
@@ -46,7 +45,7 @@ export const drawHealthFacilities = (
         <div style="
           width: 40px;
           height: 40px;
-          background: #FF0000;
+          background: #FFFFFF;
           transform: rotate(45deg);
           box-shadow: 0 1px 4px rgba(0,0,0,0.3);
           display: flex;
@@ -71,49 +70,58 @@ export const drawHealthFacilities = (
         const props = f.properties || {};
         let popupHTML = `<div style="min-width:180px;">`;
         for (const key in props) {
-          if (key === "osm_id" || key === "osm_type") continue;
+          if (
+            key === "osm_id" ||
+            key === "osm_type" ||
+            key === "type" ||
+            key === "id"
+          )
+            continue;
           if (props[key] !== null && props[key] !== "") {
             popupHTML += `<div><strong>${key}:</strong> ${props[key]}</div>`;
           }
         }
         popupHTML += "</div>";
 
-        if (!healthPopupRef.current) {
-          healthPopupRef.current = new mapboxgl.Popup({
+        if (!fireStationPopupRef.current) {
+          fireStationPopupRef.current = new mapboxgl.Popup({
             closeOnClick: true,
             closeButton: true,
           });
         }
 
-        healthPopupRef.current.setLngLat(coords).setHTML(popupHTML).addTo(map);
+        fireStationPopupRef.current
+          .setLngLat(coords)
+          .setHTML(popupHTML)
+          .addTo(map);
       });
 
-      healthFacilityMarkersRef.current.push(marker);
+      fireStationMarkersRef.current.push(marker);
     }
   });
 };
 
 // --- Clear function ---
-export const clearHealthFacilities = (
+export const clearFireStations = (
   map: mapboxgl.Map | null,
   mapIsLoaded: boolean
 ) => {
   if (!map || !mapIsLoaded) return;
 
   // remove markers
-  healthFacilityMarkersRef.current.forEach((m) => m.remove());
-  healthFacilityMarkersRef.current = [];
+  fireStationMarkersRef.current.forEach((m) => m.remove());
+  fireStationMarkersRef.current = [];
 
   // close popup
-  if (healthPopupRef.current) {
-    healthPopupRef.current.remove();
+  if (fireStationPopupRef.current) {
+    fireStationPopupRef.current.remove();
   }
 
-  lastHealthFacilities.current = null;
+  lastFireStations.current = null;
 };
 
 // --- Hook to restore markers after style change ---
-export const useHealthFacilitiesRestore = (
+export const useFireStationsRestore = (
   mapInstance: React.RefObject<mapboxgl.Map | null>,
   mapIsLoaded: React.RefObject<boolean>
 ) => {
@@ -123,12 +131,12 @@ export const useHealthFacilitiesRestore = (
 
     const handleStyleLoad = () => {
       // close any open popup on style change
-      healthPopupRef.current?.remove();
-      if (lastHealthFacilities.current) {
-        drawHealthFacilities(
+      fireStationPopupRef.current?.remove();
+      if (lastFireStations.current) {
+        drawFireStations(
           mapInstance.current,
           mapIsLoaded.current,
-          lastHealthFacilities.current
+          lastFireStations.current
         );
       }
     };
