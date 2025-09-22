@@ -24,22 +24,22 @@ export const switchTo2D = (
 
   let style = "mapbox://styles/mapbox/streets-v12";
   switch (label) {
-    case "Satellite":
+    case "Satellite (Mapbox)":
       style = "mapbox://styles/mapbox/standard-satellite";
       break;
-    case "Outdoors":
+    case "Outdoors (Mapbox)":
       style = "mapbox://styles/mapbox/outdoors-v12";
       break;
-    case "Light":
+    case "Light (Mapbox)":
       style = "mapbox://styles/mapbox/light-v11";
       break;
-    case "Dark":
+    case "Dark (Mapbox)":
       style = "mapbox://styles/mapbox/dark-v11";
       break;
-    case "Navigation (Day)":
+    case "Navigation Day (Mapbox)":
       style = "mapbox://styles/mapbox/navigation-day-v1";
       break;
-    case "Navigation (Night)":
+    case "Navigation Night (Mapbox)":
       style = "mapbox://styles/mapbox/navigation-night-v1";
       break;
   }

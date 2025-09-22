@@ -107,15 +107,15 @@ rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
             <ChevronDown size={22} />
           </button>
           {showMapStyleDropdown && (
-            <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
+            <div className="text-sm absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
               {[
-                "Default",
-                "Satellite",
-                "Outdoors",
-                "Light",
-                "Dark",
-                "Navigation (Day)",
-                "Navigation (Night)",
+                "Default (Custom Mapbox Standard)",
+                "Satellite (Mapbox)",
+                "Outdoors (Mapbox)",
+                "Light (Mapbox)",
+                "Dark (Mapbox)",
+                "Navigation Day (Mapbox)",
+                "Navigation Night (Mapbox)",
               ].map((label, idx) => {
                 const isSelected = selectedMapStyle === label;
                 return (

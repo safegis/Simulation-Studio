@@ -1,3 +1,4 @@
+// \SafeGIS\Simulation-Studio\frontend\src\components\controls\Features\Maps\Critical Facility Layers\FireStations.tsx
 export interface FireStationConfig {
   name: string;
   center: [number, number]; // [lng, lat]
@@ -5,7 +6,7 @@ export interface FireStationConfig {
   geojsonUrl: string;
 }
 
-export const fireStations: Record<string, FireStationConfig> = {
+export const FireStationsByCountry: Record<string, FireStationConfig> = {
   Angola: {
     name: "Angola",
     center: [17.8739, -11.2027], // Approx Luanda

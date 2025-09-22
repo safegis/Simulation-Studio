@@ -12,14 +12,14 @@ export const healthFacilities: Record<string, HealthFacilityConfig> = {
     center: [67.709953, 33.93911], // Approx Kabul
     zoom: 5,
     geojsonUrl:
-      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/health-facilities/hotosm_afg_health_facilities_points_geojson.geojson",
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/health-facilities/afghanistan_health_facilities_points.geojson",
   },
   Angola: {
     name: "Angola",
     center: [17.8739, -11.2027], // Approx Luanda
     zoom: 5,
     geojsonUrl:
-      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/health-facilities/hotosm_ago_health_facilities_points_geojson.geojson",
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/health-facilities/angola_health_facilities_points.geojson",
   },
   Albania: {
     name: "Albania",

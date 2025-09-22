@@ -36,6 +36,11 @@ import {
   clearFireStations as clearFireStationsHelper,
   useFireStationsRestore,
 } from "./Markers/Critical Facility Map/FireStationsMarker";
+import {
+  drawPoliceStations as drawPoliceStationsHelper,
+  clearPoliceStations as clearPoliceStationsHelper,
+  usePoliceStationsRestore,
+} from "./Markers/Critical Facility Map/PoliceStationsMarker";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -66,6 +71,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
   // --- use the custom hook to restore fire station markers after style change ---
   useFireStationsRestore(mapInstance, mapIsLoaded);
+
+  // --- use the custom hook to restore police station markers after style change ---
+  usePoliceStationsRestore(mapInstance, mapIsLoaded);
 
   // add this ref to hold the registered callback
   const boundsListenersRef = useRef<
@@ -465,6 +473,16 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
     clearFireStations: () => {
       clearFireStationsHelper(mapInstance.current, mapIsLoaded.current);
+    },
+    drawPoliceStations: (geojson: GeoJSON.FeatureCollection) => {
+      drawPoliceStationsHelper(
+        mapInstance.current,
+        mapIsLoaded.current,
+        geojson
+      );
+    },
+    clearPoliceStations: () => {
+      clearPoliceStationsHelper(mapInstance.current, mapIsLoaded.current);
     },
 
     addGeoJSONLayer: async (

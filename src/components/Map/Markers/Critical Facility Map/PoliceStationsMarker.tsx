@@ -1,37 +1,36 @@
-// \SafeGIS\Simulation-Studio\frontend\src\components\Map\Markers\Critical Facility Map\FireStationsMarker.tsx
 "use client";
 
 import { useEffect } from "react";
 import mapboxgl from "mapbox-gl";
 import ReactDOMServer from "react-dom/server";
-import { FireExtinguisher } from "lucide-react";
+import { Shield } from "lucide-react";
 
 // --- Refs for state management ---
-export const fireStationMarkersRef = { current: [] as mapboxgl.Marker[] };
-export const lastFireStations = {
+export const policeStationMarkersRef = { current: [] as mapboxgl.Marker[] };
+export const lastPoliceStations = {
   current: null as GeoJSON.FeatureCollection | null,
 };
-export const fireStationPopupRef = { current: null as mapboxgl.Popup | null };
+export const policeStationPopupRef = { current: null as mapboxgl.Popup | null };
 
 // --- Draw function ---
-export const drawFireStations = (
+export const drawPoliceStations = (
   map: mapboxgl.Map | null,
   mapIsLoaded: boolean,
   geojson: GeoJSON.FeatureCollection
 ) => {
   if (!map || !mapIsLoaded) return;
 
-  lastFireStations.current = geojson;
+  lastPoliceStations.current = geojson;
 
   // Remove existing markers
-  fireStationMarkersRef.current.forEach((m) => m.remove());
-  fireStationMarkersRef.current = [];
+  policeStationMarkersRef.current.forEach((m) => m.remove());
+  policeStationMarkersRef.current = [];
 
   geojson.features.forEach((f) => {
     if (f.geometry.type === "Point") {
       const coords = f.geometry.coordinates as [number, number];
       const iconSVG = ReactDOMServer.renderToString(
-        <FireExtinguisher size={24} color="#FF0000" />
+        <Shield size={24} color="#0066FF" />
       );
 
       const el = document.createElement("div");
@@ -84,45 +83,45 @@ export const drawFireStations = (
         }
         popupHTML += "</div>";
 
-        if (!fireStationPopupRef.current) {
-          fireStationPopupRef.current = new mapboxgl.Popup({
+        if (!policeStationPopupRef.current) {
+          policeStationPopupRef.current = new mapboxgl.Popup({
             closeOnClick: true,
             closeButton: true,
           });
         }
 
-        fireStationPopupRef.current
+        policeStationPopupRef.current
           .setLngLat(coords)
           .setHTML(popupHTML)
           .addTo(map);
       });
 
-      fireStationMarkersRef.current.push(marker);
+      policeStationMarkersRef.current.push(marker);
     }
   });
 };
 
 // --- Clear function ---
-export const clearFireStations = (
+export const clearPoliceStations = (
   map: mapboxgl.Map | null,
   mapIsLoaded: boolean
 ) => {
   if (!map || !mapIsLoaded) return;
 
   // remove markers
-  fireStationMarkersRef.current.forEach((m) => m.remove());
-  fireStationMarkersRef.current = [];
+  policeStationMarkersRef.current.forEach((m) => m.remove());
+  policeStationMarkersRef.current = [];
 
   // close popup
-  if (fireStationPopupRef.current) {
-    fireStationPopupRef.current.remove();
+  if (policeStationPopupRef.current) {
+    policeStationPopupRef.current.remove();
   }
 
-  lastFireStations.current = null;
+  lastPoliceStations.current = null;
 };
 
 // --- Hook to restore markers after style change ---
-export const useFireStationsRestore = (
+export const usePoliceStationsRestore = (
   mapInstance: React.RefObject<mapboxgl.Map | null>,
   mapIsLoaded: React.RefObject<boolean>
 ) => {
@@ -132,12 +131,12 @@ export const useFireStationsRestore = (
 
     const handleStyleLoad = () => {
       // close any open popup on style change
-      fireStationPopupRef.current?.remove();
-      if (lastFireStations.current) {
-        drawFireStations(
+      policeStationPopupRef.current?.remove();
+      if (lastPoliceStations.current) {
+        drawPoliceStations(
           mapInstance.current,
           mapIsLoaded.current,
-          lastFireStations.current
+          lastPoliceStations.current
         );
       }
     };

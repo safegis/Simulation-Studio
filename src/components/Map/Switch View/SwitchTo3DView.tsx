@@ -24,7 +24,7 @@ export const switchTo3D = (
   is3DMode.current = true;
 
   let style = "mapbox://styles/shain34/cmesokqei00z501sdedixesto";
-  if (label === "Satellite") {
+  if (label === "Satellite (Mapbox)") {
     style = "mapbox://styles/mapbox/standard-satellite";
   }
 

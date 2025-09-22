@@ -38,7 +38,9 @@ export default function MainUILayout() {
     null
   );
   const [show3DControls, setShow3DControls] = useState(true);
-  const [selectedMapStyle, setSelectedMapStyle] = useState<string>("Default");
+  const [selectedMapStyle, setSelectedMapStyle] = useState<string>(
+    "Default (Custom Mapbox Standard)"
+  );
   const [showToolPanel, setShowToolPanel] = useState(false);
   const [selectedMaps, setSelectedMaps] = useState<string[]>([]);
   const [selectedPlanningTools, setSelectedPlanningTools] = useState<string[]>(
@@ -364,11 +366,11 @@ export default function MainUILayout() {
     setShowMapStyleDropdown(false);
 
     const disableLightingPresets = [
-      "Outdoors",
-      "Light",
-      "Dark",
-      "Navigation (Day)",
-      "Navigation (Night)",
+      "Outdoors (Mapbox)",
+      "Light (Mapbox)",
+      "Dark (Mapbox)",
+      "Navigation Day (Mapbox)",
+      "Navigation Night (Mapbox)",
     ];
 
     const supportsLighting = !disableLightingPresets.includes(label);
@@ -394,29 +396,29 @@ export default function MainUILayout() {
 
     // ✅ Apply the correct Mapbox style
     switch (label) {
-      case "Default":
+      case "Default (Custom Mapbox Standard)":
         map.setMapStyle(
           viewMode === "3d"
             ? "mapbox://styles/shain34/cmesokqei00z501sdedixesto"
             : "mapbox://styles/mapbox/streets-v12"
         );
         break;
-      case "Satellite":
+      case "Satellite (Mapbox)":
         map.setMapStyle("mapbox://styles/mapbox/standard-satellite");
         break;
-      case "Outdoors":
+      case "Outdoors (Mapbox)":
         map.setMapStyle("mapbox://styles/mapbox/outdoors-v12");
         break;
-      case "Light":
+      case "Light (Mapbox)":
         map.setMapStyle("mapbox://styles/mapbox/light-v11");
         break;
-      case "Dark":
+      case "Dark (Mapbox)":
         map.setMapStyle("mapbox://styles/mapbox/dark-v11");
         break;
-      case "Navigation (Day)":
+      case "Navigation Day (Mapbox)":
         map.setMapStyle("mapbox://styles/mapbox/navigation-day-v1");
         break;
-      case "Navigation (Night)":
+      case "Navigation Night (Mapbox)":
         map.setMapStyle("mapbox://styles/mapbox/navigation-night-v1");
         break;
     }
