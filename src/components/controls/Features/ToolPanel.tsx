@@ -16,8 +16,15 @@ interface Props {
   selectedPlanningTools: string[];
   selectedAssessmentTools: string[];
   mapRef: React.RefObject<any>;
+  expandedPanels: Record<string, boolean>;
+  setExpandedPanels: React.Dispatch<
+    React.SetStateAction<Record<string, boolean>>
+  >;
   onPlanSelect?: (plan: { name: string; date: string }) => void;
   activePlan?: { name: string; date: string } | null;
+  // Traffic expanded state
+  trafficExpanded: boolean;
+  setTrafficExpanded: React.Dispatch<React.SetStateAction<boolean>>;
   // Earthquake state synchronization
   earthquakeEnabled?: boolean;
   onEarthquakeToggle?: (enabled: boolean) => void;
@@ -83,11 +90,11 @@ export default function ToolPanel({
   onActiveFaultsToggle,
   congestionEnabled = false,
   onCongestionToggle,
+  expandedPanels,
+  setExpandedPanels,
+  trafficExpanded,
+  setTrafficExpanded,
 }: Props) {
-  const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
-    {}
-  );
-
   const [hydroExpanded, setHydroExpanded] = useState(false);
   const [hydroCheckedItems, setHydroCheckedItems] = useState<string[]>([]);
   const [geologicalExpanded, setGeologicalExpanded] = useState(false);
@@ -101,7 +108,7 @@ export default function ToolPanel({
     return items;
   });
 
-  const [trafficExpanded, setTrafficExpanded] = useState(false);
+  const [trafficExpandedState, setTrafficExpandedState] = useState(false);
   const [trafficCheckedItems, setTrafficCheckedItems] = useState<string[]>(
     () => {
       const items = [];
@@ -995,6 +1002,9 @@ export default function ToolPanel({
     if (shouldHaveEarthquake === hasEarthquake) return;
 
     if (shouldHaveEarthquake) {
+      // Ensure geological section is expanded
+      setGeologicalExpanded(true);
+
       // add checkbox if not present
       setGeologicalCheckedItems((prev) =>
         prev.includes("Earthquake") ? prev : [...prev, "Earthquake"]
@@ -1039,10 +1049,14 @@ export default function ToolPanel({
     if (shouldHaveVolcanoList === hasVolcanoList) return;
 
     if (shouldHaveVolcanoList) {
+      // Ensure geological section is expanded
+      setGeologicalExpanded(true);
+
       // add checkbox if not present
       setGeologicalCheckedItems((prev) =>
         prev.includes("Volcano List") ? prev : [...prev, "Volcano List"]
       );
+
       // fetch and display volcano data
       (async () => {
         try {
@@ -1050,10 +1064,7 @@ export default function ToolPanel({
           const data = await res.json();
           mapRef.current?.drawVolcanoDots(data);
         } catch (err) {
-          console.error(
-            "ToolPanel: failed to sync volcano list on enable:",
-            err
-          );
+          console.error("Failed to fetch volcano data:", err);
         }
       })();
     } else {
@@ -1074,6 +1085,9 @@ export default function ToolPanel({
     if (shouldHaveActiveFaults === hasActiveFaults) return;
 
     if (shouldHaveActiveFaults) {
+      // Ensure geological section is expanded first
+      setGeologicalExpanded(true);
+
       // add checkbox if not present
       setGeologicalCheckedItems((prev) =>
         prev.includes("Active Faults") ? prev : [...prev, "Active Faults"]
@@ -1113,21 +1127,17 @@ export default function ToolPanel({
     if (shouldHaveCongestion === hasCongestion) return;
 
     if (shouldHaveCongestion) {
-      // add checkbox if not present
+      // Ensure traffic section is expanded first
+      setTrafficExpanded(true);
+
+      // Add checkbox if not present
       setTrafficCheckedItems((prev) =>
         prev.includes("Congestion") ? prev : [...prev, "Congestion"]
       );
-
-      // DON'T fetch here - let the parent handle all congestion logic
-      // The parent's enableCongestion() function will handle the fetching and intervals
     } else {
-      // parent says disable -> ensure child removes checkbox and clears map
       setTrafficCheckedItems((prev) =>
         prev.filter((item) => item !== "Congestion")
       );
-
-      // DON'T clear here - let the parent handle cleanup
-      // The parent's disableCongestion() function will handle the cleanup
     }
   }, [congestionEnabled]);
 

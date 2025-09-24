@@ -25,6 +25,11 @@ import {
   useHealthFacilitiesRestore,
 } from "./Markers/Critical Facility Map/HealthFacilitiesMarker";
 import {
+  drawEmergencyShelters as drawEmergencySheltersHelper,
+  clearEmergencyShelters as clearEmergencySheltersHelper,
+  useEmergencySheltersRestore,
+} from "./Markers/Critical Facility Map/EmergencySheltersMarker";
+import {
   drawRoutes as drawRoutesHelper,
   highlightRouteByFeatureIndex,
 } from "./Markers/Pathfinder/RouteLines";
@@ -74,6 +79,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
   // --- use the custom hook to restore police station markers after style change ---
   usePoliceStationsRestore(mapInstance, mapIsLoaded);
+
+  // --- use the custom hook to restore emergency shelter markers after style change ---
+  useEmergencySheltersRestore(mapInstance, mapIsLoaded);
 
   // add this ref to hold the registered callback
   const boundsListenersRef = useRef<
@@ -467,6 +475,16 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
     clearHealthFacilities: () => {
       clearHealthFacilitiesHelper(mapInstance.current, mapIsLoaded.current);
+    },
+    drawEmergencyShelters: (geojson: GeoJSON.FeatureCollection) => {
+      drawEmergencySheltersHelper(
+        mapInstance.current,
+        mapIsLoaded.current,
+        geojson
+      );
+    },
+    clearEmergencyShelters: () => {
+      clearEmergencySheltersHelper(mapInstance.current, mapIsLoaded.current);
     },
     drawFireStations: (geojson: GeoJSON.FeatureCollection) => {
       drawFireStationsHelper(mapInstance.current, mapIsLoaded.current, geojson);

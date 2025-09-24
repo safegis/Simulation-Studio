@@ -99,7 +99,9 @@ export default function HazardMapControls({
       {/* Geological */}
       <button
         onClick={() => setGeologicalExpanded((prev) => !prev)}
-        className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
+        className={`flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition ${
+          geologicalExpanded ? "bg-[#3a3a3a]" : ""
+        }`}
       >
         <div className="flex items-center gap-2">
           <Mountain size={20} />

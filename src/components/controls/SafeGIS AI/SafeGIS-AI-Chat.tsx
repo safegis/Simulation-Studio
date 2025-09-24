@@ -36,18 +36,30 @@ type Props = {
     disableEarthquakeHazard: () => void;
     isEarthquakeEnabled: () => boolean;
     stopEarthquakePolling?: () => void;
+    openToolPanel?: () => void;
+    selectHazardLayers?: () => void;
+    expandHazardLayersDropdown?: () => void;
+    expandGeologicalDropdown?: () => void;
   };
   // Volcano list control callbacks
   volcanoListControlCallbacks?: {
     enableVolcanoList: () => void;
     disableVolcanoList: () => void;
     isVolcanoListEnabled: () => boolean;
+    openToolPanel?: () => void;
+    selectHazardLayers?: () => void;
+    expandHazardLayersDropdown?: () => void;
+    expandGeologicalDropdown?: () => void;
   };
   // Active faults control callbacks
   activeFaultsControlCallbacks?: {
     enableActiveFaults: () => void;
     disableActiveFaults: () => void;
     isActiveFaultsEnabled: () => boolean;
+    openToolPanel?: () => void;
+    selectHazardLayers?: () => void;
+    expandHazardLayersDropdown?: () => void;
+    expandGeologicalDropdown?: () => void;
   };
   // Congestion control callbacks
   congestionControlCallbacks?: {
@@ -60,6 +72,10 @@ type Props = {
       timerId: number | null;
       boundsCallback: ((bbox: [number, number, number, number]) => void) | null;
     };
+    openToolPanel?: () => void;
+    selectHazardLayers?: () => void;
+    expandHazardLayersDropdown?: () => void;
+    expandTrafficDropdown?: () => void;
   };
 };
 

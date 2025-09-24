@@ -43,6 +43,13 @@ export default function MainUILayout() {
   );
   const [showToolPanel, setShowToolPanel] = useState(false);
   const [selectedMaps, setSelectedMaps] = useState<string[]>([]);
+
+  // Add state for expanded panels
+  const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [geologicalExpanded, setGeologicalExpanded] = useState(false);
+  const [trafficExpanded, setTrafficExpanded] = useState(false);
   const [selectedPlanningTools, setSelectedPlanningTools] = useState<string[]>(
     []
   );
@@ -923,6 +930,10 @@ export default function MainUILayout() {
                 selectedPlanningTools={selectedPlanningTools}
                 selectedAssessmentTools={selectedAssessmentTools}
                 mapRef={mapRef}
+                expandedPanels={expandedPanels}
+                setExpandedPanels={setExpandedPanels}
+                trafficExpanded={trafficExpanded}
+                setTrafficExpanded={setTrafficExpanded}
                 onPlanSelect={(plan) => {
                   // toggle selection
                   setSelectedPlan((prev) =>
@@ -992,16 +1003,79 @@ export default function MainUILayout() {
                   earthquakeIntervalRef.current = null;
                 }
               },
+              openToolPanel: () => {
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+              },
+              selectHazardLayers: () => {
+                setSelectedMaps((prev) =>
+                  prev.includes("Hazard Layers")
+                    ? prev
+                    : [...prev, "Hazard Layers"]
+                );
+              },
+              expandHazardLayersDropdown: () => {
+                setExpandedPanels((prev) => ({
+                  ...prev,
+                  "map-Hazard Layers": true,
+                }));
+              },
+              expandGeologicalDropdown: () => setGeologicalExpanded(true),
             }}
             volcanoListControlCallbacks={{
               enableVolcanoList,
               disableVolcanoList,
               isVolcanoListEnabled,
+              openToolPanel: () => {
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+              },
+              selectHazardLayers: () => {
+                setSelectedMaps((prev) =>
+                  prev.includes("Hazard Layers")
+                    ? prev
+                    : [...prev, "Hazard Layers"]
+                );
+              },
+              expandHazardLayersDropdown: () => {
+                setExpandedPanels((prev) => ({
+                  ...prev,
+                  "map-Hazard Layers": true,
+                }));
+              },
+              expandGeologicalDropdown: () => setGeologicalExpanded(true),
             }}
             activeFaultsControlCallbacks={{
               enableActiveFaults,
               disableActiveFaults,
               isActiveFaultsEnabled,
+              openToolPanel: () => {
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+              },
+              selectHazardLayers: () => {
+                setSelectedMaps((prev) =>
+                  prev.includes("Hazard Layers")
+                    ? prev
+                    : [...prev, "Hazard Layers"]
+                );
+              },
+              expandHazardLayersDropdown: () => {
+                setExpandedPanels((prev) => ({
+                  ...prev,
+                  "map-Hazard Layers": true,
+                }));
+              },
+              expandGeologicalDropdown: () => setGeologicalExpanded(true),
             }}
             congestionControlCallbacks={{
               enableCongestion,
@@ -1009,6 +1083,27 @@ export default function MainUILayout() {
               isCongestionEnabled,
               stopCongestionPolling,
               getCongestionSharedRefs,
+              openToolPanel: () => {
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+              },
+              selectHazardLayers: () => {
+                setSelectedMaps((prev) =>
+                  prev.includes("Hazard Layers")
+                    ? prev
+                    : [...prev, "Hazard Layers"]
+                );
+              },
+              expandHazardLayersDropdown: () => {
+                setExpandedPanels((prev) => ({
+                  ...prev,
+                  "map-Hazard Layers": true,
+                }));
+              },
+              expandTrafficDropdown: () => setTrafficExpanded(true),
             }}
           />
 

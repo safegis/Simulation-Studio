@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { healthFacilities } from "./HealthFacilities";
+import { emergencyShelters } from "./Emergency Shelters/ByCountry";
 import { FireStationsByCountry } from "./Fire Stations/ByCountry";
 import { USFireStationsByState } from "./Fire Stations/ByState";
 import { PoliceStationsByCountry } from "./Police Stations/ByCountry";
@@ -48,8 +49,20 @@ export default function CriticalFacilityMapControls({
   const listRef = useRef<HTMLUListElement>(null);
   const [hasScrollbar, setHasScrollbar] = useState(false);
   const [commandResponseExpanded, setCommandResponseExpanded] = useState(false);
+
+  // Emergency Shelters state variables
+  const [emergencySheltersExpanded, setEmergencySheltersExpanded] =
+    useState(false);
+  const [shelterCoverageOpen, setShelterCoverageOpen] = useState(false);
+  const [selectedShelterCoverage, setSelectedShelterCoverage] = useState("");
+  const shelterCoverageButtonRef = useRef<HTMLButtonElement>(null);
+  const [shelterCountryOpen, setShelterCountryOpen] = useState(false);
+  const [selectedShelterCountry, setSelectedShelterCountry] = useState("");
+  const [shelterCountrySearchTerm, setShelterCountrySearchTerm] = useState("");
+
   const [commandResponseCheckedItems, setCommandResponseCheckedItems] =
     useState<string[]>([]);
+
   const [fireStationCoverageOpen, setFireStationCoverageOpen] = useState(false);
   const [selectedFireCoverage, setSelectedFireCoverage] = useState("");
   const fireStationButtonRef = useRef<HTMLButtonElement>(null);
@@ -120,6 +133,85 @@ export default function CriticalFacilityMapControls({
     "China",
     "Cameroon",
     "Congo",
+  ];
+
+  const shelterCountries = [
+    "Andorra",
+    "Angola",
+    "Argentina",
+    "Australia",
+    "Barbados",
+    "Belize",
+    "Bolivia",
+    "Botswana",
+    "Burkina Faso",
+    "Burundi",
+    "Cabo Verde",
+    "Cayman Islands",
+    "Chile",
+    "Colombia",
+    "Costa Rica",
+    "Cuba",
+    "Dominica",
+    "Ecuador",
+    "El Salvador",
+    "Gabon",
+    "Ghana",
+    "Gibraltar",
+    "Grenada",
+    "Guadeloupe",
+    "Guam",
+    "Guatemala",
+    "Guernsey",
+    "Guyana",
+    "Honduras",
+    "India",
+    "Isle of Man",
+    "Jamaica",
+    "Jersey",
+    "Kenya",
+    "Lesotho",
+    "Liberia",
+    "Liechtenstein",
+    "Malawi",
+    "Malaysia",
+    "Mali",
+    "Malta",
+    "Martinique",
+    "Mayotte",
+    "Micronesia",
+    "Moldova",
+    "Monaco",
+    "Montserrat",
+    "Namibia",
+    "Nicaragua",
+    "Niger",
+    "Nigeria",
+    "Northern Mariana Islands",
+    "Philippines",
+    "Portugal",
+    "Puerto Rico",
+    "Rwanda",
+    "Saint Kitts and Nevis",
+    "Saint Lucia",
+    "Saint Vincent and the Grenadines",
+    "San Marino",
+    "Sierra Leone",
+    "Singapore",
+    "Solomon Islands",
+    "South Africa",
+    "Sri Lanka",
+    "Suriname",
+    "Tanzania",
+    "Timor-Leste",
+    "Togo",
+    "Trinidad and Tobago",
+    "Turks and Caicos Islands",
+    "Uganda",
+    "Uruguay",
+    "Venuzuela",
+    "Zambia",
+    "Zimbabwe",
   ];
 
   const commandResponseItems = ["Fire Stations", "Police Stations"];
@@ -360,6 +452,8 @@ export default function CriticalFacilityMapControls({
     "By municipality / city",
   ];
 
+  const shelterCoverageOptions = ["By country", "By administrative division"];
+
   const toggleCommandResponseItem = (item: string) => {
     setCommandResponseCheckedItems((prev) =>
       prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
@@ -368,10 +462,140 @@ export default function CriticalFacilityMapControls({
 
   return (
     <>
-      <TransparentButton
-        label="Active Evacuation Area"
-        icon={<LandPlot size={20} />}
-      />
+      <button
+        onClick={() => setEmergencySheltersExpanded((prev) => !prev)}
+        className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition"
+      >
+        <div className="flex items-center gap-2">
+          <LandPlot size={20} />
+          <span className="text-base font-medium">Emergency Shelters</span>
+        </div>
+        <ChevronDown
+          size={18}
+          className={`text-white transition-transform duration-200 ${
+            emergencySheltersExpanded ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {emergencySheltersExpanded && (
+        <div className="pl-8 pr-6 pt-2 pb-2 space-y-2 w-full">
+          <div className="relative w-full">
+            <button
+              ref={shelterCoverageButtonRef}
+              onClick={() => setShelterCoverageOpen((prev) => !prev)}
+              className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+            >
+              <span>{selectedShelterCoverage || "Select Coverage"}</span>
+              <ChevronDown
+                size={16}
+                className={`ml-2 transition-transform duration-200 ${
+                  shelterCoverageOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Country Selection Dropdown - appears when "By country" is selected */}
+          {selectedShelterCoverage === "By country" && (
+            <>
+              <div className="relative w-full">
+                <button
+                  onClick={() => setShelterCountryOpen((prev) => !prev)}
+                  className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                >
+                  <span>{selectedShelterCountry || "Select a Country"}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`ml-2 transition-transform duration-200 ${
+                      shelterCountryOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {shelterCountryOpen && (
+                  <div className="absolute left-0 right-0 z-10 mt-1 bg-[#3a3a3a] rounded-md shadow-lg">
+                    {/* Search Box */}
+                    <div className="p-2">
+                      <input
+                        type="text"
+                        placeholder="Search country..."
+                        value={shelterCountrySearchTerm}
+                        onChange={(e) =>
+                          setShelterCountrySearchTerm(e.target.value)
+                        }
+                        className="w-full p-2 rounded-md text-white outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                      />
+                    </div>
+
+                    {/* Filtered country list */}
+                    <ul className="max-h-35 overflow-y-auto">
+                      {shelterCountries
+                        .filter((c) =>
+                          c
+                            .toLowerCase()
+                            .includes(shelterCountrySearchTerm.toLowerCase())
+                        )
+                        .map((country, index, arr) => (
+                          <li
+                            key={index}
+                            onClick={async () => {
+                              setSelectedShelterCountry(country);
+                              setShelterCountryOpen(false);
+                              setShelterCountrySearchTerm("");
+                              const config = emergencyShelters[country];
+                              if (config && mapRef.current) {
+                                mapRef.current.flyTo({
+                                  center: config.center,
+                                  zoom: config.zoom,
+                                  essential: true,
+                                });
+                                try {
+                                  const res = await fetch(config.geojsonUrl);
+                                  const data = await res.json();
+                                  mapRef.current.drawEmergencyShelters?.(data);
+                                } catch (err) {
+                                  console.error(
+                                    "Failed to fetch emergency shelters for",
+                                    country,
+                                    err
+                                  );
+                                }
+                              }
+                            }}
+                            className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                    ${index === arr.length - 1 ? "rounded-bl-md" : ""}
+                    ${index === arr.length - 1 ? "rounded-br-md" : ""}`}
+                          >
+                            {country}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Clear Emergency Shelters button */}
+              <button
+                onClick={() => {
+                  if (!selectedShelterCountry) return; // do nothing if disabled
+                  mapRef.current?.clearEmergencyShelters?.();
+                  setSelectedShelterCountry(""); // reset dropdown label
+                }}
+                disabled={!selectedShelterCountry}
+                className={`w-full py-2 rounded-md mt-2
+        ${
+          selectedShelterCountry
+            ? "bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
+            : "bg-[#4c4c4c] text-[#a1a1a1] cursor-not-allowed"
+        }`}
+              >
+                Clear Emergency Shelters
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Medical / Health */}
       <button
@@ -1509,6 +1733,40 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
                 className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
             ${index === 0 ? "rounded-t-md" : ""}
             ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+              >
+                {option}
+              </div>
+            ))}
+          </div>,
+          document.body
+        )}
+
+      {/* Emergency Shelters Coverage Dropdown - Rendered as portal */}
+      {shelterCoverageOpen &&
+        shelterCoverageButtonRef.current &&
+        createPortal(
+          <div
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            style={{
+              top:
+                shelterCoverageButtonRef.current.getBoundingClientRect()
+                  .bottom + 4,
+              left: shelterCoverageButtonRef.current.getBoundingClientRect()
+                .left,
+              width:
+                shelterCoverageButtonRef.current.getBoundingClientRect().width,
+            }}
+          >
+            {shelterCoverageOptions.map((option, index, arr) => (
+              <div
+                key={index}
+                onClick={() => {
+                  setSelectedShelterCoverage(option);
+                  setShelterCoverageOpen(false);
+                }}
+                className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+          ${index === 0 ? "rounded-t-md" : ""}
+          ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
               >
                 {option}
               </div>

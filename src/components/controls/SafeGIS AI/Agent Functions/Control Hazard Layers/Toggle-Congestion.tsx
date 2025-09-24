@@ -17,6 +17,10 @@ type CongestionControlCallbacks = {
     timerId: number | null;
     boundsCallback: ((bbox: [number, number, number, number]) => void) | null;
   };
+  openToolPanel?: () => void;
+  selectHazardLayers?: () => void;
+  expandHazardLayersDropdown?: () => void;
+  expandTrafficDropdown?: () => void;
 };
 
 /* -------- Intent Detection -------- */
@@ -252,9 +256,15 @@ export async function runCongestionAgent(
     if (action === "enable") {
       pushMessage("assistant", "Enabling congestion layer...");
 
-      // BEFORE: Agent directly managed intervals and listeners
-      // AFTER: Use parent's enableCongestion function which handles all setup
       try {
+        // Important: Set the traffic expanded state first
+        callbacks.expandTrafficDropdown?.();
+        // Then open tool panel and expand other dropdowns
+        callbacks.openToolPanel?.();
+        callbacks.selectHazardLayers?.();
+        callbacks.expandHazardLayersDropdown?.();
+
+        // Enable congestion
         callbacks.enableCongestion();
 
         pushMessage(

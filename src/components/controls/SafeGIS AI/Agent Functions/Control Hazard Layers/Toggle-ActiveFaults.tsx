@@ -11,6 +11,10 @@ type ActiveFaultsControlCallbacks = {
   enableActiveFaults: () => void;
   disableActiveFaults: () => void;
   isActiveFaultsEnabled: () => boolean;
+  openToolPanel?: () => void;
+  selectHazardLayers?: () => void;
+  expandHazardLayersDropdown?: () => void;
+  expandGeologicalDropdown?: () => void;
 };
 
 /* -------- Intent Detection -------- */
@@ -142,6 +146,17 @@ export async function runActiveFaultsAgent(
     if (action === "enable") {
       pushMessage("assistant", "Enabling active faults layer...");
       try {
+        // First, ensure geological section is expanded
+        callbacks.expandGeologicalDropdown?.();
+
+        // Small delay to ensure state updates
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Then open tool panel and expand other dropdowns
+        callbacks.openToolPanel?.();
+        callbacks.selectHazardLayers?.();
+        callbacks.expandHazardLayersDropdown?.();
+
         // Fetch and display active faults data
         const activeFaultsData = await fetchActiveFaultsData();
         mapRef.current?.drawActiveFaults(activeFaultsData);

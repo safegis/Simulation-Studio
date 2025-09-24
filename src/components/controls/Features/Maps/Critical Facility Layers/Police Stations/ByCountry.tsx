@@ -484,9 +484,79 @@ export const PoliceStationsByCountry: Record<string, PoliceStationConfig> = {
   },
   Tonga: {
     name: "Tonga",
-    center: [-175.1982, -21.179], // Approx Nukuʻalofa
-    zoom: 9,
+    center: [-175.2018, -21.1789], // Approx Nuku'alofa
+    zoom: 10,
     geojsonUrl:
       "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/tonga_police_stations.geojson",
+  },
+  "Trinidad and Tobago": {
+    name: "Trinidad and Tobago",
+    center: [-61.2225, 10.6918], // Approx Port of Spain
+    zoom: 9,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/trinidad-and-tobago_police_stations.geojson",
+  },
+  Tuvalu: {
+    name: "Tuvalu",
+    center: [179.1962, -7.1095], // Approx Funafuti
+    zoom: 12,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/tuvalu_police_stations.geojson",
+  },
+  Uganda: {
+    name: "Uganda",
+    center: [32.2903, 1.3733], // Approx Kampala
+    zoom: 7,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/uganda_police_stations.geojson",
+  },
+  "United Kingdom": {
+    name: "United Kingdom",
+    center: [-3.436, 55.3781], // Approx center of UK
+    zoom: 5,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/united-kingdom_police_stations.geojson",
+  },
+  "United States Virgin Islands": {
+    name: "United States Virgin Islands",
+    center: [-64.8963, 17.7215], // Approx Charlotte Amalie
+    zoom: 11,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/united-states-virgin-islands_police_stations.geojson",
+  },
+  Uruguay: {
+    name: "Uruguay",
+    center: [-55.7658, -32.5228], // Approx Montevideo
+    zoom: 7,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/uruguay_police_stations.geojson",
+  },
+  Vanuatu: {
+    name: "Vanuatu",
+    center: [166.9592, -15.3767], // Approx Port Vila
+    zoom: 9,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/vanuatu_police_stations.geojson",
+  },
+  Venezuela: {
+    name: "Venezuela",
+    center: [-66.5897, 6.4238], // Approx Caracas
+    zoom: 6,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/venezuela_police_stations.geojson",
+  },
+  Zambia: {
+    name: "Zambia",
+    center: [27.8546, -13.1339], // Approx Lusaka
+    zoom: 6,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/zambia_police_stations.geojson",
+  },
+  Zimbabwe: {
+    name: "Zimbabwe",
+    center: [29.1549, -19.0154], // Approx Harare
+    zoom: 7,
+    geojsonUrl:
+      "https://tcohgcmobudcnlohjbuv.supabase.co/storage/v1/object/public/critical-facilities/command-and-response-centers/police-stations/by-country/zimbabwe_police_stations.geojson",
   },
 };

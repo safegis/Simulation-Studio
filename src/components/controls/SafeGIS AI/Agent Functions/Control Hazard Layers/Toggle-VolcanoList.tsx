@@ -11,6 +11,10 @@ type VolcanoControlCallbacks = {
   enableVolcanoList: () => void;
   disableVolcanoList: () => void;
   isVolcanoListEnabled: () => boolean;
+  openToolPanel?: () => void;
+  selectHazardLayers?: () => void;
+  expandHazardLayersDropdown?: () => void;
+  expandGeologicalDropdown?: () => void;
 };
 
 /* -------- Intent Detection -------- */
@@ -134,19 +138,21 @@ export async function runVolcanoListAgent(
 
     if (action === "enable") {
       pushMessage("assistant", "Enabling volcano list...");
+
       try {
-        // Fetch and display volcano data
+        // Important: Set the geological expanded state first
+        callbacks.expandGeologicalDropdown?.();
+        // Then open tool panel and expand other dropdowns
+        callbacks.openToolPanel?.();
+        callbacks.selectHazardLayers?.();
+        callbacks.expandHazardLayersDropdown?.();
+
         const volcanoData = await fetchVolcanoData();
         mapRef.current?.drawVolcanoDots(volcanoData);
-
-        // Update UI state
         callbacks.enableVolcanoList();
-
         pushMessage(
           "assistant",
-          `✅ **Volcano list enabled**\n\nShowing ${
-            volcanoData.length || 0
-          } volcanoes on the map. The volcano locations are now visible with detailed information about each volcanic site.`
+          `✅ **Volcano list enabled**\n\nShowing ${volcanoData.length} volcanoes on the map.`
         );
       } catch (err) {
         pushMessage(

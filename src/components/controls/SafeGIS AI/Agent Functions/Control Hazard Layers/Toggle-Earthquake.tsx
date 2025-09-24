@@ -137,10 +137,17 @@ const fetchCombinedEarthquakeData = async () => {
 };
 
 /* -------- Main Agent Function -------- */
+type ExtendedCallbacks = EarthquakeControlCallbacks & {
+  openToolPanel?: () => void;
+  selectHazardLayers?: () => void;
+  expandHazardLayersDropdown?: () => void;
+  expandGeologicalDropdown?: () => void;
+};
+
 export async function runEarthquakeHazardAgent(
   prompt: string,
   mapRef: MapRefLike,
-  callbacks: EarthquakeControlCallbacks,
+  callbacks: ExtendedCallbacks,
   pushMessage: (role: "assistant" | "user", content: string) => void
 ): Promise<boolean> {
   try {
@@ -178,13 +185,16 @@ export async function runEarthquakeHazardAgent(
       pushMessage("assistant", "Enabling earthquake hazard layer...");
 
       try {
-        // Fetch and display earthquake data
+        // Important: Set the geological expanded state first
+        callbacks.expandGeologicalDropdown?.();
+        // Then open tool panel and expand other dropdowns
+        callbacks.openToolPanel?.();
+        callbacks.selectHazardLayers?.();
+        callbacks.expandHazardLayersDropdown?.();
+
         const combinedFeatures = await fetchCombinedEarthquakeData();
         mapRef.current?.drawEarthquakeDots(combinedFeatures);
-
-        // Update UI state
         callbacks.enableEarthquakeHazard();
-
         pushMessage(
           "assistant",
           `✅ **Earthquake hazard layer enabled**\n\nShowing ${combinedFeatures.length} earthquake events on the map. The layer will automatically update with new seismic data every minute.`
