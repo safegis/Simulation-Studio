@@ -1,8 +1,11 @@
+// CenterRightControls.tsx
 "use client";
 
-import { ZoomIn, ZoomOut, Layers2, X } from "lucide-react";
+import { ZoomIn, ZoomOut, Layers2, X, ChevronDown } from "lucide-react";
 import { RefObject, useRef, useState } from "react";
 import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
+import { createPortal } from "react-dom";
+import { boundaryOptions, countryBoundaries } from "./BoundaryOptions";
 
 interface RightSideControlsProps {
   show3DControls: boolean;
@@ -26,8 +29,20 @@ export default function RightSideControls({
     { name: string; layerName: string }[]
   >([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [showBoundariesPanel, setShowBoundariesPanel] = useState(false);
+  const [selectedBoundary, setSelectedBoundary] = useState<string | null>(null);
+  const [boundarySearchTerm, setBoundarySearchTerm] = useState("");
+  const boundaryButtonRef = useRef<HTMLButtonElement>(null);
+  const [showBoundaryDropdown, setShowBoundaryDropdown] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [showBoundaryLevelDropdown, setShowBoundaryLevelDropdown] =
+    useState(false);
+  const [selectedBoundaryLevel, setSelectedBoundaryLevel] = useState<
+    string | null
+  >(null);
+  const boundaryLevelButtonRef = useRef<HTMLButtonElement>(null);
 
   // ✅ File handling inside component
   const handleFiles = async (files: FileList) => {
@@ -112,6 +127,11 @@ export default function RightSideControls({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const getBoundaryLevelOptions = (selectedCountry: string | null) => {
+    if (!selectedCountry) return [];
+    return countryBoundaries[selectedCountry]?.levels || [];
+  };
+
   return (
     <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
       {/* 2D/3D Toggle */}
@@ -161,7 +181,10 @@ export default function RightSideControls({
       {/* GeoJSON Upload */}
       <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
         <button
-          onClick={() => setShowGeoJSONPanel((prev) => !prev)}
+          onClick={() => {
+            setShowGeoJSONPanel((prev) => !prev);
+            setShowBoundariesPanel(false); // Close boundaries panel
+          }}
           className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg ${
             showGeoJSONPanel
               ? "bg-gradient-to-b from-[#9699FF] to-white"
@@ -226,11 +249,220 @@ export default function RightSideControls({
         )}
       </div>
 
-      {/* Boundaries Button */}
-      <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
-        <button className="w-[44px] h-[44px] text-[#C7C7C7] text-[27px] font-semibold flex items-center justify-center hover:bg-[#3a3a3a] rounded-lg transition">
+      {/* Boundaries Button & Panel */}
+      <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+        <button
+          onClick={() => {
+            setShowBoundariesPanel((prev) => !prev);
+            setShowGeoJSONPanel(false); // Close GeoJSON panel
+          }}
+          className={`w-[44px] h-[44px] text-[27px] font-semibold flex items-center justify-center rounded-lg ${
+            showBoundariesPanel
+              ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E]"
+              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+          } transition`}
+        >
           B
         </button>
+
+        {showBoundariesPanel && (
+          <div className="absolute right-full mr-[18px] top-1/2 -translate-y-1/2 w-[420px] bg-[#2E2E2E] rounded-xl shadow-md p-6 z-40 flex flex-col items-center">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Add Boundaries to Map
+            </h3>
+
+            <div className="flex flex-col gap-2 w-full">
+              <div className="flex gap-2 w-full">
+                {/* Added flex container */}
+                <div className="relative flex-1">
+                  {" "}
+                  {/* Added flex-1 to make dropdown take remaining space */}
+                  <button
+                    ref={boundaryButtonRef}
+                    onClick={() => setShowBoundaryDropdown((prev) => !prev)}
+                    className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2.5 px-4 rounded-md text-sm"
+                  >
+                    <span
+                      className={
+                        selectedBoundary ? "text-white" : "text-gray-400"
+                      }
+                    >
+                      {selectedBoundary || "Select Country"}{" "}
+                      {/* Changed "Options" to "Select Country" */}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`ml-2 transition-transform duration-200 ${
+                        showBoundaryDropdown ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {showBoundaryDropdown &&
+                    boundaryButtonRef.current &&
+                    createPortal(
+                      <div
+                        className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+                        style={{
+                          top:
+                            boundaryButtonRef.current.getBoundingClientRect()
+                              .bottom + 4,
+                          left: boundaryButtonRef.current.getBoundingClientRect()
+                            .left,
+                          width:
+                            boundaryButtonRef.current.getBoundingClientRect()
+                              .width,
+                        }}
+                      >
+                        {/* Search Box */}
+                        <div className="p-2">
+                          <input
+                            type="text"
+                            placeholder="Search coverage..."
+                            value={boundarySearchTerm}
+                            onChange={(e) =>
+                              setBoundarySearchTerm(e.target.value)
+                            }
+                            className="w-full p-2 rounded-md text-white outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                          />
+                        </div>
+
+                        {/* Filtered options list */}
+                        <div
+                          className="overflow-y-auto"
+                          style={{
+                            maxHeight: "120px", // Changed from 200px to 150px
+                            scrollbarWidth: "thin",
+                            scrollbarColor: "#5a5a5a transparent",
+                          }}
+                          onScroll={(e) => e.stopPropagation()}
+                        >
+                          {boundaryOptions
+                            .filter((option) =>
+                              option
+                                .toLowerCase()
+                                .includes(boundarySearchTerm.toLowerCase())
+                            )
+                            .map((option, index) => (
+                              <div
+                                key={index}
+                                onClick={() => {
+                                  setSelectedBoundary(option);
+                                  setShowBoundaryDropdown(false);
+                                  setBoundarySearchTerm("");
+                                  setSelectedBoundaryLevel(null); // Add this line to reset boundary level
+                                }}
+                                className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-sm"
+                              >
+                                {option}
+                              </div>
+                            ))}
+                        </div>
+                      </div>,
+                      document.body
+                    )}
+                </div>
+                {/* New Clear button */}
+                <button
+                  onClick={() => {
+                    setSelectedBoundary(null);
+                    setBoundarySearchTerm("");
+                    setSelectedBoundaryLevel(null);
+                  }}
+                  className="px-4 py-2.5 rounded-lg shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-sm"
+                >
+                  Clear
+                </button>
+              </div>
+
+              {/* New conditional second dropdown */}
+              {selectedBoundary && (
+                <>
+                  <span className="text-white text-sm mt-2">Boundary:</span>
+                  <div className="flex gap-2 w-full">
+                    <div className="relative flex-1">
+                      <button
+                        ref={boundaryLevelButtonRef}
+                        onClick={() =>
+                          setShowBoundaryLevelDropdown((prev) => !prev)
+                        }
+                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2.5 px-4 rounded-md text-sm"
+                      >
+                        <span
+                          className={
+                            selectedBoundaryLevel
+                              ? "text-white"
+                              : "text-gray-400"
+                          }
+                        >
+                          {selectedBoundaryLevel || "Options"}
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          className={`ml-2 transition-transform duration-200 ${
+                            showBoundaryLevelDropdown ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {showBoundaryLevelDropdown &&
+                        boundaryLevelButtonRef.current &&
+                        createPortal(
+                          <div
+                            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+                            style={{
+                              top:
+                                boundaryLevelButtonRef.current.getBoundingClientRect()
+                                  .bottom + 4,
+                              left: boundaryLevelButtonRef.current.getBoundingClientRect()
+                                .left,
+                              width:
+                                boundaryLevelButtonRef.current.getBoundingClientRect()
+                                  .width,
+                            }}
+                          >
+                            <div
+                              className="overflow-y-auto"
+                              style={{
+                                maxHeight: "120px",
+                                scrollbarWidth: "thin",
+                                scrollbarColor: "#5a5a5a transparent",
+                              }}
+                              onScroll={(e) => e.stopPropagation()}
+                            >
+                              {getBoundaryLevelOptions(selectedBoundary).map(
+                                (option, index) => (
+                                  <div
+                                    key={index}
+                                    onClick={() => {
+                                      setSelectedBoundaryLevel(option.label);
+                                      setShowBoundaryLevelDropdown(false);
+                                    }}
+                                    className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-sm"
+                                  >
+                                    {option.label}
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>,
+                          document.body
+                        )}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setSelectedBoundaryLevel(null);
+                      }}
+                      className="px-4 py-2.5 rounded-lg shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-sm"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
