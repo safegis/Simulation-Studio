@@ -15,6 +15,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import AgentFns from "./Agent Functions/Map-Search";
 import ViewSwitchAgent from "./Agent Functions/SwitchMapView";
+import MapStyleAgent from "./Agent Functions/SwitchMapStyle";
 import EarthquakeAgent from "./Agent Functions/Control Hazard Layers/Toggle-Earthquake";
 import VolcanoListAgent from "./Agent Functions/Control Hazard Layers/Toggle-VolcanoList";
 import ActiveFaultsAgent from "./Agent Functions/Control Hazard Layers/Toggle-ActiveFaults";
@@ -30,6 +31,9 @@ type Props = {
   switchTo2D?: () => void;
   switchTo3D?: () => void;
   setViewMode?: (mode: "2d" | "3d") => void;
+  // props for map style switching
+  selectedMapStyle?: string;
+  handleMapStyleChange?: (style: string) => void;
   // Earthquake control callbacks
   earthquakeControlCallbacks?: {
     enableEarthquakeHazard: () => void;
@@ -199,6 +203,8 @@ export default function SafeGISAIChat({
   switchTo2D,
   switchTo3D,
   setViewMode,
+  selectedMapStyle = "Default (Custom Mapbox Standard)",
+  handleMapStyleChange,
   earthquakeControlCallbacks,
   volcanoListControlCallbacks,
   activeFaultsControlCallbacks,
@@ -403,6 +409,7 @@ export default function SafeGISAIChat({
         | "congestion"
         | "map"
         | "view"
+        | "mapstyle"
         | "qa" = "qa";
 
       try {
@@ -439,6 +446,7 @@ export default function SafeGISAIChat({
           if (
             classifiedIntent === "map" ||
             classifiedIntent === "view" ||
+            classifiedIntent === "mapstyle" ||
             classifiedIntent === "earthquake" ||
             classifiedIntent === "volcano" ||
             classifiedIntent === "activefaults" ||
@@ -527,6 +535,21 @@ export default function SafeGISAIChat({
             viewMode
           );
           agentHandled = viewSwitchHandled;
+        }
+      } else if (intent === "mapstyle") {
+        if (handleMapStyleChange) {
+          const mapStyleHandled = await MapStyleAgent.runMapStyleAgent(
+            userText,
+            mapRef,
+            {
+              handleMapStyleChange,
+            },
+            (role, content) => {
+              setMessages((prev) => [...prev, { role, content }]);
+            },
+            selectedMapStyle
+          );
+          agentHandled = mapStyleHandled;
         }
       } else if (intent === "map") {
         try {

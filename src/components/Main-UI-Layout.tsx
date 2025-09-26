@@ -993,6 +993,8 @@ export default function MainUILayout() {
             switchTo2D={switchTo2D}
             switchTo3D={switchTo3D}
             setViewMode={setViewMode}
+            selectedMapStyle={selectedMapStyle}
+            handleMapStyleChange={handleMapStyleChange}
             earthquakeControlCallbacks={{
               enableEarthquakeHazard,
               disableEarthquakeHazard,
