@@ -597,14 +597,13 @@ export default function SafeGISAIChat({
   return (
     <>
       <div
-        className={`absolute bottom-[18px] right-[109px] w-[400px] rounded-[15px] z-50 shadow-md origin-bottom-right flex flex-col
+        className={`absolute bottom-[18px] h-[543.6px] right-[109px] w-[400px] rounded-[15px] z-50 shadow-md origin-bottom-right flex flex-col
         ${
           isVisible
             ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
             : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
         } py-3`}
         style={{
-          height: "calc(100% - 2 * 220px)",
           background: "linear-gradient(to bottom, #5A5C99, #232323)",
           overflow: "hidden",
         }}
