@@ -19,6 +19,15 @@ import {
   drawCongestion as drawCongestionHelper,
   congestionMarkersRef,
 } from "./Markers/Hazard Map/CongestionMarker";
+
+import {
+  drawWeatherMarkers as drawWeatherMarkersHelper,
+  clearWeatherMarkers as clearWeatherMarkersHelper,
+  weatherMarkersRef,
+} from "./Markers/Hazard Map/WeatherMarker";
+
+import { ProvinceData } from "../controls/Features/Maps/Hazard Layers/Weather/PhilippinesProvinces";
+
 import {
   drawHealthFacilities as drawHealthFacilitiesHelper,
   clearHealthFacilities as clearHealthFacilitiesHelper,
@@ -502,6 +511,17 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     clearPoliceStations: () => {
       clearPoliceStationsHelper(mapInstance.current, mapIsLoaded.current);
     },
+    drawWeatherMarkers: async (provincesData: ProvinceData[]) => {
+      await drawWeatherMarkersHelper(
+        mapInstance.current,
+        mapIsLoaded.current,
+        provincesData
+      );
+    },
+    clearWeatherMarkers: () => {
+      clearWeatherMarkersHelper();
+    },
+    weatherMarkersRef,
 
     addGeoJSONLayer: async (
       geojson: GeoJSON.FeatureCollection,

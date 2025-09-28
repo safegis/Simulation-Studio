@@ -1216,6 +1216,7 @@ export default function ToolPanel({
                     toggleTrafficItem={toggleTrafficItem}
                     PanelToggle={PanelToggle}
                     TransparentButton={TransparentButton}
+                    mapRef={mapRef}
                   />
                 )}
 

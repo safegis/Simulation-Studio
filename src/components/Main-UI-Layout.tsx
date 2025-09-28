@@ -1,4 +1,4 @@
-// Main-UI-Layout.tsx
+// \SafeGIS\Simulation-Studio\frontend\src\components\Main-UI-Layout.tsx
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
