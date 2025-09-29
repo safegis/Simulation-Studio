@@ -18,7 +18,11 @@ import {
   philippinesProvinces,
   ProvinceData,
 } from "./Weather/PhilippinesProvinces";
-import { philippinesMunicipalities } from "./Weather/PhilippinesMunicipalities";
+import {
+  philippinesMunicipalities,
+  getProvincesWithMunicipalities,
+  getMunicipalitiesForProvince,
+} from "./Weather/PhilippinesMunicipalities";
 import { WeatherData } from "@/components/Map/Markers/Hazard Map/WeatherMarker";
 
 interface HazardMapControlsProps {
@@ -144,6 +148,15 @@ export default function HazardMapControls({
   const [selectedWeatherLocation, setSelectedWeatherLocation] = useState("");
   const weatherLocationButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Municipality province selection states
+  const [municipalityProvinceOpen, setMunicipalityProvinceOpen] =
+    useState(false);
+  const [selectedMunicipalityProvince, setSelectedMunicipalityProvince] =
+    useState("");
+  const municipalityProvinceButtonRef = useRef<HTMLButtonElement>(null);
+  const [municipalityProvinceSearchTerm, setMunicipalityProvinceSearchTerm] =
+    useState("");
+
   // 🔹 Weather polling interval
   const weatherIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -257,24 +270,98 @@ export default function HazardMapControls({
                         />
                       </button>
 
-                      {/* Clear Weather button */}
-                      {selectedWeatherLocation && (
-                        <button
-                          onClick={() => {
-                            mapRef.current?.clearWeatherMarkers?.();
-                            setSelectedWeatherLocation("");
+                      {/* NEW: Province Selection Dropdown - appears when "By municipality/city" is selected */}
+                      {selectedWeatherCountry === "Philippines" &&
+                        selectedWeatherLocation === "By municipality/city" && (
+                          <>
+                            <button
+                              ref={municipalityProvinceButtonRef}
+                              onClick={() =>
+                                setMunicipalityProvinceOpen((prev) => !prev)
+                              }
+                              className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                lineHeight: 1.2,
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  lineHeight: 1.2,
+                                  display: "flex",
+                                  alignItems: "center",
+                                }}
+                              >
+                                {selectedMunicipalityProvince ||
+                                  "Select Province"}
+                              </span>
+                              <ChevronDown
+                                size={16}
+                                className={`ml-2 transition-transform duration-200 ${
+                                  municipalityProvinceOpen ? "rotate-180" : ""
+                                }`}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                }}
+                              />
+                            </button>
 
-                            // 🔹 Stop polling
-                            if (weatherIntervalRef.current) {
-                              clearInterval(weatherIntervalRef.current);
-                              weatherIntervalRef.current = null;
-                            }
-                          }}
-                          className="w-full py-2 rounded-md mt-2 bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
-                        >
-                          Clear Weather
-                        </button>
-                      )}
+                            {/* Clear Weather button - always visible, disabled when no province selected */}
+                            <button
+                              onClick={() => {
+                                if (!selectedMunicipalityProvince) return; // do nothing if disabled
+                                mapRef.current?.clearWeatherMarkers?.();
+                                setSelectedMunicipalityProvince("");
+
+                                // Stop polling
+                                if (weatherIntervalRef.current) {
+                                  clearInterval(weatherIntervalRef.current);
+                                  weatherIntervalRef.current = null;
+                                }
+                              }}
+                              disabled={!selectedMunicipalityProvince}
+                              className={`w-full py-2 rounded-md mt-2
+              ${
+                selectedMunicipalityProvince
+                  ? "bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
+                  : "bg-[#4c4c4c] text-[#a1a1a1] cursor-not-allowed"
+              }`}
+                            >
+                              Clear Weather
+                            </button>
+                          </>
+                        )}
+
+                      {/* Clear Weather button - for province selection, always visible when Philippines is selected */}
+                      {selectedWeatherCountry === "Philippines" &&
+                        selectedWeatherLocation !== "By municipality/city" && (
+                          <button
+                            onClick={() => {
+                              if (!selectedWeatherLocation) return; // do nothing if disabled
+                              mapRef.current?.clearWeatherMarkers?.();
+                              setSelectedWeatherLocation("");
+
+                              // Stop polling
+                              if (weatherIntervalRef.current) {
+                                clearInterval(weatherIntervalRef.current);
+                                weatherIntervalRef.current = null;
+                              }
+                            }}
+                            disabled={!selectedWeatherLocation}
+                            className={`w-full py-2 rounded-md mt-2
+          ${
+            selectedWeatherLocation
+              ? "bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
+              : "bg-[#4c4c4c] text-[#a1a1a1] cursor-not-allowed"
+          }`}
+                          >
+                            Clear Weather
+                          </button>
+                        )}
                     </>
                   )}
                 </div>
@@ -396,54 +483,275 @@ export default function HazardMapControls({
                     // Handle Philippines weather data selection
                     if (selectedWeatherCountry === "Philippines") {
                       try {
-                        let locationsData;
-
+                        // NEW: Only handle "By province" here
+                        // "By municipality/city" now requires province selection first
                         if (option === "By province") {
-                          locationsData = philippinesProvinces;
-                        } else if (option === "By municipality/city") {
-                          locationsData = philippinesMunicipalities;
-                        } else {
+                          const locationsData = philippinesProvinces;
+
+                          // Fly to Philippines center immediately
+                          mapRef.current?.flyTo({
+                            center: [121.774, 12.879],
+                            zoom: 6,
+                            duration: 1000,
+                            essential: true,
+                          });
+
+                          // Fetch weather data using batch API call
+                          const weatherDataArray = await fetchBatchWeatherData(
+                            locationsData
+                          );
+
+                          // Draw weather markers with the fetched data
+                          await mapRef.current?.drawWeatherMarkers?.(
+                            weatherDataArray
+                          );
+
+                          // 🔹 Start polling every 30 minutes
+                          if (weatherIntervalRef.current) {
+                            clearInterval(weatherIntervalRef.current);
+                          }
+                          weatherIntervalRef.current = setInterval(async () => {
+                            const refreshed = await fetchBatchWeatherData(
+                              locationsData
+                            );
+                            await mapRef.current?.drawWeatherMarkers?.(
+                              refreshed
+                            );
+                          }, 1_800_000);
+
+                          // Fit bounds to show all markers
+                          const coordinates = locationsData.map(
+                            (location) => location.coordinates
+                          );
+
+                          if (
+                            coordinates.length > 0 &&
+                            mapRef.current?.getMap
+                          ) {
+                            setTimeout(() => {
+                              const map = mapRef.current.getMap();
+
+                              const lngs = coordinates.map((coord) => coord[0]);
+                              const lats = coordinates.map((coord) => coord[1]);
+
+                              const bounds = [
+                                [Math.min(...lngs), Math.min(...lats)],
+                                [Math.max(...lngs), Math.max(...lats)],
+                              ] as [[number, number], [number, number]];
+
+                              map.fitBounds(bounds, {
+                                padding: 80,
+                                maxZoom: 7.5,
+                                duration: 800,
+                              });
+                            }, 1200);
+                          }
+                        }
+                        // NEW: "By municipality/city" no longer triggers automatic fetch
+                        // User must select province first from the new dropdown
+                      } catch (err) {
+                        console.error(
+                          `Failed to fetch weather data for Philippines ${option}:`,
+                          err
+                        );
+                      }
+                    }
+                  }}
+                  className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+      ${index === 0 ? "rounded-t-md" : ""}
+      ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+                >
+                  {option}
+                </div>
+              )
+            )}
+          </div>,
+          document.body
+        )}
+
+      {/* NEW: Municipality Province Dropdown Portal */}
+      {municipalityProvinceOpen &&
+        municipalityProvinceButtonRef.current &&
+        createPortal(
+          <div
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            style={{
+              top:
+                municipalityProvinceButtonRef.current.getBoundingClientRect()
+                  .bottom + 4,
+              left: municipalityProvinceButtonRef.current.getBoundingClientRect()
+                .left,
+              width:
+                municipalityProvinceButtonRef.current.getBoundingClientRect()
+                  .width,
+            }}
+          >
+            {/* Search Box */}
+            <div className="p-2">
+              <input
+                type="text"
+                placeholder="Search province..."
+                value={municipalityProvinceSearchTerm}
+                onChange={(e) =>
+                  setMunicipalityProvinceSearchTerm(e.target.value)
+                }
+                className="w-full p-2 rounded-md text-white outline-none focus:ring-0 focus:outline-none hover:outline-none"
+              />
+            </div>
+
+            {/* Filtered province list */}
+            <div
+              className="overflow-y-auto"
+              style={{
+                maxHeight: "140px",
+                scrollbarWidth: "thin",
+                scrollbarColor: "#5a5a5a transparent",
+              }}
+              onScroll={(e) => e.stopPropagation()}
+            >
+              {getProvincesWithMunicipalities()
+                .filter((p) =>
+                  p
+                    .toLowerCase()
+                    .includes(municipalityProvinceSearchTerm.toLowerCase())
+                )
+                .map((province, index, arr) => (
+                  <div
+                    key={index}
+                    onClick={async () => {
+                      setSelectedMunicipalityProvince(province);
+                      setMunicipalityProvinceOpen(false);
+                      setMunicipalityProvinceSearchTerm("");
+
+                      try {
+                        const municipalities =
+                          getMunicipalitiesForProvince(province);
+
+                        if (municipalities.length === 0) {
+                          console.warn(
+                            `No municipalities found for ${province}`
+                          );
                           return;
                         }
 
-                        // Fly to Philippines center immediately
+                        // Calculate center of the province based on municipalities
+                        const avgLng =
+                          municipalities.reduce(
+                            (sum, m) => sum + m.coordinates[0],
+                            0
+                          ) / municipalities.length;
+                        const avgLat =
+                          municipalities.reduce(
+                            (sum, m) => sum + m.coordinates[1],
+                            0
+                          ) / municipalities.length;
+
+                        // Fly to province center
                         mapRef.current?.flyTo({
-                          center: [121.774, 12.879],
-                          zoom: 6,
+                          center: [avgLng, avgLat],
+                          zoom: 9,
                           duration: 1000,
                           essential: true,
                         });
 
                         // Fetch weather data using batch API call
-                        const weatherDataArray = await fetchBatchWeatherData(
-                          locationsData
-                        );
+                        const fetchBatchWeatherData = async (
+                          locationsData: typeof municipalities
+                        ): Promise<WeatherData[]> => {
+                          try {
+                            const latitudes = locationsData.map(
+                              (m) => m.coordinates[1]
+                            );
+                            const longitudes = locationsData.map(
+                              (m) => m.coordinates[0]
+                            );
 
-                        // Draw weather markers with the fetched data
+                            const weatherUrl =
+                              `https://api.open-meteo.com/v1/forecast?` +
+                              `latitude=${latitudes.join(",")}&` +
+                              `longitude=${longitudes.join(",")}&` +
+                              `current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&` +
+                              `timezone=auto`;
+
+                            console.log(
+                              `Fetching weather for ${locationsData.length} municipalities in ${province}`
+                            );
+
+                            const weatherResponse = await fetch(weatherUrl);
+
+                            if (!weatherResponse.ok) {
+                              console.error(
+                                `Weather API error:`,
+                                weatherResponse.status
+                              );
+                              return [];
+                            }
+
+                            const weatherData = await weatherResponse.json();
+                            const weatherDataArray: WeatherData[] = [];
+
+                            for (let i = 0; i < locationsData.length; i++) {
+                              const municipality = locationsData[i];
+                              const currentData = Array.isArray(weatherData)
+                                ? weatherData[i]?.current
+                                : weatherData.current;
+
+                              if (!currentData) {
+                                console.warn(
+                                  `No weather data for ${municipality.name}`
+                                );
+                                continue;
+                              }
+
+                              weatherDataArray.push({
+                                location: municipality.name,
+                                temperature: currentData.temperature_2m,
+                                weatherCode: currentData.weather_code,
+                                windSpeed: currentData.wind_speed_10m,
+                                humidity: currentData.relative_humidity_2m,
+                                coordinates: municipality.coordinates,
+                              });
+                            }
+
+                            console.log(
+                              `Successfully fetched weather data for ${weatherDataArray.length} municipalities`
+                            );
+                            return weatherDataArray;
+                          } catch (error) {
+                            console.error(
+                              `Error fetching batch weather data:`,
+                              error
+                            );
+                            return [];
+                          }
+                        };
+
+                        const weatherDataArray = await fetchBatchWeatherData(
+                          municipalities
+                        );
                         await mapRef.current?.drawWeatherMarkers?.(
                           weatherDataArray
                         );
 
-                        // 🔹 Start polling every 30 minutes
+                        // Start polling every 30 minutes
                         if (weatherIntervalRef.current) {
                           clearInterval(weatherIntervalRef.current);
                         }
                         weatherIntervalRef.current = setInterval(async () => {
                           const refreshed = await fetchBatchWeatherData(
-                            locationsData
+                            municipalities
                           );
                           await mapRef.current?.drawWeatherMarkers?.(refreshed);
                         }, 1_800_000);
 
-                        // Fit bounds to show all markers
-                        const coordinates = locationsData.map(
-                          (location) => location.coordinates
+                        // Fit bounds to show all municipalities
+                        const coordinates = municipalities.map(
+                          (m) => m.coordinates
                         );
 
                         if (coordinates.length > 0 && mapRef.current?.getMap) {
                           setTimeout(() => {
                             const map = mapRef.current.getMap();
-
                             const lngs = coordinates.map((coord) => coord[0]);
                             const lats = coordinates.map((coord) => coord[1]);
 
@@ -454,28 +762,25 @@ export default function HazardMapControls({
 
                             map.fitBounds(bounds, {
                               padding: 80,
-                              maxZoom:
-                                option === "By municipality/city" ? 8 : 7.5,
+                              maxZoom: 10,
                               duration: 800,
                             });
                           }, 1200);
                         }
                       } catch (err) {
                         console.error(
-                          `Failed to fetch weather data for Philippines ${option}:`,
+                          `Failed to fetch weather data for ${province}:`,
                           err
                         );
                       }
-                    }
-                  }}
-                  className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
-                  ${index === 0 ? "rounded-t-md" : ""}
-                  ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
-                >
-                  {option}
-                </div>
-              )
-            )}
+                    }}
+                    className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                      ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
+                  >
+                    {province}
+                  </div>
+                ))}
+            </div>
           </div>,
           document.body
         )}
