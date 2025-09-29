@@ -24,6 +24,7 @@ import {
   drawWeatherMarkers as drawWeatherMarkersHelper,
   clearWeatherMarkers as clearWeatherMarkersHelper,
   weatherMarkersRef,
+  WeatherData,
 } from "./Markers/Hazard Map/WeatherMarker";
 
 import { ProvinceData } from "../controls/Features/Maps/Hazard Layers/Weather/PhilippinesProvinces";
@@ -511,13 +512,14 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     clearPoliceStations: () => {
       clearPoliceStationsHelper(mapInstance.current, mapIsLoaded.current);
     },
-    drawWeatherMarkers: async (provincesData: ProvinceData[]) => {
-      await drawWeatherMarkersHelper(
+    drawWeatherMarkers: (weatherDataArray: WeatherData[]) => {
+      drawWeatherMarkersHelper(
         mapInstance.current,
         mapIsLoaded.current,
-        provincesData
+        weatherDataArray
       );
     },
+
     clearWeatherMarkers: () => {
       clearWeatherMarkersHelper();
     },

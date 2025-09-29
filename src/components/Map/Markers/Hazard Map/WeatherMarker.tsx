@@ -12,12 +12,14 @@ import {
   CloudDrizzle,
   Cloudy,
 } from "lucide-react";
-import { ProvinceData } from "../../../controls/Features/Maps/Hazard Layers/Weather/PhilippinesProvinces";
 
-// ref to store active weather markers
-export const weatherMarkersRef = React.createRef<mapboxgl.Marker[]>();
+// ---------- FIXED: make the ref non-nullable (current is always an array) ----------
+export const weatherMarkersRef = { current: [] } as React.MutableRefObject<
+  mapboxgl.Marker[]
+>;
 
-interface WeatherData {
+// ---------- Types ----------
+export interface WeatherData {
   location: string;
   temperature: number;
   weatherCode: number;
@@ -28,7 +30,6 @@ interface WeatherData {
 
 // Map weather codes to lucide icons and descriptions
 const getWeatherIcon = (weatherCode: number) => {
-  // Based on Open-Meteo weather codes
   if (weatherCode <= 1)
     return { icon: Sun, color: "#FFD700", description: "Clear sky" };
   if (weatherCode <= 3)
@@ -61,7 +62,6 @@ const createWeatherMarkerElement = (data: WeatherData) => {
   const container = document.createElement("div");
   container.className = "weather-marker-container";
 
-  // Create the main marker element
   const markerEl = document.createElement("div");
   Object.assign(markerEl.style, {
     width: "50px",
@@ -77,7 +77,6 @@ const createWeatherMarkerElement = (data: WeatherData) => {
     position: "relative",
   });
 
-  // Create SVG icon
   const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   iconSvg.setAttribute("width", "24");
   iconSvg.setAttribute("height", "24");
@@ -86,7 +85,6 @@ const createWeatherMarkerElement = (data: WeatherData) => {
   iconSvg.setAttribute("stroke", "#000");
   iconSvg.setAttribute("stroke-width", "2");
 
-  // Get the icon path based on the weather condition
   let iconPath = "";
   switch (weatherInfo.icon) {
     case Sun:
@@ -120,7 +118,6 @@ const createWeatherMarkerElement = (data: WeatherData) => {
   iconSvg.appendChild(path);
   markerEl.appendChild(iconSvg);
 
-  // Create temperature label
   const tempLabel = document.createElement("div");
   Object.assign(tempLabel.style, {
     position: "absolute",
@@ -143,109 +140,67 @@ const createWeatherMarkerElement = (data: WeatherData) => {
   return container;
 };
 
-export const drawWeatherMarkers = async (
+// Draw weather markers from pre-fetched data
+export const drawWeatherMarkers = (
   map: mapboxgl.Map | null,
   mapIsLoaded: boolean,
-  provincesData: ProvinceData[]
+  weatherDataArray: WeatherData[]
 ) => {
   if (!map || !mapIsLoaded) return;
-
-  // Initialize ref if empty
-  if (!weatherMarkersRef.current) {
-    weatherMarkersRef.current = [];
-  }
 
   // Clear existing markers
   weatherMarkersRef.current.forEach((m) => m.remove());
   weatherMarkersRef.current = [];
 
-  // Fetch weather data for each province using predefined coordinates
-  for (const province of provincesData) {
-    try {
-      const { name, coordinates } = province;
-      const [longitude, latitude] = coordinates;
+  // Create markers from the provided weather data
+  weatherDataArray.forEach((weatherInfo) => {
+    const markerElement = createWeatherMarkerElement(weatherInfo);
+    const marker = new mapboxgl.Marker({ element: markerElement })
+      .setLngLat(weatherInfo.coordinates)
+      .addTo(map);
 
-      console.log(
-        `Fetching weather for ${name} at [${longitude}, ${latitude}]`
-      );
-
-      // Get weather data from Open-Meteo using predefined coordinates
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&timezone=auto`;
-      const weatherResponse = await fetch(weatherUrl);
-
-      if (!weatherResponse.ok) {
-        console.error(`Weather API error for ${name}:`, weatherResponse.status);
-        continue;
-      }
-
-      const weatherData = await weatherResponse.json();
-
-      if (!weatherData.current) {
-        console.error(`No current weather data for ${name}`);
-        continue;
-      }
-
-      const weatherInfo: WeatherData = {
-        location: name,
-        temperature: weatherData.current.temperature_2m,
-        weatherCode: weatherData.current.weather_code,
-        windSpeed: weatherData.current.wind_speed_10m,
-        humidity: weatherData.current.relative_humidity_2m,
-        coordinates: [longitude, latitude],
-      };
-
-      // Create marker
-      const markerElement = createWeatherMarkerElement(weatherInfo);
-      const marker = new mapboxgl.Marker({ element: markerElement })
-        .setLngLat([longitude, latitude])
-        .addTo(map);
-
-      // Add popup on click
-      const weatherCondition = getWeatherIcon(weatherInfo.weatherCode);
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-        <div style="min-width: 200px; font-family: Arial, sans-serif;">
-          <h3 style="margin: 0 0 10px 0; color: #333;">${name}</h3>
-          <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <strong style="color: #666;">Condition:</strong>
-            <span style="margin-left: 8px;">${
-              weatherCondition.description
-            }</span>
-          </div>
-          <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <strong style="color: #666;">Temperature:</strong>
-            <span style="margin-left: 8px;">${Math.round(
-              weatherInfo.temperature
-            )}°C</span>
-          </div>
-          <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <strong style="color: #666;">Wind Speed:</strong>
-            <span style="margin-left: 8px;">${Math.round(
-              weatherInfo.windSpeed
-            )} km/h</span>
-          </div>
-          <div style="display: flex; align-items: center;">
-            <strong style="color: #666;">Humidity:</strong>
-            <span style="margin-left: 8px;">${weatherInfo.humidity}%</span>
-          </div>
+    // Add popup on click
+    const weatherCondition = getWeatherIcon(weatherInfo.weatherCode);
+    const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
+      <div style="min-width: 200px; font-family: Arial, sans-serif;">
+        <h3 style="margin: 0 0 10px 0; color: #333;">${
+          weatherInfo.location
+        }</h3>
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <strong style="color: #666;">Condition:</strong>
+          <span style="margin-left: 8px;">${weatherCondition.description}</span>
         </div>
-      `);
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <strong style="color: #666;">Temperature:</strong>
+          <span style="margin-left: 8px;">${Math.round(
+            weatherInfo.temperature
+          )}°C</span>
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <strong style="color: #666;">Wind Speed:</strong>
+          <span style="margin-left: 8px;">${Math.round(
+            weatherInfo.windSpeed
+          )} km/h</span>
+        </div>
+        <div style="display: flex; align-items: center;">
+          <strong style="color: #666;">Humidity:</strong>
+          <span style="margin-left: 8px;">${Math.round(
+            weatherInfo.humidity
+          )}%</span>
+        </div>
+      </div>
+    `);
 
-      marker.setPopup(popup);
-      weatherMarkersRef.current.push(marker);
-
-      console.log(`Successfully created weather marker for ${name}`);
-    } catch (error) {
-      console.error(`Error fetching weather data for ${province.name}:`, error);
-    }
-  }
+    marker.setPopup(popup);
+    weatherMarkersRef.current.push(marker);
+  });
 
   console.log(`Created ${weatherMarkersRef.current.length} weather markers`);
 };
 
 export const clearWeatherMarkers = () => {
-  if (weatherMarkersRef.current) {
-    weatherMarkersRef.current.forEach((m) => m.remove());
-    weatherMarkersRef.current = [];
-    console.log("Cleared all weather markers");
-  }
+  // remove all markers and reset
+  weatherMarkersRef.current.forEach((m) => m.remove());
+  weatherMarkersRef.current = [];
+  console.log("Cleared all weather markers");
 };

@@ -1,3 +1,4 @@
+// \SafeGIS\Simulation-Studio\frontend\src\components\controls\Features\Maps\Hazard Layers\Weather\PhilippinesMunicipalities.tsx
 // Extended Philippines Municipalities and Cities Data with more accurate coordinates
 // Based on data from https://www.philatlas.com/municipalities.html and https://www.philatlas.com/cities.html
 
