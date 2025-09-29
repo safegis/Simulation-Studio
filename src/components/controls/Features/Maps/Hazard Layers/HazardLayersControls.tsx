@@ -424,7 +424,7 @@ export default function HazardMapControls({
                           weatherDataArray
                         );
 
-                        // 🔹 Start polling every 60s
+                        // 🔹 Start polling every 30 minutes
                         if (weatherIntervalRef.current) {
                           clearInterval(weatherIntervalRef.current);
                         }
@@ -433,7 +433,7 @@ export default function HazardMapControls({
                             locationsData
                           );
                           await mapRef.current?.drawWeatherMarkers?.(refreshed);
-                        }, 60_000);
+                        }, 1_800_000);
 
                         // Fit bounds to show all markers
                         const coordinates = locationsData.map(
