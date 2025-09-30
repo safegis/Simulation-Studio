@@ -128,7 +128,7 @@ export const philippinesMunicipalities: ProvinceWithMunicipalities = {
     { name: "Tobias Fornier", coordinates: [121.95, 10.4667] },
     { name: "Valderrama", coordinates: [122.0333, 11.3833] },
   ],
-  Apayao: [{ name: "Calanasan", coordinates: [121.1167, 18.2333] }],
+  Apayao: [{ name: "Calanasan", coordinates: [121.1167, 18.2333] }], // Incomplete
   Aurora: [{ name: "Baler", coordinates: [121.5583, 15.7597] }],
   Basilan: [
     { name: "Akbar", coordinates: [122.0167, 6.4] },

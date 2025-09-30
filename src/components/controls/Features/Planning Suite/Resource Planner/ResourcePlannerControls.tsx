@@ -1,3 +1,4 @@
+// \SafeGIS\Simulation-Studio\frontend\src\components\controls\Features\Planning Suite\Resource Planner\ResourcePlannerControls.tsx
 import React, { useState } from "react";
 import { ChevronDown, Users, Building, ShoppingBasket } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
