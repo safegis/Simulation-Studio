@@ -1,4 +1,4 @@
-// CenterRightControls.tsx
+// \SafeGIS\Simulation-Studio\frontend\src\components\controls\Main\CenterRightControls.tsx
 "use client";
 
 import { ZoomIn, ZoomOut, Layers2, X, ChevronDown } from "lucide-react";
@@ -13,7 +13,11 @@ interface RightSideControlsProps {
   switchTo2D: () => void;
   switchTo3D: () => void;
   handleZoom: (inc: number) => void;
-  mapRef: RefObject<any>; // ✅ pass mapRef only
+  mapRef: RefObject<any>;
+  uploadedFiles?: { name: string; layerName: string }[];
+  setUploadedFiles?: React.Dispatch<
+    React.SetStateAction<{ name: string; layerName: string }[]>
+  >;
 }
 
 export default function RightSideControls({
@@ -23,11 +27,10 @@ export default function RightSideControls({
   switchTo3D,
   handleZoom,
   mapRef,
+  uploadedFiles = [],
+  setUploadedFiles = () => {},
 }: RightSideControlsProps) {
   const [showGeoJSONPanel, setShowGeoJSONPanel] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<
-    { name: string; layerName: string }[]
-  >([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showBoundariesPanel, setShowBoundariesPanel] = useState(false);
   const [selectedBoundary, setSelectedBoundary] = useState<string | null>(null);
@@ -78,10 +81,12 @@ export default function RightSideControls({
             });
           } else {
             mapRef.current?.addGeoJSONLayer(geojson, file.name);
-            setUploadedFiles((prev) => [
-              ...prev,
-              { name: file.name, layerName: file.name },
-            ]);
+            if (setUploadedFiles) {
+              setUploadedFiles((prev) => [
+                ...prev,
+                { name: file.name, layerName: file.name },
+              ]);
+            }
           }
         }
       } catch (err) {
@@ -122,7 +127,9 @@ export default function RightSideControls({
       if (map.getSource(sourceId)) map.removeSource(sourceId);
     }
 
-    setUploadedFiles((prev) => prev.filter((f) => f.layerName !== layerName));
+    if (setUploadedFiles) {
+      setUploadedFiles((prev) => prev.filter((f) => f.layerName !== layerName));
+    }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   };

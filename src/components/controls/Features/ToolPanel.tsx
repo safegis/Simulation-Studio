@@ -16,6 +16,8 @@ interface Props {
   selectedPlanningTools: string[];
   selectedAssessmentTools: string[];
   mapRef: React.RefObject<any>;
+  uploadedFiles?: { name: string; layerName: string }[];
+  onShowAspectRatioSelector?: (show: boolean) => void;
   expandedPanels: Record<string, boolean>;
   setExpandedPanels: React.Dispatch<
     React.SetStateAction<Record<string, boolean>>
@@ -82,6 +84,8 @@ export default function ToolPanel({
   selectedPlanningTools,
   selectedAssessmentTools,
   mapRef,
+  uploadedFiles = [],
+  onShowAspectRatioSelector,
   earthquakeEnabled = false,
   onEarthquakeToggle,
   volcanoListEnabled = false,
@@ -1236,7 +1240,11 @@ export default function ToolPanel({
 
                 {/* Exposure Assessment Controls */}
                 {label === "Exposure Assessment" && (
-                  <ExposureAssessmentControls PanelToggle={PanelToggle} />
+                  <ExposureAssessmentControls
+                    PanelToggle={PanelToggle}
+                    uploadedFiles={uploadedFiles}
+                    onShowAspectRatioSelector={onShowAspectRatioSelector}
+                  />
                 )}
 
                 {/* Vulnerability Assessment Controls */}

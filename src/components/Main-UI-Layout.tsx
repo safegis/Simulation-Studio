@@ -17,6 +17,14 @@ import UserSettings from "./controls/Main/UserSettings";
 import CenterTopControls from "./controls/Main/CenterTopControls";
 import CenterBottomClock from "./controls/Main/CenterBottomClock";
 import ToolPanel from "./controls/Features/ToolPanel";
+import CropDinIcon from "@mui/icons-material/CropDin";
+import CropLandscapeIcon from "@mui/icons-material/CropLandscape";
+import CropPortraitIcon from "@mui/icons-material/CropPortrait";
+import Crop169Icon from "@mui/icons-material/Crop169";
+import Crop32Icon from "@mui/icons-material/Crop32";
+import Crop54Icon from "@mui/icons-material/Crop54";
+import Crop75Icon from "@mui/icons-material/Crop75";
+import CropFreeIcon from "@mui/icons-material/CropFree";
 
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
@@ -63,6 +71,21 @@ export default function MainUILayout() {
     string[]
   >([]);
 
+  // Uploaded files state (lifted from CenterRightControls)
+  const [uploadedFiles, setUploadedFiles] = useState<
+    { name: string; layerName: string }[]
+  >([]);
+
+  // Aspect ratio selector state
+  const [showAspectRatioSelector, setShowAspectRatioSelector] = useState(false);
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<string>("");
+  const [tempAspectRatio, setTempAspectRatio] = useState<string>("");
+  const [isDrawingAspectRatio, setIsDrawingAspectRatio] = useState(false);
+  const [aspectRatioShapeDrawn, setAspectRatioShapeDrawn] = useState(false);
+  const savedAspectRatioShapeRef = useRef<GeoJSON.FeatureCollection | null>(
+    null
+  );
+
   // Earthquake hazard control states
   const [earthquakeEnabled, setEarthquakeEnabled] = useState(false);
   const earthquakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -84,6 +107,28 @@ export default function MainUILayout() {
   const squareRatio = 1; // 1:1 square
   const rectangleRatio = 16 / 9; // rectangle ratio (can change to 4/3 etc.)
 
+  // Get aspect ratio value from selection
+  const getAspectRatioValue = (ratio: string): number => {
+    switch (ratio) {
+      case "1:1":
+        return 1;
+      case "16:9":
+        return 16 / 9;
+      case "9:16":
+        return 9 / 16;
+      case "3:2":
+        return 3 / 2;
+      case "5:4":
+        return 5 / 4;
+      case "7:5":
+        return 7 / 5;
+      case "free":
+        return 0; // 0 means no constraint
+      default:
+        return 1;
+    }
+  };
+
   const mapStyleRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
 
@@ -98,13 +143,16 @@ export default function MainUILayout() {
     const map = mapRef.current.getMap();
 
     function onMouseDown(e: any) {
-      if (!(isDrawingBox || isDrawingRectangle)) return;
+      if (!(isDrawingBox || isDrawingRectangle || isDrawingAspectRatio)) return;
       boxCoordsRef.current.start = [e.lngLat.lng, e.lngLat.lat];
       boxCoordsRef.current.end = null;
     }
 
     function onMouseMove(e: any) {
-      if (!(isDrawingBox || isDrawingRectangle) || !boxCoordsRef.current.start)
+      if (
+        !(isDrawingBox || isDrawingRectangle || isDrawingAspectRatio) ||
+        !boxCoordsRef.current.start
+      )
         return;
 
       const map = mapRef.current.getMap();
@@ -118,14 +166,21 @@ export default function MainUILayout() {
 
       // --- FIXED RATIO LOGIC (in pixels) ---
       let aspectRatio = 1; // square
-      if (isDrawingRectangle) aspectRatio = rectangleRatio; // e.g. 16/9
+      if (isDrawingRectangle) {
+        aspectRatio = rectangleRatio; // e.g. 16/9
+      } else if (isDrawingAspectRatio) {
+        aspectRatio = getAspectRatioValue(tempAspectRatio);
+      }
 
-      if (Math.abs(dx) / Math.abs(dy || 1) > aspectRatio) {
-        // too wide → adjust height
-        dy = (Math.sign(dy || 1) * Math.abs(dx)) / aspectRatio;
-      } else {
-        // too tall → adjust width
-        dx = Math.sign(dx || 1) * Math.abs(dy) * aspectRatio;
+      // Only apply ratio constraint if not "free" (aspectRatio !== 0)
+      if (aspectRatio !== 0) {
+        if (Math.abs(dx) / Math.abs(dy || 1) > aspectRatio) {
+          // too wide → adjust height
+          dy = (Math.sign(dy || 1) * Math.abs(dx)) / aspectRatio;
+        } else {
+          // too tall → adjust width
+          dx = Math.sign(dx || 1) * Math.abs(dy) * aspectRatio;
+        }
       }
 
       // Apply adjusted pixel coords
@@ -160,6 +215,11 @@ export default function MainUILayout() {
         features: [feature],
       };
 
+      // Save the shape data for restoration after style changes
+      if (isDrawingAspectRatio) {
+        savedAspectRatioShapeRef.current = featureCollection;
+      }
+
       if (map.getSource("drawn-box")) {
         (map.getSource("drawn-box") as mapboxgl.GeoJSONSource).setData(
           featureCollection
@@ -191,16 +251,21 @@ export default function MainUILayout() {
     }
 
     function onMouseUp() {
-      if (!(isDrawingBox || isDrawingRectangle)) return;
-      setIsDrawingBox(false);
-      setIsDrawingRectangle(false);
+      if (!(isDrawingBox || isDrawingRectangle || isDrawingAspectRatio)) return;
+
+      if (isDrawingAspectRatio) {
+        setIsDrawingAspectRatio(false);
+        setAspectRatioShapeDrawn(true);
+      } else {
+        setIsDrawingBox(false);
+        setIsDrawingRectangle(false);
+        setShapeDrawn(true);
+        setScopeConfirmed(false);
+      }
 
       const map = mapRef.current.getMap();
       map.getCanvas().style.cursor = "";
       map.dragPan.enable();
-
-      setShapeDrawn(true);
-      setScopeConfirmed(false);
     }
 
     map.on("mousedown", onMouseDown);
@@ -212,7 +277,7 @@ export default function MainUILayout() {
       map.off("mousemove", onMouseMove);
       map.off("mouseup", onMouseUp);
     };
-  }, [isDrawingBox, isDrawingRectangle]);
+  }, [isDrawingBox, isDrawingRectangle, isDrawingAspectRatio, tempAspectRatio]);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -304,12 +369,75 @@ export default function MainUILayout() {
   const switchTo2D = () => {
     mapRef.current?.switchTo2D?.(selectedMapStyle);
     setViewMode("2d");
+
+    // Restore aspect ratio shape after view switch
+    if (savedAspectRatioShapeRef.current) {
+      setTimeout(() => {
+        restoreAspectRatioShape();
+      }, 500);
+    }
   };
 
   const switchTo3D = () => {
     setViewMode("3d");
     handleTimeOfDayChange("Auto");
     mapRef.current?.switchTo3D?.(selectedMapStyle);
+
+    // Restore aspect ratio shape after view switch
+    if (savedAspectRatioShapeRef.current) {
+      setTimeout(() => {
+        restoreAspectRatioShape();
+      }, 500);
+    }
+  };
+
+  // Helper function to restore the aspect ratio shape
+  const restoreAspectRatioShape = () => {
+    const map = mapRef.current?.getMap();
+    if (!map || !savedAspectRatioShapeRef.current) return;
+
+    // Wait for map to be ready
+    if (!map.isStyleLoaded()) {
+      setTimeout(restoreAspectRatioShape, 100);
+      return;
+    }
+
+    // Remove existing layers/source if they exist
+    if (map.getLayer("drawn-box-layer")) {
+      map.removeLayer("drawn-box-layer");
+    }
+    if (map.getLayer("drawn-box-outline")) {
+      map.removeLayer("drawn-box-outline");
+    }
+    if (map.getSource("drawn-box")) {
+      map.removeSource("drawn-box");
+    }
+
+    // Re-add the shape
+    map.addSource("drawn-box", {
+      type: "geojson",
+      data: savedAspectRatioShapeRef.current,
+    });
+
+    map.addLayer({
+      id: "drawn-box-layer",
+      type: "fill",
+      source: "drawn-box",
+      paint: {
+        "fill-color": "#9699FF",
+        "fill-opacity": 0.15,
+      },
+    });
+
+    map.addLayer({
+      id: "drawn-box-outline",
+      type: "line",
+      source: "drawn-box",
+      paint: {
+        "line-color": "#9699FF",
+        "line-width": 2,
+      },
+    });
   };
 
   useEffect(() => {
@@ -428,6 +556,12 @@ export default function MainUILayout() {
       case "Navigation Night (Mapbox)":
         map.setMapStyle("mapbox://styles/mapbox/navigation-night-v1");
         break;
+    }
+    // Restore aspect ratio shape after style change
+    if (savedAspectRatioShapeRef.current) {
+      setTimeout(() => {
+        restoreAspectRatioShape();
+      }, 500);
     }
   };
 
@@ -930,6 +1064,8 @@ export default function MainUILayout() {
                 selectedPlanningTools={selectedPlanningTools}
                 selectedAssessmentTools={selectedAssessmentTools}
                 mapRef={mapRef}
+                uploadedFiles={uploadedFiles}
+                onShowAspectRatioSelector={setShowAspectRatioSelector}
                 expandedPanels={expandedPanels}
                 setExpandedPanels={setExpandedPanels}
                 trafficExpanded={trafficExpanded}
@@ -982,6 +1118,8 @@ export default function MainUILayout() {
             switchTo3D={switchTo3D}
             handleZoom={handleZoom}
             mapRef={mapRef}
+            uploadedFiles={uploadedFiles}
+            setUploadedFiles={setUploadedFiles}
           />
 
           {/* SafeGIS AI Chat Button */}
@@ -1108,6 +1246,316 @@ export default function MainUILayout() {
               expandTrafficDropdown: () => setTrafficExpanded(true),
             }}
           />
+
+          {/* Aspect Ratio Selector */}
+          {showAspectRatioSelector && (
+            <div className="absolute bottom-[109px] left-1/2 transform -translate-x-1/2 z-50 bg-[#2E2E2E] rounded-xl shadow-lg p-6">
+              <div className="text-white text-center font-medium mb-4">
+                Select Aspect Ratio
+              </div>
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={() => {
+                    setTempAspectRatio("1:1");
+                    if (!isDrawingAspectRatio) {
+                      setIsDrawingAspectRatio(true);
+                      const map = mapRef.current?.getMap();
+                      if (map) {
+                        map.getCanvas().style.cursor = "crosshair";
+                        map.dragPan.disable();
+                      }
+                    }
+                  }}
+                  className={`w-18 h-18 rounded-lg transition flex flex-col items-center justify-center ${
+                    tempAspectRatio === "1:1"
+                      ? "bg-gradient-to-b from-[#9699FF] to-white"
+                      : "bg-[#3a3a3a] hover:bg-[#454545]"
+                  }`}
+                  title="1:1 (Square)"
+                >
+                  <CropDinIcon
+                    sx={{
+                      fontSize: 28,
+                      color: tempAspectRatio === "1:1" ? "#2E2E2E" : "#C7C7C7",
+                    }}
+                  />
+                  <span
+                    className={`text-sm mt-1 ${
+                      tempAspectRatio === "1:1"
+                        ? "text-[#2E2E2E] font-semibold"
+                        : "text-white"
+                    }`}
+                  >
+                    1 : 1
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTempAspectRatio("16:9");
+                    if (!isDrawingAspectRatio) {
+                      setIsDrawingAspectRatio(true);
+                      const map = mapRef.current?.getMap();
+                      if (map) {
+                        map.getCanvas().style.cursor = "crosshair";
+                        map.dragPan.disable();
+                      }
+                    }
+                  }}
+                  className={`w-18 h-18 rounded-lg transition flex flex-col items-center justify-center ${
+                    tempAspectRatio === "16:9"
+                      ? "bg-gradient-to-b from-[#9699FF] to-white"
+                      : "bg-[#3a3a3a] hover:bg-[#454545]"
+                  }`}
+                  title="16:9 (Landscape)"
+                >
+                  <CropLandscapeIcon
+                    sx={{
+                      fontSize: 28,
+                      color: tempAspectRatio === "16:9" ? "#2E2E2E" : "#C7C7C7",
+                    }}
+                  />
+                  <span
+                    className={`text-sm mt-1 ${
+                      tempAspectRatio === "16:9"
+                        ? "text-[#2E2E2E] font-semibold"
+                        : "text-white"
+                    }`}
+                  >
+                    16 : 9
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTempAspectRatio("9:16");
+                    if (!isDrawingAspectRatio) {
+                      setIsDrawingAspectRatio(true);
+                      const map = mapRef.current?.getMap();
+                      if (map) {
+                        map.getCanvas().style.cursor = "crosshair";
+                        map.dragPan.disable();
+                      }
+                    }
+                  }}
+                  className={`w-18 h-18 rounded-lg transition flex flex-col items-center justify-center ${
+                    tempAspectRatio === "9:16"
+                      ? "bg-gradient-to-b from-[#9699FF] to-white"
+                      : "bg-[#3a3a3a] hover:bg-[#454545]"
+                  }`}
+                  title="9:16 (Portrait)"
+                >
+                  <CropPortraitIcon
+                    sx={{
+                      fontSize: 28,
+                      color: tempAspectRatio === "9:16" ? "#2E2E2E" : "#C7C7C7",
+                    }}
+                  />
+                  <span
+                    className={`text-sm mt-1 ${
+                      tempAspectRatio === "9:16"
+                        ? "text-[#2E2E2E] font-semibold"
+                        : "text-white"
+                    }`}
+                  >
+                    9 : 16
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTempAspectRatio("3:2");
+                    if (!isDrawingAspectRatio) {
+                      setIsDrawingAspectRatio(true);
+                      const map = mapRef.current?.getMap();
+                      if (map) {
+                        map.getCanvas().style.cursor = "crosshair";
+                        map.dragPan.disable();
+                      }
+                    }
+                  }}
+                  className={`w-18 h-18 rounded-lg transition flex flex-col items-center justify-center ${
+                    tempAspectRatio === "3:2"
+                      ? "bg-gradient-to-b from-[#9699FF] to-white"
+                      : "bg-[#3a3a3a] hover:bg-[#454545]"
+                  }`}
+                  title="3:2"
+                >
+                  <Crop32Icon
+                    sx={{
+                      fontSize: 28,
+                      color: tempAspectRatio === "3:2" ? "#2E2E2E" : "#C7C7C7",
+                    }}
+                  />
+                  <span
+                    className={`text-sm mt-1 ${
+                      tempAspectRatio === "3:2"
+                        ? "text-[#2E2E2E] font-semibold"
+                        : "text-white"
+                    }`}
+                  >
+                    3 : 2
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTempAspectRatio("5:4");
+                    if (!isDrawingAspectRatio) {
+                      setIsDrawingAspectRatio(true);
+                      const map = mapRef.current?.getMap();
+                      if (map) {
+                        map.getCanvas().style.cursor = "crosshair";
+                        map.dragPan.disable();
+                      }
+                    }
+                  }}
+                  className={`w-18 h-18 rounded-lg transition flex flex-col items-center justify-center ${
+                    tempAspectRatio === "5:4"
+                      ? "bg-gradient-to-b from-[#9699FF] to-white"
+                      : "bg-[#3a3a3a] hover:bg-[#454545]"
+                  }`}
+                  title="5:4"
+                >
+                  <Crop54Icon
+                    sx={{
+                      fontSize: 28,
+                      color: tempAspectRatio === "5:4" ? "#2E2E2E" : "#C7C7C7",
+                    }}
+                  />
+                  <span
+                    className={`text-sm mt-1 ${
+                      tempAspectRatio === "5:4"
+                        ? "text-[#2E2E2E] font-semibold"
+                        : "text-white"
+                    }`}
+                  >
+                    5 : 4
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTempAspectRatio("7:5");
+                    if (!isDrawingAspectRatio) {
+                      setIsDrawingAspectRatio(true);
+                      const map = mapRef.current?.getMap();
+                      if (map) {
+                        map.getCanvas().style.cursor = "crosshair";
+                        map.dragPan.disable();
+                      }
+                    }
+                  }}
+                  className={`w-18 h-18 rounded-lg transition flex flex-col items-center justify-center ${
+                    tempAspectRatio === "7:5"
+                      ? "bg-gradient-to-b from-[#9699FF] to-white"
+                      : "bg-[#3a3a3a] hover:bg-[#454545]"
+                  }`}
+                  title="7:5"
+                >
+                  <Crop75Icon
+                    sx={{
+                      fontSize: 28,
+                      color: tempAspectRatio === "7:5" ? "#2E2E2E" : "#C7C7C7",
+                    }}
+                  />
+                  <span
+                    className={`text-sm mt-1 ${
+                      tempAspectRatio === "7:5"
+                        ? "text-[#2E2E2E] font-semibold"
+                        : "text-white"
+                    }`}
+                  >
+                    7 : 5
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTempAspectRatio("free");
+                    if (!isDrawingAspectRatio) {
+                      setIsDrawingAspectRatio(true);
+                      const map = mapRef.current?.getMap();
+                      if (map) {
+                        map.getCanvas().style.cursor = "crosshair";
+                        map.dragPan.disable();
+                      }
+                    }
+                  }}
+                  className={`w-18 h-18 rounded-lg transition flex flex-col items-center justify-center ${
+                    tempAspectRatio === "free"
+                      ? "bg-gradient-to-b from-[#9699FF] to-white"
+                      : "bg-[#3a3a3a] hover:bg-[#454545]"
+                  }`}
+                  title="Free form"
+                >
+                  <CropFreeIcon
+                    sx={{
+                      fontSize: 28,
+                      color: tempAspectRatio === "free" ? "#2E2E2E" : "#C7C7C7",
+                    }}
+                  />
+                  <span
+                    className={`text-sm mt-1 ${
+                      tempAspectRatio === "free"
+                        ? "text-[#2E2E2E] font-semibold"
+                        : "text-white"
+                    }`}
+                  >
+                    Free
+                  </span>
+                </button>
+              </div>
+
+              {/* Action Buttons - Only show when shape is drawn */}
+              {aspectRatioShapeDrawn && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      // Remove the drawn shape
+                      const map = mapRef.current?.getMap();
+                      if (map) {
+                        if (map.getLayer("drawn-box-layer")) {
+                          map.removeLayer("drawn-box-layer");
+                        }
+                        if (map.getLayer("drawn-box-outline")) {
+                          map.removeLayer("drawn-box-outline");
+                        }
+                        if (map.getSource("drawn-box")) {
+                          map.removeSource("drawn-box");
+                        }
+                      }
+
+                      // Clear saved shape data
+                      savedAspectRatioShapeRef.current = null;
+
+                      // Reset states
+                      setTempAspectRatio("");
+                      setAspectRatioShapeDrawn(false);
+                      setIsDrawingAspectRatio(false);
+                      boxCoordsRef.current = { start: null, end: null };
+                    }}
+                    className="flex-1 px-4 py-2 rounded-lg bg-[#3a3a3a] text-white hover:bg-[#454545] transition font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedAspectRatio(tempAspectRatio);
+                      setShowAspectRatioSelector(false);
+                      setAspectRatioShapeDrawn(false);
+                      setIsDrawingAspectRatio(false);
+                      // Keep the drawn shape on the map
+                      // TODO: Store the shape coordinates if needed for further processing
+                    }}
+                    className="flex-1 px-4 py-2 rounded-lg bg-[#5A5C99] text-white hover:opacity-90 transition font-medium"
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Center Bottom Clock */}
           <CenterBottomClock />
