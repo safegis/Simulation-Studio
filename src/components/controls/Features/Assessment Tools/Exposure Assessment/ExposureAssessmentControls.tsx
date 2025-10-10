@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { floodHazardMaps } from "../../Maps/Hazard Layers/Flood/NOAAFloodHazardConfig";
 
 type PanelToggleProps = {
   title: string;
@@ -48,8 +49,13 @@ const ExposureAssessmentControls: React.FC<Props> = ({
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<string>("");
   const [selectedCountry, setSelectedCountry] = useState<string>("");
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
-  const [selectedCoverage, setSelectedCoverage] = useState<string>("");
-  const [coverageDropdownOpen, setCoverageDropdownOpen] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<string>("");
+  const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
+  const [selectedAvailableData, setSelectedAvailableData] =
+    useState<string>("");
+  const [availableDataDropdownOpen, setAvailableDataDropdownOpen] =
+    useState(false);
+  const [availableDataSearchTerm, setAvailableDataSearchTerm] = useState("");
 
   const hazardCategoryOptions = ["Hydro-Meteorological", "Geological"];
 
@@ -77,12 +83,56 @@ const ExposureAssessmentControls: React.FC<Props> = ({
   const elementDataOptions = ["Use existing data", "Use imported data"];
 
   const countryOptions = ["Philippines", "United States of America"];
-
-  const getCoverageOptions = () => {
+  const getSourceOptions = () => {
     if (selectedCountry === "Philippines") {
-      return ["National Level", "By province"];
+      return [
+        "Mines and Geosciences Bureau (MGB)",
+        "Nationwide Operational Assessment of Hazards (NOAH)",
+      ];
     } else if (selectedCountry === "United States of America") {
       return ["National Level", "By state", "By city"];
+    }
+    return [];
+  };
+
+  const getAvailableDataOptions = () => {
+    if (
+      selectedSource === "Nationwide Operational Assessment of Hazards (NOAH)"
+    ) {
+      const options: {
+        name: string;
+        returnPeriod: string;
+        sortOrder: number;
+      }[] = [];
+
+      // Define return period sort order
+      const returnPeriodOrder: Record<string, number> = {
+        "5-Year": 1,
+        "25-Year": 2,
+        "100-Year": 3,
+      };
+
+      // Iterate through each return period
+      Object.entries(floodHazardMaps).forEach(([returnPeriod, configs]) => {
+        configs.forEach((config) => {
+          options.push({
+            name: config.name,
+            returnPeriod: returnPeriod,
+            sortOrder: returnPeriodOrder[returnPeriod] || 999,
+          });
+        });
+      });
+
+      // Sort by return period first, then alphabetically by name
+      return options
+        .sort((a, b) => {
+          const periodCompare = a.sortOrder - b.sortOrder;
+          if (periodCompare !== 0) return periodCompare;
+          return a.name.localeCompare(b.name);
+        })
+        .map(
+          (option) => `${option.name} - ${option.returnPeriod} Return Period`
+        );
     }
     return [];
   };
@@ -106,7 +156,8 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     setSelectedElements([]);
     setElementDataSource("");
     setSelectedCountry("");
-    setSelectedCoverage("");
+    setSelectedSource("");
+    setSelectedAvailableData("");
     // Close all dropdowns
     setHazardCategoryDropdownOpen(false);
     setHazardDropdownOpen(false);
@@ -116,7 +167,8 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     setElementDataDropdownOpen(false);
     setElementFileDropdownOpen(false);
     setCountryDropdownOpen(false);
-    setCoverageDropdownOpen(false);
+    setSourceDropdownOpen(false);
+    setAvailableDataDropdownOpen(false);
   };
 
   // Reset selectedHazard when hazardCategory changes
@@ -131,14 +183,19 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     }
     if (hazardDataSource !== "Use existing hazard layer") {
       setSelectedCountry("");
-      setSelectedCoverage("");
+      setSelectedSource("");
     }
   }, [hazardDataSource]);
 
-  // Reset selectedCoverage when selectedCountry changes
+  // Reset selectedSource when selectedCountry changes
   useEffect(() => {
-    setSelectedCoverage("");
+    setSelectedSource("");
   }, [selectedCountry]);
+
+  // Reset selectedAvailableData when selectedSource changes
+  useEffect(() => {
+    setSelectedAvailableData("");
+  }, [selectedSource]);
 
   // Reset selectedElementFile when elementDataSource changes
   useEffect(() => {
@@ -163,7 +220,11 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     hazardDataSource &&
     (hazardDataSource !== "Use imported data" || selectedImportedFile) &&
     (hazardDataSource !== "Use existing hazard layer" ||
-      (selectedCountry && selectedCoverage)) &&
+      (selectedCountry &&
+        selectedSource &&
+        (selectedSource !==
+          "Nationwide Operational Assessment of Hazards (NOAH)" ||
+          selectedAvailableData))) &&
     analysisScope &&
     selectedElements.length > 0 &&
     elementDataSource &&
@@ -175,7 +236,8 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     hazardDataSource ||
     selectedImportedFile ||
     selectedCountry ||
-    selectedCoverage ||
+    selectedSource ||
+    selectedAvailableData ||
     analysisScope ||
     selectedElements.length > 0 ||
     elementDataSource ||
@@ -353,41 +415,105 @@ const ExposureAssessmentControls: React.FC<Props> = ({
               )}
             </div>
 
-            {/* Coverage Dropdown - conditionally shown based on country selection */}
+            {/* Source Dropdown - conditionally shown based on country selection */}
             {selectedCountry && (
               <div className="relative">
                 <button
-                  onClick={() => setCoverageDropdownOpen((prev) => !prev)}
+                  onClick={() => setSourceDropdownOpen((prev) => !prev)}
                   className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
                 >
-                  <span className="text-sm">
-                    {selectedCoverage ||
-                      (selectedCountry === "Philippines"
-                        ? "Location coverage..."
-                        : "Choose coverage...")}
+                  <span className="text-sm truncate">
+                    {selectedSource || "Choose source..."}
                   </span>
                   <ChevronDown
                     size={16}
-                    className={`transition-transform duration-200 ${
-                      coverageDropdownOpen ? "rotate-180" : ""
+                    className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
+                      sourceDropdownOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
 
-                {coverageDropdownOpen && (
+                {sourceDropdownOpen && (
                   <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
-                    {getCoverageOptions().map((option, index) => (
+                    {getSourceOptions().map((option, index) => (
                       <div
                         key={index}
                         onClick={() => {
-                          setSelectedCoverage(option);
-                          setCoverageDropdownOpen(false);
+                          setSelectedSource(option);
+                          setSourceDropdownOpen(false);
                         }}
                         className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
                       >
                         {option}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {selectedSource ===
+              "Nationwide Operational Assessment of Hazards (NOAH)" && (
+              <div className="relative">
+                <button
+                  onClick={() => setAvailableDataDropdownOpen((prev) => !prev)}
+                  className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
+                >
+                  <span className="text-sm truncate">
+                    {selectedAvailableData || "Available data..."}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
+                      availableDataDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {availableDataDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
+                    {/* Search Box */}
+                    <div className="p-2">
+                      <input
+                        type="text"
+                        placeholder="Search data..."
+                        value={availableDataSearchTerm}
+                        onChange={(e) =>
+                          setAvailableDataSearchTerm(e.target.value)
+                        }
+                        className="w-full p-2 rounded-md text-white outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                      />
+                    </div>
+
+                    {/* Filtered data list */}
+                    <div
+                      className="overflow-y-auto max-h-48"
+                      style={{
+                        scrollbarWidth: "thin",
+                        scrollbarColor: "#5a5a5a transparent",
+                      }}
+                      onScroll={(e) => e.stopPropagation()}
+                    >
+                      {getAvailableDataOptions()
+                        .filter((option) =>
+                          option
+                            .toLowerCase()
+                            .includes(availableDataSearchTerm.toLowerCase())
+                        )
+                        .map((option, index) => (
+                          <div
+                            key={index}
+                            onClick={() => {
+                              setSelectedAvailableData(option);
+                              setAvailableDataDropdownOpen(false);
+                              setAvailableDataSearchTerm("");
+                            }}
+                            className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
+                          >
+                            {option}
+                          </div>
+                        ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -455,18 +581,26 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             (hazardDataSource === "Use imported data" &&
               !selectedImportedFile) ||
             (hazardDataSource === "Use existing hazard layer" &&
-              (!selectedCountry || !selectedCoverage))
+              (!selectedCountry ||
+                !selectedSource ||
+                (selectedSource ===
+                  "Nationwide Operational Assessment of Hazards (NOAH)" &&
+                  !selectedAvailableData)))
           }
           className={`flex justify-between items-center w-full px-3 py-2 rounded-md shadow-md transition
-            ${
-              hazardDataSource &&
-              (hazardDataSource !== "Use imported data" ||
-                selectedImportedFile) &&
-              (hazardDataSource !== "Use existing hazard layer" ||
-                (selectedCountry && selectedCoverage))
-                ? "bg-[#3a3a3a] text-white hover:bg-[#454545] cursor-pointer"
-                : "bg-[#2a2a2a] text-gray-500 cursor-not-allowed"
-            }`}
+          ${
+            hazardDataSource &&
+            (hazardDataSource !== "Use imported data" ||
+              selectedImportedFile) &&
+            (hazardDataSource !== "Use existing hazard layer" ||
+              (selectedCountry &&
+                selectedSource &&
+                (selectedSource !==
+                  "Nationwide Operational Assessment of Hazards (NOAH)" ||
+                  selectedAvailableData)))
+              ? "bg-[#3a3a3a] text-white hover:bg-[#454545] cursor-pointer"
+              : "bg-[#2a2a2a] text-gray-500 cursor-not-allowed"
+          }`}
         >
           <span className="text-sm">{analysisScope || "Choose scope..."}</span>
           <ChevronDown
@@ -481,7 +615,11 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           hazardDataSource &&
           (hazardDataSource !== "Use imported data" || selectedImportedFile) &&
           (hazardDataSource !== "Use existing hazard layer" ||
-            (selectedCountry && selectedCoverage)) && (
+            (selectedCountry &&
+              selectedSource &&
+              (selectedSource !==
+                "Nationwide Operational Assessment of Hazards (NOAH)" ||
+                selectedAvailableData))) && (
             <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
               {scopeOptions.map((option, index) => (
                 <div

@@ -1,3 +1,4 @@
+// \SafeGIS\Simulation-Studio\frontend\src\components\Map\Switch View\SwitchTo3DView.tsx
 "use client";
 
 import mapboxgl from "mapbox-gl";
@@ -5,6 +6,7 @@ import { drawRoutes as drawRoutesHelper } from "../Markers/Pathfinder/RouteLines
 import { drawVolcanoDots as drawVolcanoDotsHelper } from "../Markers/Hazard Map/VolcanoListMarker";
 import { drawEarthquakeDots as drawEarthquakeDotsHelper } from "../Markers/Hazard Map/EarthquakeMarker";
 import { drawActiveFaults as drawActiveFaultsHelper } from "../Markers/Hazard Map/ActiveFaultsMarker";
+import { drawFloodHazard as drawFloodHazardHelper } from "../Markers/Hazard Map/FloodHazardMarker";
 
 export const switchTo3D = (
   label: string,
@@ -15,6 +17,9 @@ export const switchTo3D = (
   latestVolcanoes: React.RefObject<any[]>,
   latestEarthquakes: React.RefObject<any[]>,
   latestActiveFaults: React.RefObject<GeoJSON.FeatureCollection | null>,
+  latestFloodHazards: React.RefObject<
+    Array<{ geojsonUrl: string; returnPeriod: string; provinceName: string }>
+  >,
   selectedFeatureIndexRef: React.RefObject<number | null>,
   getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined,
   addTerrainOnly: (map: mapboxgl.Map) => void
@@ -65,5 +70,17 @@ export const switchTo3D = (
         latestActiveFaults,
         latestActiveFaults.current
       );
+
+    if (latestFloodHazards.current.length > 0) {
+      latestFloodHazards.current.forEach(async (fh) => {
+        await drawFloodHazardHelper(
+          mapInstance.current,
+          mapIsLoaded.current,
+          fh.geojsonUrl,
+          fh.returnPeriod,
+          fh.provinceName
+        );
+      });
+    }
   });
 };

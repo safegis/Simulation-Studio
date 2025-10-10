@@ -10,6 +10,10 @@ import {
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { drawVolcanoDots as drawVolcanoDotsHelper } from "./Markers/Hazard Map/VolcanoListMarker";
+import {
+  drawFloodHazard as drawFloodHazardHelper,
+  clearFloodHazard as clearFloodHazardHelper,
+} from "./Markers/Hazard Map/FloodHazardMarker";
 import { drawEarthquakeDots as drawEarthquakeDotsHelper } from "./Markers/Hazard Map/EarthquakeMarker";
 import { drawActiveFaults as drawActiveFaultsHelper } from "./Markers/Hazard Map/ActiveFaultsMarker";
 import { drawRoadClosures as drawRoadClosuresHelper } from "./Markers/Hazard Map/RoadClosureMarker";
@@ -79,6 +83,10 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestVolcanoes = useRef<any[]>([]);
   const latestEarthquakes = useRef<any[]>([]);
   const latestActiveFaults = useRef<GeoJSON.FeatureCollection | null>(null);
+  const latestFloodHazards = useRef<
+    Array<{ geojsonUrl: string; returnPeriod: string; provinceName: string }>
+  >([]);
+
   const healthPopupRef = useRef<mapboxgl.Popup | null>(null);
 
   // --- use the custom hook to restore health facility markers after style change ---
@@ -258,6 +266,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         latestVolcanoes,
         latestEarthquakes,
         latestActiveFaults,
+        latestFloodHazards,
         selectedFeatureIndexRef,
         getTopSymbolLayerId
       ),
@@ -272,6 +281,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         latestVolcanoes,
         latestEarthquakes,
         latestActiveFaults,
+        latestFloodHazards,
         selectedFeatureIndexRef,
         getTopSymbolLayerId,
         addTerrainOnly
@@ -328,6 +338,17 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
             latestActiveFaults,
             latestActiveFaults.current
           );
+        if (latestFloodHazards.current.length > 0) {
+          latestFloodHazards.current.forEach(async (fh) => {
+            await drawFloodHazardHelper(
+              mapInstance.current,
+              mapIsLoaded.current,
+              fh.geojsonUrl,
+              fh.returnPeriod,
+              fh.provinceName
+            );
+          });
+        }
       });
     },
     drawRoutes: (geojson: GeoJSON.FeatureCollection) => {
@@ -372,6 +393,66 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         mapIsLoaded.current,
         latestActiveFaults,
         geojson
+      );
+    },
+
+    drawFloodHazard: async (
+      geojsonUrl: string,
+      returnPeriod: string,
+      provinceName: string
+    ) => {
+      // Store the flood hazard data
+      const existingIndex = latestFloodHazards.current.findIndex(
+        (fh) =>
+          fh.returnPeriod === returnPeriod && fh.provinceName === provinceName
+      );
+
+      if (existingIndex >= 0) {
+        latestFloodHazards.current[existingIndex] = {
+          geojsonUrl,
+          returnPeriod,
+          provinceName,
+        };
+      } else {
+        latestFloodHazards.current.push({
+          geojsonUrl,
+          returnPeriod,
+          provinceName,
+        });
+      }
+
+      return await drawFloodHazardHelper(
+        mapInstance.current,
+        mapIsLoaded.current,
+        geojsonUrl,
+        returnPeriod,
+        provinceName
+      );
+    },
+
+    clearFloodHazard: (returnPeriod?: string, provinceName?: string) => {
+      // Remove from stored flood hazards
+      if (returnPeriod && provinceName) {
+        latestFloodHazards.current = latestFloodHazards.current.filter(
+          (fh) =>
+            !(
+              fh.returnPeriod === returnPeriod &&
+              fh.provinceName === provinceName
+            )
+        );
+      } else if (returnPeriod) {
+        latestFloodHazards.current = latestFloodHazards.current.filter(
+          (fh) => fh.returnPeriod !== returnPeriod
+        );
+      } else {
+        latestFloodHazards.current = [];
+      }
+
+      clearFloodHazardHelper(
+        mapInstance.current,
+        mapIsLoaded.current,
+        returnPeriod,
+        provinceName
       );
     },
 

@@ -12,6 +12,7 @@ import {
   Flame,
   Bug,
 } from "lucide-react";
+import mapboxgl from "mapbox-gl";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getWeatherLocationOptions } from "./Weather/WeatherLocationOptions";
 import {
@@ -24,6 +25,7 @@ import {
   getMunicipalitiesForProvince,
 } from "./Weather/PhilippinesMunicipalities";
 import { WeatherData } from "@/components/Map/Markers/Hazard Map/WeatherMarker";
+import { floodHazardMaps } from "./Flood/NOAAFloodHazardConfig";
 
 interface HazardMapControlsProps {
   hydroExpanded: boolean;
@@ -148,6 +150,25 @@ export default function HazardMapControls({
   const [selectedWeatherLocation, setSelectedWeatherLocation] = useState("");
   const weatherLocationButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Flood country selection states
+  const [floodCountryOpen, setFloodCountryOpen] = useState(false);
+  const [selectedFloodCountry, setSelectedFloodCountry] = useState("");
+  const floodCountryButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Flood data source selection states
+  const [floodDataSourceOpen, setFloodDataSourceOpen] = useState(false);
+  const [selectedFloodDataSource, setSelectedFloodDataSource] = useState("");
+  const floodDataSourceButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Flood province selection states
+  const [floodProvinceOpen, setFloodProvinceOpen] = useState(false);
+  const [selectedFloodProvince, setSelectedFloodProvince] = useState("");
+  const floodProvinceButtonRef = useRef<HTMLButtonElement>(null);
+  const [floodProvinceSearchTerm, setFloodProvinceSearchTerm] = useState("");
+
+  // Flood return period selection states (unified for NOAH)
+  const [floodReturnPeriods, setFloodReturnPeriods] = useState<string[]>([]);
+
   // Municipality province selection states
   const [municipalityProvinceOpen, setMunicipalityProvinceOpen] =
     useState(false);
@@ -162,6 +183,91 @@ export default function HazardMapControls({
 
   // Weather dropdown options
   const weatherCountryOptions = ["Philippines", "United States of America"];
+
+  const floodCountryOptions = [
+    "India",
+    "Japan",
+    "Philippines",
+    "United States of America",
+  ];
+
+  const floodDataSourceOptions = [
+    "Mines and Geosciences Bureau (MGB)",
+    "Nationwide Operational Assessment of Hazards (NOAH)",
+  ];
+
+  const floodProvinceOptions = [
+    "Apayao",
+    "Compostela Valley",
+    "Davao Oriental",
+    "Dinagat Islands",
+    "Ifugao",
+    "Kalinga",
+    "Lanao Del Sur",
+    "Marinduque",
+    "Metro Manila",
+    "Misamis Occidental",
+    "Mountain Province",
+    "Tarlac",
+    "Zamboanga Sibugay",
+  ];
+
+  const floodReturnPeriodOptions = ["5 - Year", "25 - Year", "100 - Year"];
+
+  const toggleFloodReturnPeriod = async (period: string) => {
+    const isCurrentlyChecked = floodReturnPeriods.includes(period);
+
+    if (isCurrentlyChecked) {
+      setFloodReturnPeriods((prev) => prev.filter((p) => p !== period));
+      mapRef.current?.clearFloodHazard?.(period, selectedFloodProvince);
+    } else {
+      setFloodReturnPeriods((prev) => [...prev, period]);
+
+      const periodKey = period.replace(" - ", "-") as
+        | "5-Year"
+        | "25-Year"
+        | "100-Year";
+
+      const provinceConfig = floodHazardMaps[periodKey]?.find(
+        (config) => config.name === selectedFloodProvince
+      );
+
+      if (!provinceConfig) {
+        console.error(
+          `No config found for ${selectedFloodProvince} (${period})`
+        );
+        return;
+      }
+
+      console.log(`Loading ${selectedFloodProvince} for ${period}...`);
+
+      try {
+        // drawFloodHazard now returns bounds directly
+        const bounds = await mapRef.current?.drawFloodHazard?.(
+          provinceConfig.geojsonUrl,
+          provinceConfig.returnPeriod,
+          provinceConfig.name
+        );
+
+        // Use the returned bounds to fit the map view
+        if (bounds) {
+          const map = mapRef.current?.getMap?.();
+          if (map) {
+            map.fitBounds(bounds, {
+              padding: 50,
+              maxZoom: 10,
+              duration: 1500,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(
+          `Error loading ${period} for ${selectedFloodProvince}:`,
+          error
+        );
+      }
+    }
+  };
 
   // 🔹 Cleanup effect – stop weather polling on unmount
   useEffect(() => {
@@ -325,11 +431,11 @@ export default function HazardMapControls({
                               }}
                               disabled={!selectedMunicipalityProvince}
                               className={`w-full py-2 rounded-md mt-2
-              ${
-                selectedMunicipalityProvince
-                  ? "bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
-                  : "bg-[#4c4c4c] text-[#a1a1a1] cursor-not-allowed"
-              }`}
+                              ${
+                                selectedMunicipalityProvince
+                                  ? "bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
+                                  : "bg-[#4c4c4c] text-[#a1a1a1] cursor-not-allowed"
+                              }`}
                             >
                               Clear Weather
                             </button>
@@ -353,15 +459,149 @@ export default function HazardMapControls({
                             }}
                             disabled={!selectedWeatherLocation}
                             className={`w-full py-2 rounded-md mt-2
-          ${
-            selectedWeatherLocation
-              ? "bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
-              : "bg-[#4c4c4c] text-[#a1a1a1] cursor-not-allowed"
-          }`}
+                            ${
+                              selectedWeatherLocation
+                                ? "bg-[#5A5C99] text-white hover:opacity-90 shadow-md"
+                                : "bg-[#4c4c4c] text-[#a1a1a1] cursor-not-allowed"
+                            }`}
                           >
                             Clear Weather
                           </button>
                         )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Flood dropdown controls */}
+              {item === "Flood" && hydroCheckedItems.includes("Flood") && (
+                <div className="ml-6.5 mt-3 mb-3 w-[260px] space-y-2">
+                  <button
+                    ref={floodCountryButtonRef}
+                    onClick={() => setFloodCountryOpen((prev) => !prev)}
+                    className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      lineHeight: 1.2,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <span
+                      style={{
+                        lineHeight: 1.2,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      {selectedFloodCountry || "Select Country"}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`ml-2 transition-transform duration-200 ${
+                        floodCountryOpen ? "rotate-180" : ""
+                      }`}
+                      style={{ display: "flex", alignItems: "center" }}
+                    />
+                  </button>
+
+                  {/* Data Source Dropdown - shown when Philippines is selected */}
+                  {selectedFloodCountry === "Philippines" && (
+                    <>
+                      <button
+                        ref={floodDataSourceButtonRef}
+                        onClick={() => setFloodDataSourceOpen((prev) => !prev)}
+                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          lineHeight: 1.2,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        <span
+                          style={{
+                            lineHeight: 1.2,
+                            display: "block",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: "210px",
+                          }}
+                        >
+                          {selectedFloodDataSource || "Data Source"}
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          className={`ml-2 transition-transform duration-200 ${
+                            floodDataSourceOpen ? "rotate-180" : ""
+                          }`}
+                          style={{ display: "flex", alignItems: "center" }}
+                        />
+                      </button>
+
+                      {selectedFloodDataSource ===
+                        "Nationwide Operational Assessment of Hazards (NOAH)" && (
+                        <>
+                          {/* NEW: Province Selection Dropdown */}
+                          <button
+                            ref={floodProvinceButtonRef}
+                            onClick={() =>
+                              setFloodProvinceOpen((prev) => !prev)
+                            }
+                            className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2 px-3 rounded-md"
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              lineHeight: 1.2,
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <span
+                              style={{
+                                lineHeight: 1.2,
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              {selectedFloodProvince || "Select province..."}
+                            </span>
+                            <ChevronDown
+                              size={16}
+                              className={`ml-2 transition-transform duration-200 ${
+                                floodProvinceOpen ? "rotate-180" : ""
+                              }`}
+                              style={{ display: "flex", alignItems: "center" }}
+                            />
+                          </button>
+
+                          {/* CHANGED: Return Period checkboxes now only show when province is selected */}
+                          {selectedFloodProvince && (
+                            <div className="mt-3 space-y-1">
+                              <div className="text-white text-sm">
+                                Return Period:
+                              </div>
+                              {floodReturnPeriodOptions.map((period) => (
+                                <div key={period} className="flex items-center">
+                                  <Checkbox
+                                    className="mr-3 w-[16px] h-[16px]"
+                                    checked={floodReturnPeriods.includes(
+                                      period
+                                    )}
+                                    onCheckedChange={() =>
+                                      toggleFloodReturnPeriod(period)
+                                    }
+                                  />
+                                  <span className="text-sm">{period}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -605,7 +845,7 @@ export default function HazardMapControls({
               style={{
                 maxHeight: "140px",
                 scrollbarWidth: "thin",
-                scrollbarColor: "#5a5a5a transparent",
+                scrollbarColor: "#5a5a5a #3a3a3a",
               }}
               onScroll={(e) => e.stopPropagation()}
             >
@@ -780,6 +1020,120 @@ export default function HazardMapControls({
                     {province}
                   </div>
                 ))}
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {floodDataSourceOpen &&
+        floodDataSourceButtonRef.current &&
+        createPortal(
+          <div
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            style={{
+              top:
+                floodDataSourceButtonRef.current.getBoundingClientRect()
+                  .bottom + 4,
+              left: floodDataSourceButtonRef.current.getBoundingClientRect()
+                .left,
+              width:
+                floodDataSourceButtonRef.current.getBoundingClientRect().width,
+            }}
+          >
+            {floodDataSourceOptions.map((option, index, arr) => (
+              <div
+                key={index}
+                onClick={() => {
+                  setSelectedFloodDataSource(option);
+                  setFloodDataSourceOpen(false);
+                  // Reset return periods when changing data source
+                  setFloodReturnPeriods([]);
+                }}
+                className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                  ${index === 0 ? "rounded-t-md" : ""}
+                  ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+              >
+                {option}
+              </div>
+            ))}
+          </div>,
+          document.body
+        )}
+
+      {/* Flood Country Dropdown Portal */}
+      {floodCountryOpen &&
+        floodCountryButtonRef.current &&
+        createPortal(
+          <div
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            style={{
+              top:
+                floodCountryButtonRef.current.getBoundingClientRect().bottom +
+                4,
+              left: floodCountryButtonRef.current.getBoundingClientRect().left,
+              width:
+                floodCountryButtonRef.current.getBoundingClientRect().width,
+            }}
+          >
+            {floodCountryOptions.map((option, index, arr) => (
+              <div
+                key={index}
+                onClick={() => {
+                  setSelectedFloodCountry(option);
+                  setFloodCountryOpen(false);
+                }}
+                className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+                  ${index === 0 ? "rounded-t-md" : ""}
+                  ${index === arr.length - 1 ? "rounded-b-md" : ""}`}
+              >
+                {option}
+              </div>
+            ))}
+          </div>,
+          document.body
+        )}
+
+      {/* NEW: Flood Province Dropdown Portal */}
+      {floodProvinceOpen &&
+        floodProvinceButtonRef.current &&
+        createPortal(
+          <div
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            style={{
+              top:
+                floodProvinceButtonRef.current.getBoundingClientRect().bottom +
+                4,
+              left: floodProvinceButtonRef.current.getBoundingClientRect().left,
+              width:
+                floodProvinceButtonRef.current.getBoundingClientRect().width,
+            }}
+          >
+            <div
+              className="overflow-y-auto"
+              style={{
+                maxHeight: "140px",
+                scrollbarWidth: "thin",
+                scrollbarColor: "#5a5a5a transparent",
+              }}
+              onScroll={(e) => e.stopPropagation()}
+            >
+              {floodProvinceOptions.map((option, index, arr) => (
+                <div
+                  key={index}
+                  onClick={async () => {
+                    floodReturnPeriods.forEach((period) => {
+                      mapRef.current?.clearFloodHazard?.(period);
+                    });
+                    setFloodReturnPeriods([]);
+                    setSelectedFloodProvince(option);
+                    setFloodProvinceOpen(false);
+                  }}
+                  className={`px-3 py-2 hover:bg-[#505050] cursor-pointer
+            ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
+                >
+                  {option}
+                </div>
+              ))}
             </div>
           </div>,
           document.body
