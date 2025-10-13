@@ -5,6 +5,7 @@ import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { floodHazardMaps } from "../../Maps/Hazard Layers/Flood/NOAAFloodHazardConfig";
+import { exposureElementsData } from "./OSMExposureElementsData";
 
 type PanelToggleProps = {
   title: string;
@@ -56,6 +57,22 @@ const ExposureAssessmentControls: React.FC<Props> = ({
   const [availableDataDropdownOpen, setAvailableDataDropdownOpen] =
     useState(false);
   const [availableDataSearchTerm, setAvailableDataSearchTerm] = useState("");
+  const [selectedElementCountry, setSelectedElementCountry] =
+    useState<string>("");
+  const [elementCountryDropdownOpen, setElementCountryDropdownOpen] =
+    useState(false);
+  const [selectedElementSource, setSelectedElementSource] =
+    useState<string>("");
+  const [elementSourceDropdownOpen, setElementSourceDropdownOpen] =
+    useState(false);
+  const [selectedElementAvailableData, setSelectedElementAvailableData] =
+    useState<string[]>([]);
+  const [
+    elementAvailableDataDropdownOpen,
+    setElementAvailableDataDropdownOpen,
+  ] = useState(false);
+  const [elementAvailableDataSearchTerm, setElementAvailableDataSearchTerm] =
+    useState("");
 
   const hazardCategoryOptions = ["Hydro-Meteorological", "Geological"];
 
@@ -68,7 +85,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     return [];
   };
 
-  const hazardDataOptions = ["Use existing hazard layer", "Use imported data"];
+  const hazardDataOptions = ["Use existing data", "Use imported data"];
 
   const scopeOptions = ["Current map view", "Draw custom area"];
 
@@ -91,6 +108,87 @@ const ExposureAssessmentControls: React.FC<Props> = ({
       ];
     } else if (selectedCountry === "United States of America") {
       return ["National Level", "By state", "By city"];
+    }
+    return [];
+  };
+
+  const getElementSourceOptions = () => {
+    if (selectedElementCountry === "Philippines") {
+      const sources = new Set<string>();
+
+      if (selectedElements.includes("Population Density")) {
+        sources.add("OSM");
+        sources.add("HOTSM");
+        sources.add("OCHA");
+      }
+      if (selectedElements.includes("Areas (e.g. Regions, Cities)")) {
+        sources.add("OSM");
+        sources.add("Mapbox");
+      }
+      if (selectedElements.includes("Land Cover")) {
+        sources.add("OSM");
+        sources.add("MGB");
+      }
+      if (selectedElements.includes("Critical Facilities")) {
+        sources.add("OSM");
+        sources.add("HOTSM");
+        sources.add("OCHAHOTSM");
+        sources.add("OCHA");
+      }
+      if (selectedElements.includes("Transportation Networks")) {
+        sources.add("OSM");
+      }
+
+      return Array.from(sources).sort();
+    }
+    return [];
+  };
+
+  const getElementAvailableDataOptions = () => {
+    if (
+      selectedElementCountry === "Philippines" &&
+      selectedElementSource === "OSM"
+    ) {
+      const options: {
+        displayName: string;
+        sortKey: string;
+      }[] = [];
+
+      // Get selected element types that support OSM
+      const supportedElements = selectedElements.filter(
+        (element) =>
+          element === "Land Cover" || element === "Transportation Networks"
+      );
+
+      supportedElements.forEach((elementType) => {
+        if (
+          elementType === "Land Cover" &&
+          exposureElementsData["Land Cover"]
+        ) {
+          exposureElementsData["Land Cover"].forEach((config) => {
+            options.push({
+              displayName: `${config.name}, ${config.country} - ${config.elementType} (${config.source})`,
+              sortKey: config.name,
+            });
+          });
+        }
+        if (
+          elementType === "Transportation Networks" &&
+          exposureElementsData["Transportation Networks"]
+        ) {
+          exposureElementsData["Transportation Networks"].forEach((config) => {
+            options.push({
+              displayName: `${config.name}, ${config.country} - ${config.elementType} (${config.source})`,
+              sortKey: config.name,
+            });
+          });
+        }
+      });
+
+      // Sort alphabetically by location name
+      return options
+        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+        .map((option) => option.displayName);
     }
     return [];
   };
@@ -143,6 +241,12 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     );
   };
 
+  const handleElementAvailableDataToggle = (item: string) => {
+    setSelectedElementAvailableData((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+    );
+  };
+
   const handleClearSteps = () => {
     setHazardCategory("");
     setSelectedHazard("");
@@ -158,6 +262,9 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     setSelectedCountry("");
     setSelectedSource("");
     setSelectedAvailableData("");
+    setSelectedElementCountry("");
+    setSelectedElementSource("");
+    setSelectedElementAvailableData([]);
     // Close all dropdowns
     setHazardCategoryDropdownOpen(false);
     setHazardDropdownOpen(false);
@@ -169,6 +276,9 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     setCountryDropdownOpen(false);
     setSourceDropdownOpen(false);
     setAvailableDataDropdownOpen(false);
+    setElementCountryDropdownOpen(false);
+    setElementSourceDropdownOpen(false);
+    setElementAvailableDataDropdownOpen(false);
   };
 
   // Reset selectedHazard when hazardCategory changes
@@ -181,7 +291,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     if (hazardDataSource !== "Use imported data") {
       setSelectedImportedFile("");
     }
-    if (hazardDataSource !== "Use existing hazard layer") {
+    if (hazardDataSource !== "Use existing data") {
       setSelectedCountry("");
       setSelectedSource("");
     }
@@ -202,7 +312,47 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     if (elementDataSource !== "Use imported data") {
       setSelectedElementFile("");
     }
+    if (elementDataSource !== "Use existing data") {
+      setSelectedElementCountry("");
+      setSelectedElementSource("");
+    }
   }, [elementDataSource]);
+
+  // Reset selectedElementSource when selectedElementCountry changes
+  useEffect(() => {
+    setSelectedElementSource("");
+  }, [selectedElementCountry]);
+
+  // Reset selectedElementSource when selectedElements changes
+  useEffect(() => {
+    if (
+      elementDataSource === "Use existing data" &&
+      selectedElementCountry === "Philippines"
+    ) {
+      setSelectedElementSource("");
+    }
+  }, [selectedElements, elementDataSource, selectedElementCountry]);
+
+  // Reset selectedElementAvailableData when selectedElementSource changes
+  useEffect(() => {
+    setSelectedElementAvailableData([]);
+  }, [selectedElementSource]);
+
+  // Reset selectedElementAvailableData when selectedElements changes
+  useEffect(() => {
+    if (
+      elementDataSource === "Use existing data" &&
+      selectedElementCountry === "Philippines" &&
+      selectedElementSource === "OSM"
+    ) {
+      setSelectedElementAvailableData([]);
+    }
+  }, [
+    selectedElements,
+    elementDataSource,
+    selectedElementCountry,
+    selectedElementSource,
+  ]);
 
   // Show/hide aspect ratio selector based on analysis scope
   useEffect(() => {
@@ -219,7 +369,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     selectedHazard &&
     hazardDataSource &&
     (hazardDataSource !== "Use imported data" || selectedImportedFile) &&
-    (hazardDataSource !== "Use existing hazard layer" ||
+    (hazardDataSource !== "Use existing data" ||
       (selectedCountry &&
         selectedSource &&
         (selectedSource !==
@@ -228,7 +378,12 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     analysisScope &&
     selectedElements.length > 0 &&
     elementDataSource &&
-    (elementDataSource !== "Use imported data" || selectedElementFile);
+    (elementDataSource !== "Use imported data" || selectedElementFile) &&
+    (elementDataSource !== "Use existing data" ||
+      (selectedElementCountry &&
+        selectedElementSource &&
+        (selectedElementSource !== "OSM" ||
+          selectedElementAvailableData.length > 0)));
 
   const hasAnySelection =
     hazardCategory ||
@@ -247,7 +402,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     <div className="space-y-4">
       {/* Instructions */}
       <div className="text-gray-300 text-sm">
-        Analyze exposed population and assets within hazard zones
+        Analyze exposed elements and assets within hazard zones
       </div>
 
       {/* Step 1: Select Hazard Category */}
@@ -375,8 +530,8 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Country and Coverage Selection - shown when "Use existing hazard layer" is selected */}
-        {hazardDataSource === "Use existing hazard layer" && (
+        {/* Country and Coverage Selection - shown when "Use existing data" is selected */}
+        {hazardDataSource === "Use existing data" && (
           <div className="mt-3 bg-[#3a3a3a] rounded-md shadow-md p-4 space-y-3">
             <div className="text-white text-sm">Select data to use:</div>
 
@@ -580,7 +735,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             !hazardDataSource ||
             (hazardDataSource === "Use imported data" &&
               !selectedImportedFile) ||
-            (hazardDataSource === "Use existing hazard layer" &&
+            (hazardDataSource === "Use existing hazard data" &&
               (!selectedCountry ||
                 !selectedSource ||
                 (selectedSource ===
@@ -592,7 +747,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             hazardDataSource &&
             (hazardDataSource !== "Use imported data" ||
               selectedImportedFile) &&
-            (hazardDataSource !== "Use existing hazard layer" ||
+            (hazardDataSource !== "Use existing data" ||
               (selectedCountry &&
                 selectedSource &&
                 (selectedSource !==
@@ -614,7 +769,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
         {scopeDropdownOpen &&
           hazardDataSource &&
           (hazardDataSource !== "Use imported data" || selectedImportedFile) &&
-          (hazardDataSource !== "Use existing hazard layer" ||
+          (hazardDataSource !== "Use existing data" ||
             (selectedCountry &&
               selectedSource &&
               (selectedSource !==
@@ -705,6 +860,177 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             ))}
           </div>
         )}
+
+        {/* Element Country and Source Selection - shown when "Use existing data" is selected */}
+        {elementDataSource === "Use existing data" && (
+          <div className="mt-3 bg-[#3a3a3a] rounded-md shadow-md p-4 space-y-3">
+            <div className="text-white text-sm">Select data to use:</div>
+
+            {/* Element Country Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setElementCountryDropdownOpen((prev) => !prev)}
+                className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
+              >
+                <span className="text-sm">
+                  {selectedElementCountry || "Choose country..."}
+                </span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform duration-200 ${
+                    elementCountryDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {elementCountryDropdownOpen && (
+                <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
+                  {countryOptions.map((option, index) => (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        setSelectedElementCountry(option);
+                        setElementCountryDropdownOpen(false);
+                      }}
+                      className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Element Source Dropdown - conditionally shown based on country selection */}
+            {selectedElementCountry === "Philippines" && (
+              <div className="relative">
+                <button
+                  onClick={() => setElementSourceDropdownOpen((prev) => !prev)}
+                  className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
+                >
+                  <span className="text-sm truncate">
+                    {selectedElementSource || "Choose source..."}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
+                      elementSourceDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {elementSourceDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
+                    {getElementSourceOptions().map((option, index) => (
+                      <div
+                        key={index}
+                        onClick={() => {
+                          setSelectedElementSource(option);
+                          setElementSourceDropdownOpen(false);
+                        }}
+                        className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Element Available Data Selection - shown when OSM source is selected */}
+            {selectedElementCountry === "Philippines" &&
+              selectedElementSource === "OSM" && (
+                <div className="relative">
+                  <button
+                    onClick={() =>
+                      setElementAvailableDataDropdownOpen((prev) => !prev)
+                    }
+                    className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
+                  >
+                    <span className="text-sm truncate">
+                      {selectedElementAvailableData.length > 0
+                        ? `${selectedElementAvailableData.length} selected`
+                        : "Available data..."}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
+                        elementAvailableDataDropdownOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {elementAvailableDataDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
+                      {/* Search Box */}
+                      <div className="p-2">
+                        <input
+                          type="text"
+                          placeholder="Search data..."
+                          value={elementAvailableDataSearchTerm}
+                          onChange={(e) =>
+                            setElementAvailableDataSearchTerm(e.target.value)
+                          }
+                          className="w-full p-2 bg-[#2a2a2a] rounded-md text-white text-sm outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+
+                      {/* Filtered data list with checkboxes */}
+                      <div
+                        className="overflow-y-auto max-h-35 p-2"
+                        style={{
+                          scrollbarWidth: "thin",
+                          scrollbarColor: "#5a5a5a transparent",
+                        }}
+                        onScroll={(e) => e.stopPropagation()}
+                      >
+                        {getElementAvailableDataOptions()
+                          .filter((option) =>
+                            option
+                              .toLowerCase()
+                              .includes(
+                                elementAvailableDataSearchTerm.toLowerCase()
+                              )
+                          )
+                          .map((option, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center py-2 px-2 hover:bg-[#353535] rounded cursor-pointer"
+                              onClick={() =>
+                                handleElementAvailableDataToggle(option)
+                              }
+                            >
+                              <Checkbox
+                                className="mr-2.5 w-[16px] h-[16px] pointer-events-none"
+                                checked={selectedElementAvailableData.includes(
+                                  option
+                                )}
+                              />
+                              <span className="text-sm text-white">
+                                {option}
+                              </span>
+                            </div>
+                          ))}
+                        {getElementAvailableDataOptions().filter((option) =>
+                          option
+                            .toLowerCase()
+                            .includes(
+                              elementAvailableDataSearchTerm.toLowerCase()
+                            )
+                        ).length === 0 && (
+                          <div className="px-2 py-3 text-sm text-gray-400 text-center">
+                            No data found
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+          </div>
+        )}
       </div>
 
       {/* Step 6.5: Select Imported File for Elements (conditionally shown) */}
@@ -781,30 +1107,6 @@ const ExposureAssessmentControls: React.FC<Props> = ({
         >
           Clear Steps
         </button>
-      </div>
-
-      {/* Results Container - Always Visible */}
-      <div
-        className={`mt-7 p-3 rounded-md shadow-md transition-colors ${
-          isComplete ? "bg-[#3a3a3a]" : "bg-[#2a2a2a]"
-        }`}
-      >
-        <div
-          className={`text-sm font-medium mb-2 ${
-            isComplete ? "text-white" : "text-gray-500"
-          }`}
-        >
-          Analysis Results
-        </div>
-        <div
-          className={`text-xs ${
-            isComplete ? "text-gray-400" : "text-gray-600"
-          }`}
-        >
-          {isComplete
-            ? "Results will appear here after running the analysis"
-            : "Complete all steps above to run the analysis"}
-        </div>
       </div>
     </div>
   );
