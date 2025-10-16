@@ -39,6 +39,8 @@ interface Props {
   // Congestion state synchronization
   congestionEnabled?: boolean;
   onCongestionToggle?: (enabled: boolean) => void;
+  // Exposure assessment
+  onRunExposureAnalysis?: (data: any) => void;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -98,6 +100,7 @@ export default function ToolPanel({
   setExpandedPanels,
   trafficExpanded,
   setTrafficExpanded,
+  onRunExposureAnalysis,
 }: Props) {
   const [hydroExpanded, setHydroExpanded] = useState(false);
   const [hydroCheckedItems, setHydroCheckedItems] = useState<string[]>([]);
@@ -1242,8 +1245,10 @@ export default function ToolPanel({
                 {label === "Exposure Assessment" && (
                   <ExposureAssessmentControls
                     PanelToggle={PanelToggle}
+                    mapRef={mapRef}
                     uploadedFiles={uploadedFiles}
                     onShowAspectRatioSelector={onShowAspectRatioSelector}
+                    onRunAnalysis={onRunExposureAnalysis}
                   />
                 )}
 

@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { ChevronDown } from "lucide-react";
 
 import MapComponent from "./Map/MainCanvas";
 import SafeGISAIChat from "./controls/SafeGIS AI/SafeGIS-AI-Chat";
@@ -103,6 +104,12 @@ export default function MainUILayout() {
 
   const [shapeDrawn, setShapeDrawn] = useState(false);
   const [scopeConfirmed, setScopeConfirmed] = useState(false);
+
+  // Exposure assessment results state
+  const [showExposureResults, setShowExposureResults] = useState(false);
+  const [exposureResultsData, setExposureResultsData] = useState<any>(null);
+  const [exposureResultsMinimized, setExposureResultsMinimized] =
+    useState(false);
 
   const squareRatio = 1; // 1:1 square
   const rectangleRatio = 16 / 9; // rectangle ratio (can change to 4/3 etc.)
@@ -941,6 +948,13 @@ export default function MainUILayout() {
     return congestionSharedRefs.current;
   };
 
+  const handleRunExposureAnalysis = (data: any) => {
+    console.log("Main-UI-Layout: Received analysis data:", data);
+    setExposureResultsData(data);
+    setShowExposureResults(true);
+    setExposureResultsMinimized(false);
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden">
       {!isDesktop ? (
@@ -1103,6 +1117,7 @@ export default function MainUILayout() {
                     disableCongestion();
                   }
                 }}
+                onRunExposureAnalysis={handleRunExposureAnalysis}
               />
             </div>
           )}
@@ -1551,6 +1566,156 @@ export default function MainUILayout() {
                     className="flex-1 px-4 py-2 rounded-lg bg-[#5A5C99] text-white hover:opacity-90 transition font-medium"
                   >
                     Save
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Exposure Assessment Results */}
+          {showExposureResults && exposureResultsData && (
+            <div className="absolute bottom-[109px] left-1/2 transform -translate-x-1/2 z-50 bg-[#2E2E2E]/75 backdrop-blur-xs rounded-xl shadow-lg w-[450px] text-white">
+              {/* Header */}
+              <div className="flex justify-between items-center px-4 py-3 bg-[#3a3a3a] rounded-t-xl">
+                <h3 className="text-[15px] font-semibold">
+                  Assessment Results
+                </h3>
+                <button
+                  onClick={() =>
+                    setExposureResultsMinimized(!exposureResultsMinimized)
+                  }
+                  className="text-white hover:text-gray-300 transition flex items-center"
+                >
+                  <ChevronDown
+                    size={22}
+                    className={`transition-transform duration-200 ${
+                      exposureResultsMinimized ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div
+                className={exposureResultsMinimized ? "px-4 pt-3" : "px-5 py-3"}
+              >
+                {/* Analysis Overview */}
+                <div className="mb-5">
+                  <h4 className="text-sm font-semibold mb-3">
+                    Analysis Overview
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-400 mb-1">Hazard Type</div>
+                      <div className="text-white">
+                        {exposureResultsData.hazardType}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-400 mb-1">Analysis Area</div>
+                      <div className="text-white">
+                        {exposureResultsData.analysisArea}
+                      </div>
+                    </div>
+                    {!exposureResultsMinimized && (
+                      <>
+                        <div>
+                          <div className="text-gray-400 mb-1">Scope</div>
+                          <div className="text-white">
+                            {exposureResultsData.scope}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 mb-1">
+                            Analysis Time
+                          </div>
+                          <div className="text-white">
+                            {exposureResultsData.analysisTime}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Elements Results */}
+                <div
+                  className={
+                    `max-h-[200px] overflow-y-auto ${
+                      !exposureResultsMinimized ? "pr-2" : ""
+                    }` /* Add right padding when not minimized */
+                  }
+                  style={{
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#706f6f transparent",
+                  }}
+                >
+                  {exposureResultsData.elements.map(
+                    (element: any, index: number) => (
+                      <div
+                        key={index}
+                        className={`mb-4 bg-[#3a3a3a] rounded-lg ${
+                          exposureResultsMinimized ? "p-2.5" : "p-3"
+                        }`}
+                      >
+                        <div
+                          className={`flex justify-between items-center ${
+                            !exposureResultsMinimized ? "mb-3" : ""
+                          }`}
+                        >
+                          <h5 className="text-sm font-medium">
+                            {element.name}
+                          </h5>
+                          <span className="bg-yellow-400 text-black text-xs font-semibold px-1.5 py-1 rounded">
+                            {(
+                              (element.exposedFeatures /
+                                element.totalFeatures) *
+                              100
+                            ).toFixed(1)}
+                            % Exposed
+                          </span>
+                        </div>
+                        {!exposureResultsMinimized && (
+                          <div className="text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">
+                                Exposed Features:
+                              </span>
+                              <span className="text-white">
+                                {element.exposedFeatures} /{" "}
+                                {element.totalFeatures}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">
+                                Exposed Area:
+                              </span>
+                              <span className="text-white">
+                                / {element.exposedArea} km²
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Footer Buttons */}
+              {!exposureResultsMinimized && (
+                <div className="flex gap-3 px-3.5 pb-3.5">
+                  <button className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition text-sm font-medium">
+                    Export Report
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowExposureResults(false);
+                      setExposureResultsData(null);
+                    }}
+                    className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition text-sm font-medium"
+                  >
+                    Close Analysis
                   </button>
                 </div>
               )}

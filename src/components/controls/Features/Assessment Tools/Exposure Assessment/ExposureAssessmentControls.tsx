@@ -22,6 +22,7 @@ interface Props {
   mapRef?: React.RefObject<any>;
   uploadedFiles?: { name: string; layerName: string }[];
   onShowAspectRatioSelector?: (show: boolean) => void;
+  onRunAnalysis?: (data: any) => void;
 }
 
 const ExposureAssessmentControls: React.FC<Props> = ({
@@ -29,6 +30,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
   mapRef,
   uploadedFiles = [],
   onShowAspectRatioSelector,
+  onRunAnalysis,
 }) => {
   const [hazardCategory, setHazardCategory] = useState<string>("");
   const [hazardCategoryDropdownOpen, setHazardCategoryDropdownOpen] =
@@ -397,6 +399,46 @@ const ExposureAssessmentControls: React.FC<Props> = ({
     selectedElements.length > 0 ||
     elementDataSource ||
     selectedElementFile;
+
+  const handleRunAnalysis = () => {
+    console.log("Running exposure analysis...");
+
+    const analysisData = {
+      hazardType: `${selectedHazard} - ${
+        selectedAvailableData?.split(" - ")[0] || selectedImportedFile
+      } - ${
+        selectedAvailableData?.split(" - ")[1]?.replace(" Return Period", "") ||
+        ""
+      }`.trim(),
+      analysisArea:
+        selectedAvailableData?.split(" - ")[0] || selectedImportedFile || "",
+      scope: analysisScope,
+      analysisTime: new Date().toLocaleString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }),
+      elements: selectedElements.map((element) => ({
+        name: element,
+        exposedFeatures: Math.floor(Math.random() * 500),
+        exposedArea: (Math.random() * 100).toFixed(2),
+        totalFeatures: 416,
+      })),
+    };
+
+    console.log("Analysis data:", analysisData);
+
+    if (onRunAnalysis) {
+      console.log("Calling onRunAnalysis callback");
+      onRunAnalysis(analysisData);
+    } else {
+      console.error("onRunAnalysis callback not provided");
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -1083,6 +1125,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
       {/* Run Analysis Button */}
       <button
         disabled={!isComplete}
+        onClick={handleRunAnalysis}
         className={`w-full py-2.5 rounded-md shadow-md font-medium transition
           ${
             isComplete

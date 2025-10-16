@@ -1,3 +1,4 @@
+// \SafeGIS\Simulation-Studio\frontend\src\components\controls\Main\CenterBottomClock.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
