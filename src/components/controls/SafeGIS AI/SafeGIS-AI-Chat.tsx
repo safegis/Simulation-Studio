@@ -1,10 +1,11 @@
-// SafeGIS-AI-Chat.tsx
+// \SafeGIS\Simulation-Studio\frontend\src\components\controls\SafeGIS AI\SafeGIS-AI-Chat.tsx
 "use client";
 import { useEffect, useState, useRef } from "react";
 
 import {
   History,
   Expand,
+  Minimize,
   Plus,
   ArrowUp,
   MessageCirclePlus,
@@ -26,6 +27,7 @@ type Props = {
   isVisible: boolean;
   mapRef?: any;
   toggleChat: () => void;
+  onExpandToggle?: (expanded: boolean) => void;
   // New props for view switching
   viewMode?: "2d" | "3d";
   switchTo2D?: () => void;
@@ -199,6 +201,7 @@ export default function SafeGISAIChat({
   isVisible,
   mapRef,
   toggleChat,
+  onExpandToggle, // NEW PROP
   viewMode = "2d",
   switchTo2D,
   switchTo3D,
@@ -597,12 +600,16 @@ export default function SafeGISAIChat({
   return (
     <>
       <div
-        className={`absolute bottom-[18px] h-[543.6px] right-[109px] w-[400px] rounded-[15px] z-50 shadow-md origin-bottom-right flex flex-col
-        ${
-          isVisible
-            ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
-            : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
-        } py-3`}
+        className={`${
+          isExpanded
+            ? "fixed top-0 right-0 h-screen w-[500px] rounded-none"
+            : "absolute bottom-[18px] h-[543.6px] right-[109px] w-[400px] rounded-[15px]"
+        } z-50 shadow-md origin-bottom-right flex flex-col
+  ${
+    isVisible
+      ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
+      : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
+  } py-3`}
         style={{
           background: "linear-gradient(to bottom, #5A5C99, #232323)",
           overflow: "hidden",
@@ -629,7 +636,11 @@ export default function SafeGISAIChat({
           )}
 
           {/* Messages */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3 relative custom-scrollbar bg-transparent pb-[180px]">
+          <div
+            className={`flex-1 p-4 overflow-y-auto space-y-3 relative custom-scrollbar bg-transparent ${
+              isExpanded ? "pb-[180px]" : "pb-[180px]"
+            }`}
+          >
             {messages.map((msg, idx) => (
               <div
                 key={idx}
@@ -668,7 +679,11 @@ export default function SafeGISAIChat({
           </div>
 
           {/* Chat Input */}
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-[10px] flex flex-col gap-2 flex-shrink-0 w-[370px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg">
+          <div
+            className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 p-[10px] flex flex-col gap-2 flex-shrink-0 ${
+              isExpanded ? "w-[460px]" : "w-[370px]"
+            } bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg`}
+          >
             <div className="flex justify-between items-center mb-0.5">
               {/* Web Search */}
               <button
@@ -695,10 +710,15 @@ export default function SafeGISAIChat({
                   <History size={20} />
                 </button>
                 <button
-                  onClick={() => setIsExpanded((prev) => !prev)}
+                  onClick={() => {
+                    const newExpanded = !isExpanded;
+                    setIsExpanded(newExpanded);
+                    onExpandToggle?.(newExpanded);
+                  }}
                   className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
+                  title={isExpanded ? "Minimize" : "Expand"}
                 >
-                  <Expand size={20} />
+                  {isExpanded ? <Minimize size={20} /> : <Expand size={20} />}
                 </button>
               </div>
             </div>
@@ -778,20 +798,22 @@ export default function SafeGISAIChat({
         </div>
       </div>
 
-      {/* Chat Button when Open */}
-      <button
-        onClick={toggleChat}
-        className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
-        style={{
-          background: "linear-gradient(to bottom, #6B6DCC, #2E2E2E)",
-        }}
-      >
-        <img
-          src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
-          alt="SafeGIS AI Logo"
-          className="w-12 h-12 -mt-[2.5px]"
-        />
-      </button>
+      {/* Chat Button when Open - Hide when expanded */}
+      {!isExpanded && (
+        <button
+          onClick={toggleChat}
+          className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
+          style={{
+            background: "linear-gradient(to bottom, #6B6DCC, #2E2E2E)",
+          }}
+        >
+          <img
+            src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
+            alt="SafeGIS AI Logo"
+            className="w-12 h-12 -mt-[2.5px]"
+          />
+        </button>
+      )}
     </>
   );
 }

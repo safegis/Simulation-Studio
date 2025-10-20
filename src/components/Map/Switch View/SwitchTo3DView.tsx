@@ -22,7 +22,13 @@ export const switchTo3D = (
   >,
   selectedFeatureIndexRef: React.RefObject<number | null>,
   getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined,
-  addTerrainOnly: (map: mapboxgl.Map) => void
+  addTerrainOnly: (map: mapboxgl.Map) => void,
+  latestAffectedAreas: React.RefObject<GeoJSON.FeatureCollection | null>, // NEW
+  drawAffectedAreasHelper: (
+    map: mapboxgl.Map,
+    geojson: GeoJSON.FeatureCollection,
+    getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined
+  ) => void // NEW
 ) => {
   const map = mapInstance.current;
   if (!map || !mapIsLoaded.current || is3DMode.current) return;
@@ -81,6 +87,15 @@ export const switchTo3D = (
           fh.provinceName
         );
       });
+    }
+
+    // NEW: Restore affected areas
+    if (latestAffectedAreas.current) {
+      drawAffectedAreasHelper(
+        map,
+        latestAffectedAreas.current,
+        getTopSymbolLayerId
+      );
     }
   });
 };

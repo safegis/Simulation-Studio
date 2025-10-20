@@ -39,8 +39,12 @@ interface Props {
   // Congestion state synchronization
   congestionEnabled?: boolean;
   onCongestionToggle?: (enabled: boolean) => void;
+  onStartExposureAnalysis?: () => void;
   // Exposure assessment
-  onRunExposureAnalysis?: (data: any) => void;
+  onRunExposureAnalysis?: (
+    data: any,
+    affectedAreas?: GeoJSON.FeatureCollection
+  ) => void;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -100,6 +104,7 @@ export default function ToolPanel({
   setExpandedPanels,
   trafficExpanded,
   setTrafficExpanded,
+  onStartExposureAnalysis,
   onRunExposureAnalysis,
 }: Props) {
   const [hydroExpanded, setHydroExpanded] = useState(false);
@@ -1248,6 +1253,7 @@ export default function ToolPanel({
                     mapRef={mapRef}
                     uploadedFiles={uploadedFiles}
                     onShowAspectRatioSelector={onShowAspectRatioSelector}
+                    onStartAnalysis={onStartExposureAnalysis}
                     onRunAnalysis={onRunExposureAnalysis}
                   />
                 )}

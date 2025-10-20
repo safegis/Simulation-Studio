@@ -31,7 +31,7 @@ import {
   WeatherData,
 } from "./Markers/Hazard Map/WeatherMarker";
 
-import { ProvinceData } from "../controls/Features/Maps/Hazard Layers/Weather/PhilippinesProvinces";
+import { ensureAffectedAreasOnTop } from "./Markers/Assessment Tools/ExposureAssessmentMarkers";
 
 import {
   drawHealthFacilities as drawHealthFacilitiesHelper,
@@ -86,6 +86,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestFloodHazards = useRef<
     Array<{ geojsonUrl: string; returnPeriod: string; provinceName: string }>
   >([]);
+  const latestAffectedAreas = useRef<GeoJSON.FeatureCollection | null>(null);
 
   const healthPopupRef = useRef<mapboxgl.Popup | null>(null);
 
@@ -192,6 +193,90 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     return undefined;
   };
 
+  const drawAffectedAreasHelper = (
+    map: mapboxgl.Map,
+    geojson: GeoJSON.FeatureCollection,
+    getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined
+  ) => {
+    if (!map || !mapIsLoaded.current) return;
+
+    const sourceId = "affected-areas";
+    const layerId = "affected-areas-layer";
+    const outlineLayerId = "affected-areas-outline";
+
+    // Remove existing layers if they exist
+    if (map.getLayer(outlineLayerId)) map.removeLayer(outlineLayerId);
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+    // Add source
+    map.addSource(sourceId, {
+      type: "geojson",
+      data: geojson,
+    });
+
+    const beforeId = getTopSymbolLayerId(map);
+
+    // Add fill layer with semi-transparent red
+    map.addLayer(
+      {
+        id: layerId,
+        type: "fill",
+        source: sourceId,
+        paint: {
+          "fill-color": "#FF0000",
+          "fill-opacity": 0.3,
+        },
+      },
+      beforeId
+    );
+
+    // Add outline layer
+    map.addLayer(
+      {
+        id: outlineLayerId,
+        type: "line",
+        source: sourceId,
+        paint: {
+          "line-color": "#FF0000",
+          "line-width": 2,
+          "line-opacity": 0.8,
+        },
+      },
+      beforeId
+    );
+
+    // Add popup on click
+    const popup = new mapboxgl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+    });
+
+    map.on("click", layerId, (e) => {
+      if (!e.features || e.features.length === 0) return;
+      const feature = e.features[0];
+      const props = feature.properties || {};
+
+      let html = '<div class="text-sm"><strong>Affected Area</strong><br/>';
+      for (const key in props) {
+        html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+      }
+      html += "</div>";
+
+      popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+    });
+
+    // Cursor change on hover
+    map.on("mouseenter", layerId, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", layerId, () => {
+      map.getCanvas().style.cursor = "";
+    });
+
+    console.log(`Restored ${geojson.features.length} affected areas on map`);
+  };
+
   const {
     addResourceMarker,
     clearAllResources,
@@ -199,6 +284,21 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     getResourcesOnMap,
     onResourcesChanged,
   } = useResources(mapInstance);
+
+  const getUploadedLayerData = (layerName: string) => {
+    if (!mapInstance.current || !mapIsLoaded.current) return null;
+
+    const map = mapInstance.current;
+    const safeName = layerName.replace(/[^a-zA-Z0-9_-]/g, "");
+    const sourceId = `upload-${safeName}`;
+
+    const source = map.getSource(sourceId);
+    if (source && (source as any)._data) {
+      return (source as any)._data;
+    }
+
+    return null;
+  };
 
   useImperativeHandle(ref, () => ({
     flyTo: (opts: FlyToOptions) => {
@@ -268,7 +368,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         latestActiveFaults,
         latestFloodHazards,
         selectedFeatureIndexRef,
-        getTopSymbolLayerId
+        getTopSymbolLayerId,
+        latestAffectedAreas, // NEW: Pass affected areas ref
+        drawAffectedAreasHelper // NEW: Pass helper function
       ),
 
     switchTo3D: (label: string) =>
@@ -284,7 +386,9 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         latestFloodHazards,
         selectedFeatureIndexRef,
         getTopSymbolLayerId,
-        addTerrainOnly
+        addTerrainOnly,
+        latestAffectedAreas, // NEW: Pass affected areas ref
+        drawAffectedAreasHelper // NEW: Pass helper function
       ),
 
     setLightPreset: (preset: "dawn" | "day" | "dusk" | "night") => {
@@ -751,6 +855,151 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     flyToResource,
     onResourcesChanged,
     clearAllResources,
+    drawAffectedAreas: (geojson: GeoJSON.FeatureCollection) => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return;
+
+      // Store for restoration after style changes
+      latestAffectedAreas.current = geojson;
+
+      const sourceId = "affected-areas";
+      const layerId = "affected-areas-layer";
+      const outlineLayerId = "affected-areas-outline";
+
+      // Remove existing layers if they exist
+      if (map.getLayer(outlineLayerId)) map.removeLayer(outlineLayerId);
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      // Add source
+      map.addSource(sourceId, {
+        type: "geojson",
+        data: geojson,
+      });
+
+      // BEFORE: Used getTopSymbolLayerId which places below labels
+      // AFTER: Don't use beforeId to place on absolute top
+
+      // Add fill layer with semi-transparent red - NO beforeId = top layer
+      map.addLayer({
+        id: layerId,
+        type: "fill",
+        source: sourceId,
+        paint: {
+          "fill-color": "#FF0000",
+          "fill-opacity": 0.35, // Slightly more visible than analysis layers
+        },
+      });
+
+      // Add outline layer - NO beforeId = top layer
+      map.addLayer({
+        id: outlineLayerId,
+        type: "line",
+        source: sourceId,
+        paint: {
+          "line-color": "#FF0000",
+          "line-width": 2.5,
+          "line-opacity": 0.9,
+        },
+      });
+
+      // Add popup on click
+      const popup = new mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: true,
+      });
+
+      map.on("click", layerId, (e) => {
+        if (!e.features || e.features.length === 0) return;
+        const feature = e.features[0];
+        const props = feature.properties || {};
+
+        let html = '<div class="text-sm"><strong>Affected Area</strong><br/>';
+        for (const key in props) {
+          html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+        }
+        html += "</div>";
+
+        popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+      });
+
+      // Cursor change on hover
+      map.on("mouseenter", layerId, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", layerId, () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      console.log(
+        `Drew ${geojson.features.length} affected areas on TOP layer`
+      );
+    },
+
+    fitBoundsToAffectedAreas: (geojson: GeoJSON.FeatureCollection) => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current || !geojson.features.length) return;
+
+      try {
+        // Calculate bounds from all affected area features
+        const bounds = new mapboxgl.LngLatBounds();
+
+        geojson.features.forEach((feature) => {
+          if (feature.geometry.type === "Polygon") {
+            feature.geometry.coordinates[0].forEach((coord) => {
+              bounds.extend(coord as [number, number]);
+            });
+          } else if (feature.geometry.type === "MultiPolygon") {
+            feature.geometry.coordinates.forEach((polygon) => {
+              polygon[0].forEach((coord) => {
+                bounds.extend(coord as [number, number]);
+              });
+            });
+          } else if (feature.geometry.type === "LineString") {
+            feature.geometry.coordinates.forEach((coord) => {
+              bounds.extend(coord as [number, number]);
+            });
+          } else if (feature.geometry.type === "MultiLineString") {
+            feature.geometry.coordinates.forEach((line) => {
+              line.forEach((coord) => {
+                bounds.extend(coord as [number, number]);
+              });
+            });
+          }
+        });
+
+        // Fit map to bounds with padding
+        map.fitBounds(bounds, {
+          padding: 100,
+          maxZoom: 15,
+          duration: 1500,
+        });
+
+        console.log(`Zoomed to ${geojson.features.length} affected areas`);
+      } catch (error) {
+        console.error("Error fitting bounds to affected areas:", error);
+      }
+    },
+
+    clearAffectedAreas: () => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return;
+
+      // Clear stored data
+      latestAffectedAreas.current = null;
+
+      const sourceId = "affected-areas";
+      const layerId = "affected-areas-layer";
+      const outlineLayerId = "affected-areas-outline";
+
+      // Remove layers
+      if (map.getLayer(outlineLayerId)) map.removeLayer(outlineLayerId);
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      console.log("Cleared affected areas from map");
+    },
+    getUploadedLayerData,
   }));
   return (
     <>

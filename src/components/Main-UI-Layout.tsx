@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { ChevronDown } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
 
 import MapComponent from "./Map/MainCanvas";
 import SafeGISAIChat from "./controls/SafeGIS AI/SafeGIS-AI-Chat";
@@ -34,6 +35,7 @@ export default function MainUILayout() {
   const [isDesktop, setIsDesktop] = useState(true);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [showChat, setShowChat] = useState(false);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [showSelectMaps, setShowSelectMaps] = useState(false);
   const [showPathfinder, setShowPathfinder] = useState(false);
   const [showPlanningTools, setShowPlanningTools] = useState(false);
@@ -52,6 +54,9 @@ export default function MainUILayout() {
   );
   const [showToolPanel, setShowToolPanel] = useState(false);
   const [selectedMaps, setSelectedMaps] = useState<string[]>([]);
+  const [showAffectedAreas, setShowAffectedAreas] = useState(false);
+  const [affectedAreasData, setAffectedAreasData] =
+    useState<GeoJSON.FeatureCollection | null>(null);
 
   // Add state for expanded panels
   const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>(
@@ -108,8 +113,15 @@ export default function MainUILayout() {
   // Exposure assessment results state
   const [showExposureResults, setShowExposureResults] = useState(false);
   const [exposureResultsData, setExposureResultsData] = useState<any>(null);
+  const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
   const [exposureResultsMinimized, setExposureResultsMinimized] =
-    useState(false);
+    useState(true);
+  const [exposureResultsPosition, setExposureResultsPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [isDraggingResults, setIsDraggingResults] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
   const squareRatio = 1; // 1:1 square
   const rectangleRatio = 16 / 9; // rectangle ratio (can change to 4/3 etc.)
@@ -948,15 +960,86 @@ export default function MainUILayout() {
     return congestionSharedRefs.current;
   };
 
-  const handleRunExposureAnalysis = (data: any) => {
-    console.log("Main-UI-Layout: Received analysis data:", data);
-    setExposureResultsData(data);
+  const handleStartExposureAnalysis = () => {
+    console.log("Main-UI-Layout: Starting exposure analysis");
+
+    // Capture start time
+    const startTime = new Date().toLocaleString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+
+    setIsAnalysisRunning(true);
     setShowExposureResults(true);
-    setExposureResultsMinimized(false);
+    setExposureResultsMinimized(false); // Start expanded to show loading
+    // Store initial data with start time
+    setExposureResultsData({ startTime }); // NEW: Store start time immediately
+    setAffectedAreasData(null);
+    setShowAffectedAreas(false);
+  };
+
+  const handleRunExposureAnalysis = (
+    data: any,
+    affectedAreas?: GeoJSON.FeatureCollection
+  ) => {
+    console.log("Main-UI-Layout: Received analysis data:", data);
+    setIsAnalysisRunning(false);
+    setExposureResultsData(data);
+    setExposureResultsMinimized(true);
+
+    if (affectedAreas && affectedAreas.features.length > 0) {
+      setAffectedAreasData(affectedAreas);
+      setShowAffectedAreas(true);
+      mapRef.current?.drawAffectedAreas?.(affectedAreas);
+
+      // NEW: Auto-zoom to affected areas
+      setTimeout(() => {
+        mapRef.current?.fitBoundsToAffectedAreas?.(affectedAreas);
+      }, 500);
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDraggingResults) {
+        setExposureResultsPosition({
+          x: e.clientX - dragStartPos.current.x,
+          y: e.clientY - dragStartPos.current.y,
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isDraggingResults) {
+        setIsDraggingResults(false);
+      }
+    };
+
+    if (isDraggingResults) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDraggingResults]);
+
+  const handleClearAffectedAreas = () => {
+    console.log("Clearing affected areas from map");
+    mapRef.current?.clearAffectedAreas?.();
+    setShowAffectedAreas(false);
+    setAffectedAreasData(null);
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden">
+    <div className="relative w-screen h-screen overflow-hidden flex">
       {!isDesktop ? (
         <div className="flex items-center justify-center w-screen h-screen bg-[#1a1a1a] text-white text-center px-4">
           <div className="max-w-sm text-lg">
@@ -965,61 +1048,68 @@ export default function MainUILayout() {
         </div>
       ) : (
         <>
-          <MapComponent ref={mapRef} />
-
-          {/* Center Top Controls */}
-          <CenterTopControls
-            viewMode={viewMode}
-            selectedTimeOfDay={selectedTimeOfDay}
-            setShowTimeOfDayDropdown={setShowTimeOfDayDropdown}
-            showTimeOfDayDropdown={showTimeOfDayDropdown}
-            handleTimeOfDayChange={handleTimeOfDayChange}
-            selectedMapStyle={selectedMapStyle}
-            handleMapStyleChange={handleMapStyleChange}
-            mapStyleRef={mapStyleRef}
-            timeOfDayRef={timeOfDayRef}
-            showMapStyleDropdown={showMapStyleDropdown}
-            setShowMapStyleDropdown={setShowMapStyleDropdown}
-          />
-
-          {/* Center Left Controls */}
-          <CenterLeftControls
-            showSelectMaps={showSelectMaps}
-            setShowSelectMaps={setShowSelectMaps}
-            showPathfinder={showPathfinder}
-            setShowPathfinder={setShowPathfinder}
-            showPlanningTools={showPlanningTools}
-            setShowPlanningTools={setShowPlanningTools}
-            showAssessmentTools={showAssessmentTools}
-            setShowAssessmentTools={setShowAssessmentTools}
-            showToolPanel={showToolPanel}
-            setShowToolPanel={setShowToolPanel}
-            selectedMaps={selectedMaps}
-            selectedPlanningTools={selectedPlanningTools}
-            selectedAssessmentTools={selectedAssessmentTools}
-          />
-
-          {/* Location Search Bar or Pathfinder Controls*/}
-          {!showPathfinder ? (
-            <LocationSearchBar
-              searchText={searchText}
-              setSearchText={setSearchText}
-              suggestions={suggestions}
-              highlightedIndex={highlightedIndex}
-              handleKeyDown={handleKeyDown}
-              handleSuggestionSelect={handleSuggestionSelect}
-              searchContainerRef={searchContainerRef}
-              inputRef={inputRef}
-              suggestionsRef={suggestionsRef}
+          <div
+            className={`transition-all duration-300 ${
+              isChatExpanded ? "w-[calc(100vw-500px)]" : "w-screen"
+            } h-screen`}
+          >
+            <MapComponent ref={mapRef} />
+          </div>
+          {/* Center Top Controls - Hide when expanded */}
+          {!isChatExpanded && (
+            <CenterTopControls
+              viewMode={viewMode}
+              selectedTimeOfDay={selectedTimeOfDay}
+              setShowTimeOfDayDropdown={setShowTimeOfDayDropdown}
+              showTimeOfDayDropdown={showTimeOfDayDropdown}
+              handleTimeOfDayChange={handleTimeOfDayChange}
+              selectedMapStyle={selectedMapStyle}
+              handleMapStyleChange={handleMapStyleChange}
+              mapStyleRef={mapStyleRef}
+              timeOfDayRef={timeOfDayRef}
+              showMapStyleDropdown={showMapStyleDropdown}
+              setShowMapStyleDropdown={setShowMapStyleDropdown}
             />
-          ) : (
-            <div className="absolute top-[18px] left-[96px] z-50">
-              <PathfinderControls mapRef={mapRef} />
-            </div>
           )}
-
-          {/* Panels */}
-          {showSelectMaps && (
+          {/* Center Left Controls - Hide when expanded */}
+          {!isChatExpanded && (
+            <CenterLeftControls
+              showSelectMaps={showSelectMaps}
+              setShowSelectMaps={setShowSelectMaps}
+              showPathfinder={showPathfinder}
+              setShowPathfinder={setShowPathfinder}
+              showPlanningTools={showPlanningTools}
+              setShowPlanningTools={setShowPlanningTools}
+              showAssessmentTools={showAssessmentTools}
+              setShowAssessmentTools={setShowAssessmentTools}
+              showToolPanel={showToolPanel}
+              setShowToolPanel={setShowToolPanel}
+              selectedMaps={selectedMaps}
+              selectedPlanningTools={selectedPlanningTools}
+              selectedAssessmentTools={selectedAssessmentTools}
+            />
+          )}
+          {/* Location Search Bar or Pathfinder Controls - Hide when expanded */}
+          {!isChatExpanded &&
+            (!showPathfinder ? (
+              <LocationSearchBar
+                searchText={searchText}
+                setSearchText={setSearchText}
+                suggestions={suggestions}
+                highlightedIndex={highlightedIndex}
+                handleKeyDown={handleKeyDown}
+                handleSuggestionSelect={handleSuggestionSelect}
+                searchContainerRef={searchContainerRef}
+                inputRef={inputRef}
+                suggestionsRef={suggestionsRef}
+              />
+            ) : (
+              <div className="absolute top-[18px] left-[96px] z-50">
+                <PathfinderControls mapRef={mapRef} />
+              </div>
+            ))}
+          {/* Panels - Hide when expanded */}
+          {!isChatExpanded && showSelectMaps && (
             <div className="absolute left-[96px] top-[73px] w-96 z-40">
               <SelectMaps
                 isVisible={true}
@@ -1035,8 +1125,7 @@ export default function MainUILayout() {
               />
             </div>
           )}
-
-          {showPlanningTools && (
+          {!isChatExpanded && showPlanningTools && (
             <div className="absolute left-[96px] top-[73px] w-96 z-40">
               <SelectPlanningTools
                 isVisible={true}
@@ -1052,8 +1141,7 @@ export default function MainUILayout() {
               />
             </div>
           )}
-
-          {showAssessmentTools && (
+          {!isChatExpanded && showAssessmentTools && (
             <div className="absolute left-[96px] top-[73px] w-96 z-40">
               <SelectAssessment
                 isVisible={true}
@@ -1069,8 +1157,7 @@ export default function MainUILayout() {
               />
             </div>
           )}
-
-          {showToolPanel && (
+          {!isChatExpanded && showToolPanel && (
             <div className="absolute left-[96px] top-[73px] w-96 z-40">
               <ToolPanel
                 isVisible={true}
@@ -1117,31 +1204,32 @@ export default function MainUILayout() {
                     disableCongestion();
                   }
                 }}
+                onStartExposureAnalysis={handleStartExposureAnalysis}
                 onRunExposureAnalysis={handleRunExposureAnalysis}
               />
             </div>
           )}
-
-          {/* User Settings Button at Bottom Left */}
-          <UserSettings />
-
-          {/* Right Side Controls */}
-          <RightSideControls
-            show3DControls={show3DControls}
-            viewMode={viewMode}
-            switchTo2D={switchTo2D}
-            switchTo3D={switchTo3D}
-            handleZoom={handleZoom}
-            mapRef={mapRef}
-            uploadedFiles={uploadedFiles}
-            setUploadedFiles={setUploadedFiles}
-          />
-
+          {/* User Settings Button at Bottom Left - Hide when expanded */}
+          {!isChatExpanded && <UserSettings />}
+          {/* Right Side Controls - Hide when expanded */}
+          {!isChatExpanded && (
+            <RightSideControls
+              show3DControls={show3DControls}
+              viewMode={viewMode}
+              switchTo2D={switchTo2D}
+              switchTo3D={switchTo3D}
+              handleZoom={handleZoom}
+              mapRef={mapRef}
+              uploadedFiles={uploadedFiles}
+              setUploadedFiles={setUploadedFiles}
+            />
+          )}
           {/* SafeGIS AI Chat Button */}
           <SafeGISAIChat
             isVisible={showChat}
             mapRef={mapRef}
             toggleChat={() => setShowChat((prev) => !prev)}
+            onExpandToggle={setIsChatExpanded}
             viewMode={viewMode}
             switchTo2D={switchTo2D}
             switchTo3D={switchTo3D}
@@ -1261,9 +1349,8 @@ export default function MainUILayout() {
               expandTrafficDropdown: () => setTrafficExpanded(true),
             }}
           />
-
-          {/* Aspect Ratio Selector */}
-          {showAspectRatioSelector && (
+          {/* Aspect Ratio Selector - Hide when expanded */}
+          {!isChatExpanded && showAspectRatioSelector && (
             <div className="absolute bottom-[109px] left-1/2 transform -translate-x-1/2 z-50 bg-[#2E2E2E] rounded-xl shadow-lg p-6">
               <div className="text-white text-center font-medium mb-4">
                 Select Aspect Ratio
@@ -1572,158 +1659,357 @@ export default function MainUILayout() {
             </div>
           )}
 
-          {/* Exposure Assessment Results */}
-          {showExposureResults && exposureResultsData && (
-            <div className="absolute bottom-[109px] left-1/2 transform -translate-x-1/2 z-50 bg-[#2E2E2E]/75 backdrop-blur-xs rounded-xl shadow-lg w-[450px] text-white">
+          {/* Exposure Assessment Results - Hide when expanded */}
+          {!isChatExpanded && showExposureResults && (
+            <div
+              className="absolute z-50 bg-[#2E2E2E]/75 backdrop-blur-xs rounded-xl shadow-lg w-[650px] text-white"
+              style={{
+                bottom: `${109 - exposureResultsPosition.y}px`,
+                left: `calc(50% + ${exposureResultsPosition.x}px)`,
+                transform: "translateX(-50%)",
+                cursor: isDraggingResults ? "grabbing" : "auto",
+              }}
+            >
               {/* Header */}
-              <div className="flex justify-between items-center px-4 py-3 bg-[#3a3a3a] rounded-t-xl">
+              <div
+                className="flex justify-between items-center px-4 py-3 bg-[#3a3a3a] rounded-t-xl cursor-grab active:cursor-grabbing"
+                onMouseDown={(e) => {
+                  setIsDraggingResults(true);
+                  dragStartPos.current = {
+                    x: e.clientX - exposureResultsPosition.x,
+                    y: e.clientY - exposureResultsPosition.y,
+                  };
+                }}
+              >
                 <h3 className="text-[15px] font-semibold">
-                  Assessment Results
+                  Exposure Assessment Results
                 </h3>
-                <button
-                  onClick={() =>
-                    setExposureResultsMinimized(!exposureResultsMinimized)
-                  }
-                  className="text-white hover:text-gray-300 transition flex items-center"
-                >
-                  <ChevronDown
-                    size={22}
-                    className={`transition-transform duration-200 ${
-                      exposureResultsMinimized ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
+                {!isAnalysisRunning && (
+                  <button
+                    onClick={() =>
+                      setExposureResultsMinimized(!exposureResultsMinimized)
+                    }
+                    className="text-white hover:text-gray-300 transition flex items-center"
+                  >
+                    <ChevronDown
+                      size={22}
+                      className={`transition-transform duration-200 ${
+                        exposureResultsMinimized ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                )}
               </div>
-
               {/* Content */}
               <div
                 className={exposureResultsMinimized ? "px-4 pt-3" : "px-5 py-3"}
               >
-                {/* Analysis Overview */}
-                <div className="mb-5">
-                  <h4 className="text-sm font-semibold mb-3">
-                    Analysis Overview
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-gray-400 mb-1">Hazard Type</div>
-                      <div className="text-white">
-                        {exposureResultsData.hazardType}
-                      </div>
+                {isAnalysisRunning ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="relative w-16 h-16 mb-4">
+                      <div className="absolute inset-0 border-4 border-gray-600 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-t-[#9699FF] rounded-full animate-spin"></div>
                     </div>
-                    <div>
-                      <div className="text-gray-400 mb-1">Analysis Area</div>
-                      <div className="text-white">
-                        {exposureResultsData.analysisArea}
-                      </div>
+                    <div className="text-white text-lg font-medium mb-2">
+                      Running Assessment...
                     </div>
-                    {!exposureResultsMinimized && (
-                      <>
-                        <div>
-                          <div className="text-gray-400 mb-1">Scope</div>
-                          <div className="text-white">
-                            {exposureResultsData.scope}
-                          </div>
-                        </div>
+                    <div className="text-gray-400 text-sm">
+                      Analyzing exposure data, please wait
+                    </div>
+                  </div>
+                ) : exposureResultsData ? (
+                  <>
+                    {/* Analysis Overview */}
+                    <div className="mb-5">
+                      <h4 className="text-sm font-semibold mb-3">
+                        Analysis Overview
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        {/* NEW: Hazard Analyzed count */}
                         <div>
                           <div className="text-gray-400 mb-1">
-                            Analysis Time
+                            Hazard/s Analyzed:
                           </div>
                           <div className="text-white">
-                            {exposureResultsData.analysisTime}
+                            {exposureResultsData.hazardBreakdown?.length || 1}{" "}
                           </div>
                         </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Elements Results */}
-                <div
-                  className={
-                    `max-h-[200px] overflow-y-auto ${
-                      !exposureResultsMinimized ? "pr-2" : ""
-                    }` /* Add right padding when not minimized */
-                  }
-                  style={{
-                    scrollbarWidth: "thin",
-                    scrollbarColor: "#706f6f transparent",
-                  }}
-                >
-                  {exposureResultsData.elements.map(
-                    (element: any, index: number) => (
-                      <div
-                        key={index}
-                        className={`mb-4 bg-[#3a3a3a] rounded-lg ${
-                          exposureResultsMinimized ? "p-2.5" : "p-3"
-                        }`}
-                      >
-                        <div
-                          className={`flex justify-between items-center ${
-                            !exposureResultsMinimized ? "mb-3" : ""
-                          }`}
-                        >
-                          <h5 className="text-sm font-medium">
-                            {element.name}
-                          </h5>
-                          <span className="bg-yellow-400 text-black text-xs font-semibold px-1.5 py-1 rounded">
-                            {(
-                              (element.exposedFeatures /
-                                element.totalFeatures) *
-                              100
-                            ).toFixed(1)}
-                            % Exposed
-                          </span>
-                        </div>
-                        {!exposureResultsMinimized && (
-                          <div className="text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">
-                                Exposed Features:
-                              </span>
-                              <span className="text-white">
-                                {element.exposedFeatures} /{" "}
-                                {element.totalFeatures}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">
-                                Exposed Area:
-                              </span>
-                              <span className="text-white">
-                                / {element.exposedArea} km²
-                              </span>
-                            </div>
+                        <div>
+                          <div className="text-gray-400 mb-1">Started at:</div>
+                          <div className="text-white">
+                            {exposureResultsData.startTime ? (
+                              exposureResultsData.startTime
+                            ) : (
+                              <span className="text-gray-500">Running...</span>
+                            )}
                           </div>
-                        )}
+                        </div>
+                        <div className="col-span-2">
+                          <div className="text-gray-400 mb-1">Finished at:</div>
+                          <div className="text-white">
+                            {exposureResultsData.analysisTime ? (
+                              exposureResultsData.analysisTime
+                            ) : (
+                              <span className="text-gray-500">
+                                In progress...
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )
-                  )}
-                </div>
+                    </div>
+
+                    {/* Results grouped by hazard */}
+                    <div
+                      className={`max-h-[350px] overflow-y-auto ${
+                        !exposureResultsMinimized ? "pr-2" : ""
+                      }`}
+                      style={{
+                        scrollbarWidth: "thin",
+                        scrollbarColor: "#706f6f transparent",
+                      }}
+                    >
+                      {(() => {
+                        const groupedResults: Record<string, any[]> = {};
+
+                        exposureResultsData.elements.forEach((element: any) => {
+                          const hazardKey = element.analysisArea
+                            ? `${element.hazardType}|||${element.analysisArea}`
+                            : element.hazardType ||
+                              exposureResultsData.hazardType;
+
+                          if (!groupedResults[hazardKey]) {
+                            groupedResults[hazardKey] = [];
+                          }
+                          groupedResults[hazardKey].push(element);
+                        });
+
+                        return Object.entries(groupedResults).map(
+                          ([hazardKey, elements], hazardIndex) => {
+                            const [hazardType, analysisArea] =
+                              hazardKey.includes("|||")
+                                ? hazardKey.split("|||")
+                                : [hazardKey, null];
+
+                            return (
+                              <div key={hazardIndex} className="mb-4">
+                                {/* CHANGED: Always show header, removed condition */}
+                                <div className="mb-2 pb-2 border-b border-gray-600">
+                                  <div className="text-white font-semibold text-sm flex items-start gap-2">
+                                    <span className="bg-[#5A5C99] px-2 py-1 rounded text-xs whitespace-nowrap">
+                                      Hazard Data:
+                                    </span>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs">
+                                        {hazardType}
+                                      </span>
+                                      {analysisArea && (
+                                        <span className="text-xs text-gray-400 mt-0.5">
+                                          {analysisArea}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {elements.map(
+                                    (element: any, elementIndex: number) => {
+                                      const total = parseFloat(
+                                        element.totalSurfaceArea
+                                      );
+                                      const affected = parseFloat(
+                                        element.affectedArea
+                                      );
+                                      const percentage =
+                                        total > 0
+                                          ? (affected / total) * 100
+                                          : 0.0;
+
+                                      // Data for donut chart
+                                      const chartData = [
+                                        {
+                                          name: "Exposed",
+                                          value: affected,
+                                          fill: "#FFD700",
+                                        },
+                                        {
+                                          name: "Not Exposed",
+                                          value: total - affected,
+                                          fill: "#404040",
+                                        },
+                                      ];
+
+                                      return (
+                                        <div
+                                          key={elementIndex}
+                                          className={`bg-[#3a3a3a] rounded-lg ${
+                                            exposureResultsMinimized
+                                              ? "p-2.5"
+                                              : "p-3"
+                                          }`}
+                                        >
+                                          {/* BEFORE: Header with centered element name */}
+                                          {/* AFTER: Header with left-aligned name and percentage badge when minimized */}
+                                          {exposureResultsMinimized ? (
+                                            <div className="flex items-center justify-between mb-0">
+                                              <h5 className="text-sm font-medium text-left">
+                                                {element.name}
+                                              </h5>
+                                              <span className="bg-[#FFD700] text-[#2E2E2E] px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap ml-2">
+                                                {percentage.toFixed(2)}% Exposed
+                                              </span>
+                                            </div>
+                                          ) : (
+                                            <div className="mb-3">
+                                              <h5 className="text-sm font-medium text-center">
+                                                {element.name}
+                                              </h5>
+                                            </div>
+                                          )}
+
+                                          {!exposureResultsMinimized && (
+                                            <>
+                                              {/* Centered Donut Chart */}
+                                              <div className="flex justify-center mb-1">
+                                                <div
+                                                  style={{
+                                                    width: "155px",
+                                                    height: "155px",
+                                                    position: "relative",
+                                                  }}
+                                                >
+                                                  <ResponsiveContainer
+                                                    width="100%"
+                                                    height="100%"
+                                                  >
+                                                    <PieChart>
+                                                      {/* Base layer - all segments at normal size */}
+                                                      <Pie
+                                                        data={chartData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={50}
+                                                        outerRadius={65}
+                                                        dataKey="value"
+                                                        startAngle={90}
+                                                        endAngle={-270}
+                                                      >
+                                                        {chartData.map(
+                                                          (entry, index) => (
+                                                            <Cell
+                                                              key={`cell-${index}`}
+                                                              fill={entry.fill}
+                                                            />
+                                                          )
+                                                        )}
+                                                      </Pie>
+                                                      {/* Raised layer - only exposed segment */}
+                                                      <Pie
+                                                        data={[chartData[0]]}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={50}
+                                                        outerRadius={70}
+                                                        dataKey="value"
+                                                        startAngle={90}
+                                                        endAngle={
+                                                          90 -
+                                                          (percentage / 100) *
+                                                            360
+                                                        }
+                                                        fill="#FFD700"
+                                                      />
+                                                    </PieChart>
+                                                  </ResponsiveContainer>
+                                                  {/* Center text overlay */}
+                                                  <div
+                                                    style={{
+                                                      position: "absolute",
+                                                      top: "50%",
+                                                      left: "50%",
+                                                      transform:
+                                                        "translate(-50%, -50%)",
+                                                      textAlign: "center",
+                                                    }}
+                                                  >
+                                                    <div className="text-white text-lg font-bold">
+                                                      {percentage.toFixed(2)}%
+                                                    </div>
+                                                    <div className="text-gray-400 text-xs">
+                                                      Exposed
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              {/* Stats below chart */}
+                                              <div className="text-sm space-y-1">
+                                                <div className="flex justify-between">
+                                                  <span className="text-gray-400">
+                                                    {element.unit === "km"
+                                                      ? "Total Length:"
+                                                      : "Total Surface Area:"}
+                                                  </span>
+                                                  <span className="text-white">
+                                                    {element.totalSurfaceArea}{" "}
+                                                    {element.unit || "km²"}
+                                                  </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-gray-400">
+                                                    {element.unit === "km"
+                                                      ? "Affected length:"
+                                                      : "Affected by hazard:"}
+                                                  </span>
+                                                  <span className="text-white">
+                                                    {element.affectedArea}{" "}
+                                                    {element.unit || "km²"}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+                        );
+                      })()}
+                    </div>
+                  </>
+                ) : null}
               </div>
 
               {/* Footer Buttons */}
-              {!exposureResultsMinimized && (
-                <div className="flex gap-3 px-3.5 pb-3.5">
-                  <button className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition text-sm font-medium">
-                    Export Report
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowExposureResults(false);
-                      setExposureResultsData(null);
-                    }}
-                    className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition text-sm font-medium"
-                  >
-                    Close Analysis
-                  </button>
-                </div>
-              )}
+              {!isAnalysisRunning &&
+                !exposureResultsMinimized &&
+                exposureResultsData && (
+                  <div className="flex gap-3 px-3.5 pb-3.5">
+                    <button className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition text-sm font-medium">
+                      Export Report
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowExposureResults(false);
+                        setExposureResultsData(null);
+                        setExposureResultsPosition({ x: 0, y: 0 });
+                        setIsAnalysisRunning(false);
+                        handleClearAffectedAreas();
+                      }}
+                      className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition text-sm font-medium"
+                    >
+                      Close Analysis
+                    </button>
+                  </div>
+                )}
             </div>
           )}
-
-          {/* Center Bottom Clock */}
-          <CenterBottomClock />
+          {/* Center Bottom Clock - Hide when expanded */}
+          {!isChatExpanded && <CenterBottomClock />}
         </>
       )}
     </div>

@@ -21,7 +21,13 @@ export const switchTo2D = (
     Array<{ geojsonUrl: string; returnPeriod: string; provinceName: string }>
   >,
   selectedFeatureIndexRef: React.RefObject<number | null>,
-  getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined
+  getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined,
+  latestAffectedAreas: React.RefObject<GeoJSON.FeatureCollection | null>, // NEW parameter
+  drawAffectedAreasHelper: (
+    map: mapboxgl.Map,
+    geojson: GeoJSON.FeatureCollection,
+    getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined
+  ) => void // NEW parameter
 ) => {
   const map = mapInstance.current;
   if (!map || !mapIsLoaded.current || !is3DMode.current) return;
@@ -97,6 +103,15 @@ export const switchTo2D = (
           fh.provinceName
         );
       });
+    }
+
+    // NEW: Restore affected areas if they exist
+    if (latestAffectedAreas.current) {
+      drawAffectedAreasHelper(
+        map,
+        latestAffectedAreas.current,
+        getTopSymbolLayerId
+      );
     }
   });
 };

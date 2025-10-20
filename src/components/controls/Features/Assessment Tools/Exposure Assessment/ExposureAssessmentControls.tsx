@@ -7,6 +7,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { floodHazardMaps } from "../../Maps/Hazard Layers/Flood/NOAAFloodHazardConfig";
 import { exposureElementsData } from "./OSMExposureElementsData";
 
+import {
+  drawAnalysisFloodHazard,
+  drawAnalysisExposureElement,
+  ensureAffectedAreasOnTop,
+} from "../../../../Map/Markers/Assessment Tools/ExposureAssessmentMarkers";
+
 type PanelToggleProps = {
   title: string;
   icon: React.ReactNode;
@@ -22,7 +28,11 @@ interface Props {
   mapRef?: React.RefObject<any>;
   uploadedFiles?: { name: string; layerName: string }[];
   onShowAspectRatioSelector?: (show: boolean) => void;
-  onRunAnalysis?: (data: any) => void;
+  onStartAnalysis?: () => void;
+  onRunAnalysis?: (
+    data: any,
+    affectedAreas?: GeoJSON.FeatureCollection
+  ) => void;
 }
 
 const ExposureAssessmentControls: React.FC<Props> = ({
@@ -30,413 +40,491 @@ const ExposureAssessmentControls: React.FC<Props> = ({
   mapRef,
   uploadedFiles = [],
   onShowAspectRatioSelector,
+  onStartAnalysis,
   onRunAnalysis,
 }) => {
-  const [hazardCategory, setHazardCategory] = useState<string>("");
-  const [hazardCategoryDropdownOpen, setHazardCategoryDropdownOpen] =
-    useState(false);
-  const [selectedHazard, setSelectedHazard] = useState<string>("");
-  const [hazardDropdownOpen, setHazardDropdownOpen] = useState(false);
+  // Step 1: Hazard Data
   const [hazardDataSource, setHazardDataSource] = useState<string>("");
   const [hazardDataDropdownOpen, setHazardDataDropdownOpen] = useState(false);
-  const [analysisScope, setAnalysisScope] = useState<string>("");
-  const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
-  const [selectedElements, setSelectedElements] = useState<string[]>([]);
+  const [selectedHazardData, setSelectedHazardData] = useState<string[]>([]);
+  const [selectedImportedHazardFiles, setSelectedImportedHazardFiles] =
+    useState<string[]>([]);
+  const [importedHazardFileDropdownOpen, setImportedHazardFileDropdownOpen] =
+    useState(false);
+  const [hazardFileSearchTerm, setHazardFileSearchTerm] = useState("");
+
+  // Step 2: Exposure Element Data
   const [elementDataSource, setElementDataSource] = useState<string>("");
   const [elementDataDropdownOpen, setElementDataDropdownOpen] = useState(false);
-  const [selectedImportedFile, setSelectedImportedFile] = useState<string>("");
-  const [importedFileDropdownOpen, setImportedFileDropdownOpen] =
-    useState(false);
-  const [selectedElementFile, setSelectedElementFile] = useState<string>("");
-  const [elementFileDropdownOpen, setElementFileDropdownOpen] = useState(false);
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState<string>("");
-  const [selectedCountry, setSelectedCountry] = useState<string>("");
-  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
-  const [selectedSource, setSelectedSource] = useState<string>("");
-  const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
-  const [selectedAvailableData, setSelectedAvailableData] =
-    useState<string>("");
-  const [availableDataDropdownOpen, setAvailableDataDropdownOpen] =
-    useState(false);
-  const [availableDataSearchTerm, setAvailableDataSearchTerm] = useState("");
-  const [selectedElementCountry, setSelectedElementCountry] =
-    useState<string>("");
-  const [elementCountryDropdownOpen, setElementCountryDropdownOpen] =
-    useState(false);
-  const [selectedElementSource, setSelectedElementSource] =
-    useState<string>("");
-  const [elementSourceDropdownOpen, setElementSourceDropdownOpen] =
-    useState(false);
-  const [selectedElementAvailableData, setSelectedElementAvailableData] =
+  const [selectedElementData, setSelectedElementData] = useState<string[]>([]);
+  const [selectedImportedElementFiles, setSelectedImportedElementFiles] =
     useState<string[]>([]);
-  const [
-    elementAvailableDataDropdownOpen,
-    setElementAvailableDataDropdownOpen,
-  ] = useState(false);
-  const [elementAvailableDataSearchTerm, setElementAvailableDataSearchTerm] =
-    useState("");
-
-  const hazardCategoryOptions = ["Hydro-Meteorological", "Geological"];
-
-  const getHazardOptions = () => {
-    if (hazardCategory === "Hydro-Meteorological") {
-      return ["Flood", "Storm Surge", "Tsunami", "Landslide (Rain-induced)"];
-    } else if (hazardCategory === "Geological") {
-      return ["Earthquake", "Landslide (Earthquake-triggered)"];
-    }
-    return [];
-  };
+  const [importedElementFileDropdownOpen, setImportedElementFileDropdownOpen] =
+    useState(false);
+  const [elementFileSearchTerm, setElementFileSearchTerm] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const hazardDataOptions = ["Use existing data", "Use imported data"];
-
-  const scopeOptions = ["Current map view", "Draw custom area"];
-
-  const exposureElements = [
-    "Population Density",
-    "Areas (e.g. Regions, Cities)",
-    "Land Cover",
-    "Critical Facilities",
-    "Transportation Networks",
-  ];
-
   const elementDataOptions = ["Use existing data", "Use imported data"];
 
-  const countryOptions = ["Philippines", "United States of America"];
-  const getSourceOptions = () => {
-    if (selectedCountry === "Philippines") {
-      return [
-        "Mines and Geosciences Bureau (MGB)",
-        "Nationwide Operational Assessment of Hazards (NOAH)",
-      ];
-    } else if (selectedCountry === "United States of America") {
-      return ["National Level", "By state", "By city"];
-    }
-    return [];
-  };
+  // Define proper types for hazard and element data
+  interface HazardDataItem {
+    displayName: string;
+    config: any;
+    returnPeriod: string;
+  }
 
-  const getElementSourceOptions = () => {
-    if (selectedElementCountry === "Philippines") {
-      const sources = new Set<string>();
+  interface ElementDataItem {
+    displayName: string;
+    config: any;
+  }
 
-      if (selectedElements.includes("Population Density")) {
-        sources.add("OSM");
-        sources.add("HOTSM");
-        sources.add("OCHA");
-      }
-      if (selectedElements.includes("Areas (e.g. Regions, Cities)")) {
-        sources.add("OSM");
-        sources.add("Mapbox");
-      }
-      if (selectedElements.includes("Land Cover")) {
-        sources.add("OSM");
-        sources.add("MGB");
-      }
-      if (selectedElements.includes("Critical Facilities")) {
-        sources.add("OSM");
-        sources.add("HOTSM");
-        sources.add("OCHAHOTSM");
-        sources.add("OCHA");
-      }
-      if (selectedElements.includes("Transportation Networks")) {
-        sources.add("OSM");
-      }
+  // Get all available hazard data (currently only flood)
+  const getAllHazardData = (): HazardDataItem[] => {
+    const allData: HazardDataItem[] = [];
 
-      return Array.from(sources).sort();
-    }
-    return [];
-  };
-
-  const getElementAvailableDataOptions = () => {
-    if (
-      selectedElementCountry === "Philippines" &&
-      selectedElementSource === "OSM"
-    ) {
-      const options: {
-        displayName: string;
-        sortKey: string;
-      }[] = [];
-
-      // Get selected element types that support OSM
-      const supportedElements = selectedElements.filter(
-        (element) =>
-          element === "Land Cover" || element === "Transportation Networks"
-      );
-
-      supportedElements.forEach((elementType) => {
-        if (
-          elementType === "Land Cover" &&
-          exposureElementsData["Land Cover"]
-        ) {
-          exposureElementsData["Land Cover"].forEach((config) => {
-            options.push({
-              displayName: `${config.name}, ${config.country} - ${config.elementType} (${config.source})`,
-              sortKey: config.name,
-            });
-          });
-        }
-        if (
-          elementType === "Transportation Networks" &&
-          exposureElementsData["Transportation Networks"]
-        ) {
-          exposureElementsData["Transportation Networks"].forEach((config) => {
-            options.push({
-              displayName: `${config.name}, ${config.country} - ${config.elementType} (${config.source})`,
-              sortKey: config.name,
-            });
-          });
-        }
-      });
-
-      // Sort alphabetically by location name
-      return options
-        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-        .map((option) => option.displayName);
-    }
-    return [];
-  };
-
-  const getAvailableDataOptions = () => {
-    if (
-      selectedSource === "Nationwide Operational Assessment of Hazards (NOAH)"
-    ) {
-      const options: {
-        name: string;
-        returnPeriod: string;
-        sortOrder: number;
-      }[] = [];
-
-      // Define return period sort order
-      const returnPeriodOrder: Record<string, number> = {
-        "5-Year": 1,
-        "25-Year": 2,
-        "100-Year": 3,
-      };
-
-      // Iterate through each return period
-      Object.entries(floodHazardMaps).forEach(([returnPeriod, configs]) => {
-        configs.forEach((config) => {
-          options.push({
-            name: config.name,
-            returnPeriod: returnPeriod,
-            sortOrder: returnPeriodOrder[returnPeriod] || 999,
-          });
+    Object.entries(floodHazardMaps).forEach(([returnPeriod, configs]) => {
+      configs.forEach((config) => {
+        allData.push({
+          displayName: `${config.name} - Flood - ${returnPeriod} Return Period`,
+          config: config,
+          returnPeriod: returnPeriod,
         });
       });
+    });
 
-      // Sort by return period first, then alphabetically by name
-      return options
-        .sort((a, b) => {
-          const periodCompare = a.sortOrder - b.sortOrder;
-          if (periodCompare !== 0) return periodCompare;
-          return a.name.localeCompare(b.name);
-        })
-        .map(
-          (option) => `${option.name} - ${option.returnPeriod} Return Period`
-        );
+    return allData;
+  };
+
+  // Get all available exposure element data
+  const getAllElementData = (): ElementDataItem[] => {
+    const allData: ElementDataItem[] = [];
+
+    // Land Cover
+    if (exposureElementsData["Land Cover"]) {
+      exposureElementsData["Land Cover"].forEach((config) => {
+        allData.push({
+          displayName: `${config.name}, ${config.country} - ${config.elementType} (${config.source})`,
+          config: config,
+        });
+      });
     }
-    return [];
-  };
 
-  const handleElementToggle = (item: string) => {
-    setSelectedElements((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
-    );
-  };
+    // Transportation Networks
+    if (exposureElementsData["Transportation Networks"]) {
+      exposureElementsData["Transportation Networks"].forEach((config) => {
+        allData.push({
+          displayName: `${config.name}, ${config.country} - ${config.elementType} (${config.source})`,
+          config: config,
+        });
+      });
+    }
 
-  const handleElementAvailableDataToggle = (item: string) => {
-    setSelectedElementAvailableData((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
-    );
+    return allData;
   };
 
   const handleClearSteps = () => {
-    setHazardCategory("");
-    setSelectedHazard("");
     setHazardDataSource("");
-    setSelectedImportedFile("");
-    setSelectedAspectRatio("");
-    setAnalysisScope("");
-    setSelectedElements([]);
+    setSelectedHazardData([]);
+    setSelectedImportedHazardFiles([]);
+    setHazardFileSearchTerm("");
     setElementDataSource("");
-    setSelectedElementFile("");
-    setSelectedElements([]);
-    setElementDataSource("");
-    setSelectedCountry("");
-    setSelectedSource("");
-    setSelectedAvailableData("");
-    setSelectedElementCountry("");
-    setSelectedElementSource("");
-    setSelectedElementAvailableData([]);
-    // Close all dropdowns
-    setHazardCategoryDropdownOpen(false);
-    setHazardDropdownOpen(false);
+    setSelectedElementData([]);
+    setSelectedImportedElementFiles([]);
+    setElementFileSearchTerm("");
     setHazardDataDropdownOpen(false);
-    setImportedFileDropdownOpen(false);
-    setScopeDropdownOpen(false);
+    setImportedHazardFileDropdownOpen(false);
     setElementDataDropdownOpen(false);
-    setElementFileDropdownOpen(false);
-    setCountryDropdownOpen(false);
-    setSourceDropdownOpen(false);
-    setAvailableDataDropdownOpen(false);
-    setElementCountryDropdownOpen(false);
-    setElementSourceDropdownOpen(false);
-    setElementAvailableDataDropdownOpen(false);
+    setImportedElementFileDropdownOpen(false);
   };
 
-  // Reset selectedHazard when hazardCategory changes
-  useEffect(() => {
-    setSelectedHazard("");
-  }, [hazardCategory]);
-
-  // Reset selectedImportedFile when hazardDataSource changes
+  // Reset selections when data source changes
   useEffect(() => {
     if (hazardDataSource !== "Use imported data") {
-      setSelectedImportedFile("");
+      setSelectedImportedHazardFiles([]);
+      setHazardFileSearchTerm("");
     }
     if (hazardDataSource !== "Use existing data") {
-      setSelectedCountry("");
-      setSelectedSource("");
+      setSelectedHazardData([]);
     }
   }, [hazardDataSource]);
 
-  // Reset selectedSource when selectedCountry changes
-  useEffect(() => {
-    setSelectedSource("");
-  }, [selectedCountry]);
-
-  // Reset selectedAvailableData when selectedSource changes
-  useEffect(() => {
-    setSelectedAvailableData("");
-  }, [selectedSource]);
-
-  // Reset selectedElementFile when elementDataSource changes
   useEffect(() => {
     if (elementDataSource !== "Use imported data") {
-      setSelectedElementFile("");
+      setSelectedImportedElementFiles([]);
+      setElementFileSearchTerm("");
     }
     if (elementDataSource !== "Use existing data") {
-      setSelectedElementCountry("");
-      setSelectedElementSource("");
+      setSelectedElementData([]);
     }
   }, [elementDataSource]);
 
-  // Reset selectedElementSource when selectedElementCountry changes
-  useEffect(() => {
-    setSelectedElementSource("");
-  }, [selectedElementCountry]);
-
-  // Reset selectedElementSource when selectedElements changes
-  useEffect(() => {
-    if (
-      elementDataSource === "Use existing data" &&
-      selectedElementCountry === "Philippines"
-    ) {
-      setSelectedElementSource("");
-    }
-  }, [selectedElements, elementDataSource, selectedElementCountry]);
-
-  // Reset selectedElementAvailableData when selectedElementSource changes
-  useEffect(() => {
-    setSelectedElementAvailableData([]);
-  }, [selectedElementSource]);
-
-  // Reset selectedElementAvailableData when selectedElements changes
-  useEffect(() => {
-    if (
-      elementDataSource === "Use existing data" &&
-      selectedElementCountry === "Philippines" &&
-      selectedElementSource === "OSM"
-    ) {
-      setSelectedElementAvailableData([]);
-    }
-  }, [
-    selectedElements,
-    elementDataSource,
-    selectedElementCountry,
-    selectedElementSource,
-  ]);
-
-  // Show/hide aspect ratio selector based on analysis scope
-  useEffect(() => {
-    if (analysisScope === "Draw custom area") {
-      onShowAspectRatioSelector?.(true);
-    } else {
-      onShowAspectRatioSelector?.(false);
-      setSelectedAspectRatio("");
-    }
-  }, [analysisScope, onShowAspectRatioSelector]);
-
   const isComplete =
-    hazardCategory &&
-    selectedHazard &&
     hazardDataSource &&
-    (hazardDataSource !== "Use imported data" || selectedImportedFile) &&
+    (hazardDataSource !== "Use imported data" ||
+      selectedImportedHazardFiles.length > 0) &&
     (hazardDataSource !== "Use existing data" ||
-      (selectedCountry &&
-        selectedSource &&
-        (selectedSource !==
-          "Nationwide Operational Assessment of Hazards (NOAH)" ||
-          selectedAvailableData))) &&
-    analysisScope &&
-    selectedElements.length > 0 &&
+      selectedHazardData.length > 0) &&
     elementDataSource &&
-    (elementDataSource !== "Use imported data" || selectedElementFile) &&
+    (elementDataSource !== "Use imported data" ||
+      selectedImportedElementFiles.length > 0) &&
     (elementDataSource !== "Use existing data" ||
-      (selectedElementCountry &&
-        selectedElementSource &&
-        (selectedElementSource !== "OSM" ||
-          selectedElementAvailableData.length > 0)));
+      selectedElementData.length > 0);
 
   const hasAnySelection =
-    hazardCategory ||
-    selectedHazard ||
     hazardDataSource ||
-    selectedImportedFile ||
-    selectedCountry ||
-    selectedSource ||
-    selectedAvailableData ||
-    analysisScope ||
-    selectedElements.length > 0 ||
+    selectedHazardData.length > 0 ||
+    selectedImportedHazardFiles.length > 0 ||
     elementDataSource ||
-    selectedElementFile;
+    selectedElementData.length > 0 ||
+    selectedImportedElementFiles.length > 0;
 
-  const handleRunAnalysis = () => {
-    console.log("Running exposure analysis...");
+  // BEFORE: Attempted to visualize imported files which already have markers
+  // AFTER: Only visualize existing data, skip imported files
 
-    const analysisData = {
-      hazardType: `${selectedHazard} - ${
-        selectedAvailableData?.split(" - ")[0] || selectedImportedFile
-      } - ${
-        selectedAvailableData?.split(" - ")[1]?.replace(" Return Period", "") ||
-        ""
-      }`.trim(),
-      analysisArea:
-        selectedAvailableData?.split(" - ")[0] || selectedImportedFile || "",
-      scope: analysisScope,
-      analysisTime: new Date().toLocaleString("en-US", {
-        month: "2-digit",
-        day: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      }),
-      elements: selectedElements.map((element) => ({
-        name: element,
-        exposedFeatures: Math.floor(Math.random() * 500),
-        exposedArea: (Math.random() * 100).toFixed(2),
-        totalFeatures: 416,
-      })),
-    };
+  const handleRunAnalysis = async () => {
+    console.log("Running exposure analysis via backend...");
+    setIsAnalyzing(true);
 
-    console.log("Analysis data:", analysisData);
+    const startTime = new Date().toLocaleString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
 
-    if (onRunAnalysis) {
-      console.log("Calling onRunAnalysis callback");
-      onRunAnalysis(analysisData);
-    } else {
-      console.error("onRunAnalysis callback not provided");
+    if (onStartAnalysis) {
+      onStartAnalysis();
+    }
+
+    const allElements: any[] = [];
+    const allAffectedFeatures: GeoJSON.Feature[] = [];
+
+    try {
+      const hazardsToProcess: Array<{
+        hazardData: any;
+        hazardType: string;
+        analysisArea: string;
+      }> = [];
+
+      // Get helper function for layer ordering
+      const getTopSymbolLayerId = (map: any) => {
+        const layers = map.getStyle()?.layers || [];
+        for (let i = layers.length - 1; i >= 0; i--) {
+          if (layers[i].type === "symbol") {
+            return layers[i].id;
+          }
+        }
+        return undefined;
+      };
+
+      // BEFORE: Tried to visualize all hazards including imported files
+      // AFTER: Only visualize existing data from database, skip imported files
+      if (selectedHazardData.length > 0) {
+        const allHazardData = getAllHazardData();
+
+        for (const hazardName of selectedHazardData) {
+          const selectedHazard = allHazardData.find(
+            (item) => item.displayName === hazardName
+          );
+
+          if (selectedHazard) {
+            console.log(`Fetching hazard data: ${hazardName}...`);
+            const hazardResponse = await fetch(
+              selectedHazard.config.geojsonUrl
+            );
+
+            if (!hazardResponse.ok) {
+              throw new Error(
+                `Failed to fetch ${hazardName}: ${hazardResponse.status}`
+              );
+            }
+
+            const hazardData = await hazardResponse.json();
+
+            hazardsToProcess.push({
+              hazardData: hazardData,
+              hazardType: `Flood - ${selectedHazard.returnPeriod} Return Period`,
+              analysisArea: selectedHazard.config.name,
+            });
+
+            // NEW: Visualize hazard on map (only for existing data)
+            if (mapRef?.current) {
+              await drawAnalysisFloodHazard(
+                mapRef.current.getMap(),
+                true,
+                selectedHazard.config.geojsonUrl,
+                selectedHazard.returnPeriod,
+                selectedHazard.config.name,
+                getTopSymbolLayerId
+              );
+            }
+
+            console.log(
+              `✓ Loaded and visualized ${hazardName}: ${hazardData.features?.length} features`
+            );
+          }
+        }
+      } else if (selectedImportedHazardFiles.length > 0) {
+        // BEFORE: Would try to visualize imported files
+        // AFTER: Just load data, don't visualize (already has markers from upload)
+        for (const fileName of selectedImportedHazardFiles) {
+          const hazardData = mapRef?.current?.getUploadedLayerData?.(fileName);
+
+          if (!hazardData) {
+            throw new Error(`Could not retrieve hazard data for ${fileName}`);
+          }
+
+          hazardsToProcess.push({
+            hazardData: hazardData,
+            hazardType: fileName,
+            analysisArea: fileName,
+          });
+
+          console.log(
+            `✓ Loaded ${fileName}: ${hazardData.features?.length} features (using existing markers)`
+          );
+        }
+      }
+
+      if (hazardsToProcess.length === 0) {
+        throw new Error("No hazard data available");
+      }
+
+      console.log(
+        `\n📊 Starting analysis: ${hazardsToProcess.length} hazard(s) × exposure elements\n`
+      );
+
+      // BEFORE: Tried to visualize all elements including imported files
+      // AFTER: Only visualize existing data from database, skip imported files
+      const elementsToProcess: Array<{
+        elementName: string;
+        elementData: any;
+        elementType: "Land Cover" | "Transportation Networks";
+      }> = [];
+
+      if (selectedElementData.length > 0) {
+        const allElementData = getAllElementData();
+
+        for (const elementName of selectedElementData) {
+          const selectedElement = allElementData.find(
+            (item) => item.displayName === elementName
+          );
+
+          if (selectedElement) {
+            console.log(`Fetching element data: ${elementName}...`);
+            const elementResponse = await fetch(
+              selectedElement.config.geojsonUrl
+            );
+
+            if (!elementResponse.ok) {
+              throw new Error(
+                `Failed to fetch ${elementName}: ${elementResponse.status}`
+              );
+            }
+
+            const elementData = await elementResponse.json();
+
+            elementsToProcess.push({
+              elementName: elementName,
+              elementData: elementData,
+              elementType: selectedElement.config.elementType,
+            });
+
+            // NEW: Visualize element on map (only for existing data)
+            if (mapRef?.current) {
+              await drawAnalysisExposureElement(
+                mapRef.current.getMap(),
+                true,
+                selectedElement.config.geojsonUrl,
+                elementName,
+                selectedElement.config.elementType,
+                getTopSymbolLayerId
+              );
+            }
+
+            console.log(
+              `✓ Loaded and visualized ${elementName}: ${elementData.features?.length} features`
+            );
+          }
+        }
+      } else if (selectedImportedElementFiles.length > 0) {
+        // BEFORE: Would try to visualize imported files
+        // AFTER: Just load data, don't visualize (already has markers from upload)
+        for (const fileName of selectedImportedElementFiles) {
+          const elementData = mapRef?.current?.getUploadedLayerData?.(fileName);
+
+          if (!elementData) {
+            console.error(`Could not retrieve data for ${fileName}`);
+            continue;
+          }
+
+          // Determine element type from geometry
+          const hasPolygons = elementData.features.some(
+            (f: any) =>
+              f.geometry.type === "Polygon" ||
+              f.geometry.type === "MultiPolygon"
+          );
+          const elementType = hasPolygons
+            ? "Land Cover"
+            : "Transportation Networks";
+
+          elementsToProcess.push({
+            elementName: fileName,
+            elementData: elementData,
+            elementType: elementType,
+          });
+
+          console.log(
+            `✓ Loaded ${fileName}: ${elementData.features?.length} features (using existing markers)`
+          );
+        }
+      }
+
+      if (elementsToProcess.length === 0) {
+        throw new Error("No element data available");
+      }
+
+      const backendUrl =
+        process.env.NEXT_PUBLIC_ASSESSMENT_ENDPOINT || "http://localhost:8001";
+
+      let analysisCount = 0;
+      const totalAnalyses = hazardsToProcess.length * elementsToProcess.length;
+
+      for (const hazard of hazardsToProcess) {
+        console.log(`\n🌊 Analyzing hazard: ${hazard.hazardType}`);
+
+        for (const element of elementsToProcess) {
+          analysisCount++;
+          console.log(
+            `  [${analysisCount}/${totalAnalyses}] Processing ${element.elementName}...`
+          );
+
+          const response = await fetch(
+            `${backendUrl}/api/exposure-assessment`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                hazard_data: hazard.hazardData,
+                element_data: element.elementData,
+                hazard_type: hazard.hazardType,
+                analysis_area: hazard.analysisArea,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error("Backend error:", errorData);
+            throw new Error(
+              errorData.detail || `Backend error: ${response.status}`
+            );
+          }
+
+          const result = await response.json();
+
+          if (result.elements && result.elements.length > 0) {
+            allElements.push({
+              name: `${element.elementName}`,
+              hazardType: hazard.hazardType,
+              analysisArea: hazard.analysisArea,
+              exposedFeatures: result.elements[0].exposedFeatures,
+              totalSurfaceArea: result.elements[0].totalSurfaceArea,
+              affectedArea: result.elements[0].affectedArea,
+              totalFeatures: result.elements[0].totalFeatures,
+              unit: result.unit || "km²",
+            });
+
+            if (
+              result.affectedGeometries &&
+              Array.isArray(result.affectedGeometries)
+            ) {
+              const taggedGeometries = result.affectedGeometries.map(
+                (geom: any) => ({
+                  ...geom,
+                  properties: {
+                    ...geom.properties,
+                    hazardType: hazard.hazardType,
+                  },
+                })
+              );
+              allAffectedFeatures.push(...taggedGeometries);
+              console.log(
+                `    ✓ Found ${result.affectedGeometries.length} affected areas`
+              );
+            }
+          }
+
+          console.log(`    ✓ Complete`);
+        }
+      }
+
+      const hazardIdentifiers = hazardsToProcess.map((h) => ({
+        type: h.hazardType,
+        area: h.analysisArea,
+        fullName: `${h.hazardType} - ${h.analysisArea}`,
+      }));
+
+      const hazardSummary =
+        hazardIdentifiers.length === 1
+          ? hazardIdentifiers[0].fullName
+          : `${hazardIdentifiers.length} hazard scenarios`;
+
+      const analysisData = {
+        hazardType: hazardSummary,
+        analysisArea:
+          hazardsToProcess.length === 1
+            ? hazardsToProcess[0].analysisArea
+            : "Multiple areas",
+        scope: "Current map view",
+        startTime: startTime,
+        analysisTime: new Date().toLocaleString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        }),
+        elements: allElements,
+        hazardBreakdown: hazardIdentifiers,
+      };
+
+      const affectedAreasGeoJSON: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: allAffectedFeatures,
+      };
+
+      console.log("\n✅ Analysis complete!");
+      console.log(`   Total combinations analyzed: ${allElements.length}`);
+      console.log(`   Total affected areas: ${allAffectedFeatures.length}`);
+
+      // NEW: Ensure affected areas are rendered on top
+      setTimeout(() => {
+        if (mapRef?.current && affectedAreasGeoJSON.features.length > 0) {
+          ensureAffectedAreasOnTop(mapRef.current.getMap(), true);
+        }
+      }, 500);
+
+      if (onRunAnalysis) {
+        onRunAnalysis(analysisData, affectedAreasGeoJSON);
+      }
+    } catch (error) {
+      console.error("Error during exposure analysis:", error);
+
+      let errorMessage = "Unknown error";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      alert(`Failed to complete exposure analysis: ${errorMessage}`);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -447,102 +535,14 @@ const ExposureAssessmentControls: React.FC<Props> = ({
         Analyze exposed elements and assets within hazard zones
       </div>
 
-      {/* Step 1: Select Hazard Category */}
+      {/* Step 1: Select Hazard Data */}
       <div className="relative">
         <label className="block text-white text-sm font-medium mb-2">
-          1. Select Hazard Category
-        </label>
-        <button
-          onClick={() => setHazardCategoryDropdownOpen((prev) => !prev)}
-          className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
-        >
-          <span className="text-sm">
-            {hazardCategory || "Choose category..."}
-          </span>
-          <ChevronDown
-            size={16}
-            className={`transition-transform duration-200 ${
-              hazardCategoryDropdownOpen ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-
-        {hazardCategoryDropdownOpen && (
-          <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
-            {hazardCategoryOptions.map((option, index) => (
-              <div
-                key={index}
-                onClick={() => {
-                  setHazardCategory(option);
-                  setHazardCategoryDropdownOpen(false);
-                }}
-                className="px-3 py-2 text-sm text-white hover:bg-[#505050] cursor-pointer"
-              >
-                {option}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Step 2: Select Specific Hazard */}
-      <div className="relative">
-        <label className="block text-white text-sm font-medium mb-2">
-          2. Select Specific Hazard
-        </label>
-        <button
-          onClick={() => setHazardDropdownOpen((prev) => !prev)}
-          disabled={!hazardCategory}
-          className={`flex justify-between items-center w-full px-3 py-2 rounded-md shadow-md transition
-            ${
-              hazardCategory
-                ? "bg-[#3a3a3a] text-white hover:bg-[#454545] cursor-pointer"
-                : "bg-[#2a2a2a] text-gray-500 cursor-not-allowed"
-            }`}
-        >
-          <span className="text-sm">
-            {selectedHazard || "Choose hazard..."}
-          </span>
-          <ChevronDown
-            size={16}
-            className={`transition-transform duration-200 ${
-              hazardDropdownOpen ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-
-        {hazardDropdownOpen && hazardCategory && (
-          <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
-            {getHazardOptions().map((option, index) => (
-              <div
-                key={index}
-                onClick={() => {
-                  setSelectedHazard(option);
-                  setHazardDropdownOpen(false);
-                }}
-                className="px-3 py-2 text-sm text-white hover:bg-[#505050] cursor-pointer"
-              >
-                {option}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Step 3: Add Hazard Data */}
-      <div className="relative">
-        <label className="block text-white text-sm font-medium mb-2">
-          3. Add Hazard Data
+          1. Select Hazard Data
         </label>
         <button
           onClick={() => setHazardDataDropdownOpen((prev) => !prev)}
-          disabled={!selectedHazard}
-          className={`flex justify-between items-center w-full px-3 py-2 rounded-md shadow-md transition
-            ${
-              selectedHazard
-                ? "bg-[#3a3a3a] text-white hover:bg-[#454545] cursor-pointer"
-                : "bg-[#2a2a2a] text-gray-500 cursor-not-allowed"
-            }`}
+          className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
         >
           <span className="text-sm">
             {hazardDataSource || "Choose data source..."}
@@ -555,7 +555,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           />
         </button>
 
-        {hazardDataDropdownOpen && selectedHazard && (
+        {hazardDataDropdownOpen && (
           <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
             {hazardDataOptions.map((option, index) => (
               <div
@@ -572,146 +572,150 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Country and Coverage Selection - shown when "Use existing data" is selected */}
+        {/* Show existing data cards when "Use existing data" is selected */}
         {hazardDataSource === "Use existing data" && (
           <div className="mt-3 bg-[#3a3a3a] rounded-md shadow-md p-4 space-y-3">
-            <div className="text-white text-sm">Select data to use:</div>
-
-            {/* Country Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setCountryDropdownOpen((prev) => !prev)}
-                className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
-              >
-                <span className="text-sm">
-                  {selectedCountry || "Choose country..."}
-                </span>
-                <ChevronDown
-                  size={16}
-                  className={`transition-transform duration-200 ${
-                    countryDropdownOpen ? "rotate-180" : ""
+            <div className="text-white text-sm mb-2">Select data to use:</div>
+            <div
+              className="space-y-2 max-h-[300px] overflow-y-auto pr-2"
+              style={{
+                scrollbarWidth: "thin",
+                scrollbarColor: "#706f6f transparent",
+              }}
+            >
+              {getAllHazardData().map((item, index) => (
+                <div
+                  key={index}
+                  onClick={() => {
+                    setSelectedHazardData((prev) =>
+                      prev.includes(item.displayName)
+                        ? prev.filter((name) => name !== item.displayName)
+                        : [...prev, item.displayName]
+                    );
+                  }}
+                  className={`p-3 rounded-md cursor-pointer transition flex items-center gap-3 ${
+                    selectedHazardData.includes(item.displayName)
+                      ? "bg-[#3d3e69] border-2 border-[#9699FF]"
+                      : "bg-[#2a2a2a] hover:bg-[#353535]"
                   }`}
-                />
-              </button>
-
-              {countryDropdownOpen && (
-                <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
-                  {countryOptions.map((option, index) => (
-                    <div
-                      key={index}
-                      onClick={() => {
-                        setSelectedCountry(option);
-                        setCountryDropdownOpen(false);
-                      }}
-                      className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
-                    >
-                      {option}
+                >
+                  <Checkbox
+                    checked={selectedHazardData.includes(item.displayName)}
+                    className="pointer-events-none"
+                  />
+                  <div className="flex-1">
+                    <div className="text-white text-sm font-medium mb-1">
+                      Flood Hazard ({item.returnPeriod.replace("-", " - ")})
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Source Dropdown - conditionally shown based on country selection */}
-            {selectedCountry && (
-              <div className="relative">
-                <button
-                  onClick={() => setSourceDropdownOpen((prev) => !prev)}
-                  className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
-                >
-                  <span className="text-sm truncate">
-                    {selectedSource || "Choose source..."}
-                  </span>
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
-                      sourceDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {sourceDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
-                    {getSourceOptions().map((option, index) => (
-                      <div
-                        key={index}
-                        onClick={() => {
-                          setSelectedSource(option);
-                          setSourceDropdownOpen(false);
-                        }}
-                        className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
-                      >
-                        {option}
-                      </div>
-                    ))}
+                    <div className="text-gray-400 text-xs mb-0.5">
+                      {item.config.name}, {item.config.country}
+                    </div>
+                    <div className="text-gray-400 text-xs">
+                      Source: {item.config.source}
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-            {selectedSource ===
-              "Nationwide Operational Assessment of Hazards (NOAH)" && (
-              <div className="relative">
-                <button
-                  onClick={() => setAvailableDataDropdownOpen((prev) => !prev)}
-                  className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
-                >
-                  <span className="text-sm truncate">
-                    {selectedAvailableData || "Available data..."}
-                  </span>
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
-                      availableDataDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
+        {/* Show imported file dropdown when "Use imported data" is selected */}
+        {hazardDataSource === "Use imported data" && (
+          <div className="mt-3">
+            <label className="block text-white text-sm font-medium mb-2">
+              Select Imported Data
+            </label>
+            <button
+              onClick={() => setImportedHazardFileDropdownOpen((prev) => !prev)}
+              className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
+            >
+              <span className="text-sm truncate">
+                {selectedImportedHazardFiles.length > 0
+                  ? `${selectedImportedHazardFiles.length} selected`
+                  : "Choose file..."}
+              </span>
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
+                  importedHazardFileDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
 
-                {availableDataDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
+            {importedHazardFileDropdownOpen && (
+              <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+                {uploadedFiles.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-400">
+                    No file/s detected! Upload first.
+                  </div>
+                ) : (
+                  <>
                     {/* Search Box */}
-                    <div className="p-2">
+                    <div className="p-2 pb-1">
                       <input
                         type="text"
-                        placeholder="Search data..."
-                        value={availableDataSearchTerm}
+                        placeholder="Search files..."
+                        value={hazardFileSearchTerm}
                         onChange={(e) =>
-                          setAvailableDataSearchTerm(e.target.value)
+                          setHazardFileSearchTerm(e.target.value)
                         }
-                        className="w-full p-2 rounded-md text-white outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                        className="w-full p-2 bg-transparent rounded-md text-white text-sm outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </div>
 
-                    {/* Filtered data list */}
+                    {/* Filtered file list with checkboxes */}
                     <div
-                      className="overflow-y-auto max-h-48"
+                      className="overflow-y-auto max-h-32 p-2"
                       style={{
                         scrollbarWidth: "thin",
                         scrollbarColor: "#5a5a5a transparent",
                       }}
-                      onScroll={(e) => e.stopPropagation()}
                     >
-                      {getAvailableDataOptions()
-                        .filter((option) =>
-                          option
+                      {uploadedFiles
+                        .filter((file) =>
+                          file.name
                             .toLowerCase()
-                            .includes(availableDataSearchTerm.toLowerCase())
+                            .includes(hazardFileSearchTerm.toLowerCase())
                         )
-                        .map((option, index) => (
+                        .map((file, index) => (
                           <div
                             key={index}
+                            className="flex items-center py-2 px-2 hover:bg-[#454545] rounded cursor-pointer"
                             onClick={() => {
-                              setSelectedAvailableData(option);
-                              setAvailableDataDropdownOpen(false);
-                              setAvailableDataSearchTerm("");
+                              setSelectedImportedHazardFiles((prev) =>
+                                prev.includes(file.name)
+                                  ? prev.filter((name) => name !== file.name)
+                                  : [...prev, file.name]
+                              );
                             }}
-                            className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
                           >
-                            {option}
+                            <Checkbox
+                              className="mr-2.5 w-[16px] h-[16px] pointer-events-none"
+                              checked={selectedImportedHazardFiles.includes(
+                                file.name
+                              )}
+                            />
+                            <span
+                              className="text-sm text-white truncate"
+                              title={file.name}
+                            >
+                              {file.name}
+                            </span>
                           </div>
                         ))}
+                      {uploadedFiles.filter((file) =>
+                        file.name
+                          .toLowerCase()
+                          .includes(hazardFileSearchTerm.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-2 py-3 text-sm text-gray-400 text-center">
+                          No files found
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -719,158 +723,27 @@ const ExposureAssessmentControls: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Step 3.5: Select Imported File (conditionally shown) */}
-      {hazardDataSource === "Use imported data" && (
-        <div className="relative">
-          <label className="block text-white text-sm font-medium mb-2">
-            Select Imported Data
-          </label>
-          <button
-            onClick={() => setImportedFileDropdownOpen((prev) => !prev)}
-            className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
-          >
-            <span className="text-sm truncate">
-              {selectedImportedFile || "Choose file..."}
-            </span>
-            <ChevronDown
-              size={16}
-              className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
-                importedFileDropdownOpen ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          {importedFileDropdownOpen && (
-            <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-              {uploadedFiles.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-gray-400">
-                  No file/s detected! Upload first.
-                </div>
-              ) : (
-                uploadedFiles.map((file, index) => (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      setSelectedImportedFile(file.name);
-                      setImportedFileDropdownOpen(false);
-                    }}
-                    className="px-3 py-2 text-sm text-white hover:bg-[#505050] cursor-pointer truncate"
-                    title={file.name}
-                  >
-                    {file.name}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Step 4: Define Analysis Scope */}
+      {/* Step 2: Select Exposed Element/s */}
       <div className="relative">
         <label className="block text-white text-sm font-medium mb-2">
-          4. Define Analysis Scope
-        </label>
-        <button
-          onClick={() => setScopeDropdownOpen((prev) => !prev)}
-          disabled={
-            !hazardDataSource ||
-            (hazardDataSource === "Use imported data" &&
-              !selectedImportedFile) ||
-            (hazardDataSource === "Use existing hazard data" &&
-              (!selectedCountry ||
-                !selectedSource ||
-                (selectedSource ===
-                  "Nationwide Operational Assessment of Hazards (NOAH)" &&
-                  !selectedAvailableData)))
-          }
-          className={`flex justify-between items-center w-full px-3 py-2 rounded-md shadow-md transition
-          ${
-            hazardDataSource &&
-            (hazardDataSource !== "Use imported data" ||
-              selectedImportedFile) &&
-            (hazardDataSource !== "Use existing data" ||
-              (selectedCountry &&
-                selectedSource &&
-                (selectedSource !==
-                  "Nationwide Operational Assessment of Hazards (NOAH)" ||
-                  selectedAvailableData)))
-              ? "bg-[#3a3a3a] text-white hover:bg-[#454545] cursor-pointer"
-              : "bg-[#2a2a2a] text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          <span className="text-sm">{analysisScope || "Choose scope..."}</span>
-          <ChevronDown
-            size={16}
-            className={`transition-transform duration-200 ${
-              scopeDropdownOpen ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-
-        {scopeDropdownOpen &&
-          hazardDataSource &&
-          (hazardDataSource !== "Use imported data" || selectedImportedFile) &&
-          (hazardDataSource !== "Use existing data" ||
-            (selectedCountry &&
-              selectedSource &&
-              (selectedSource !==
-                "Nationwide Operational Assessment of Hazards (NOAH)" ||
-                selectedAvailableData))) && (
-            <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
-              {scopeOptions.map((option, index) => (
-                <div
-                  key={index}
-                  onClick={() => {
-                    setAnalysisScope(option);
-                    setScopeDropdownOpen(false);
-                  }}
-                  className="px-3 py-2 text-sm text-white hover:bg-[#505050] cursor-pointer"
-                >
-                  {option}
-                </div>
-              ))}
-            </div>
-          )}
-      </div>
-
-      {/* Step 5: Select Exposure Elements */}
-      <div>
-        <label className="block text-white text-sm font-medium mb-2">
-          5. Select Exposure Elements
-        </label>
-        <div className="space-y-2 bg-[#3a3a3a] p-3 rounded-md shadow-md">
-          {exposureElements.map((item, index) => (
-            <div key={index} className="flex items-center">
-              <Checkbox
-                className="mr-2.5 w-[16px] h-[16px]"
-                disabled={!analysisScope}
-                checked={selectedElements.includes(item)}
-                onCheckedChange={() => handleElementToggle(item)}
-              />
-              <span
-                className={`text-sm ${
-                  !analysisScope ? "text-gray-500" : "text-white"
-                }`}
-              >
-                {item}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 6: Add Exposure Element Data */}
-      <div className="relative">
-        <label className="block text-white text-sm font-medium mb-2">
-          6. Add Exposure Element Data
+          2. Select Exposed Element/s
         </label>
         <button
           onClick={() => setElementDataDropdownOpen((prev) => !prev)}
-          disabled={selectedElements.length === 0}
+          disabled={
+            !hazardDataSource ||
+            (hazardDataSource === "Use imported data" &&
+              selectedImportedHazardFiles.length === 0) ||
+            (hazardDataSource === "Use existing data" &&
+              selectedHazardData.length === 0)
+          }
           className={`flex justify-between items-center w-full px-3 py-2 rounded-md shadow-md transition
             ${
-              selectedElements.length > 0
+              hazardDataSource &&
+              ((hazardDataSource === "Use imported data" &&
+                selectedImportedHazardFiles.length > 0) ||
+                (hazardDataSource === "Use existing data" &&
+                  selectedHazardData.length > 0))
                 ? "bg-[#3a3a3a] text-white hover:bg-[#454545] cursor-pointer"
                 : "bg-[#2a2a2a] text-gray-500 cursor-not-allowed"
             }`}
@@ -886,7 +759,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           />
         </button>
 
-        {elementDataDropdownOpen && selectedElements.length > 0 && (
+        {elementDataDropdownOpen && (
           <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
             {elementDataOptions.map((option, index) => (
               <div
@@ -903,237 +776,171 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Element Country and Source Selection - shown when "Use existing data" is selected */}
+        {/* Show existing data cards when "Use existing data" is selected */}
         {elementDataSource === "Use existing data" && (
           <div className="mt-3 bg-[#3a3a3a] rounded-md shadow-md p-4 space-y-3">
-            <div className="text-white text-sm">Select data to use:</div>
-
-            {/* Element Country Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setElementCountryDropdownOpen((prev) => !prev)}
-                className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
-              >
-                <span className="text-sm">
-                  {selectedElementCountry || "Choose country..."}
-                </span>
-                <ChevronDown
-                  size={16}
-                  className={`transition-transform duration-200 ${
-                    elementCountryDropdownOpen ? "rotate-180" : ""
+            <div className="text-white text-sm mb-2">Select data to use:</div>
+            <div
+              className="space-y-2 max-h-[300px] overflow-y-auto pr-2"
+              style={{
+                scrollbarWidth: "thin",
+                scrollbarColor: "#706f6f transparent",
+              }}
+            >
+              {getAllElementData().map((item, index) => (
+                <div
+                  key={index}
+                  onClick={() => {
+                    setSelectedElementData((prev) =>
+                      prev.includes(item.displayName)
+                        ? prev.filter((name) => name !== item.displayName)
+                        : [...prev, item.displayName]
+                    );
+                  }}
+                  className={`p-3 rounded-md cursor-pointer transition flex items-center gap-3 ${
+                    selectedElementData.includes(item.displayName)
+                      ? "bg-[#3d3e69] border-2 border-[#9699FF]"
+                      : "bg-[#2a2a2a] hover:bg-[#353535]"
                   }`}
-                />
-              </button>
-
-              {elementCountryDropdownOpen && (
-                <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
-                  {countryOptions.map((option, index) => (
-                    <div
-                      key={index}
-                      onClick={() => {
-                        setSelectedElementCountry(option);
-                        setElementCountryDropdownOpen(false);
-                      }}
-                      className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
-                    >
-                      {option}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Element Source Dropdown - conditionally shown based on country selection */}
-            {selectedElementCountry === "Philippines" && (
-              <div className="relative">
-                <button
-                  onClick={() => setElementSourceDropdownOpen((prev) => !prev)}
-                  className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
                 >
-                  <span className="text-sm truncate">
-                    {selectedElementSource || "Choose source..."}
-                  </span>
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
-                      elementSourceDropdownOpen ? "rotate-180" : ""
-                    }`}
+                  <Checkbox
+                    checked={selectedElementData.includes(item.displayName)}
+                    className="pointer-events-none"
                   />
-                </button>
-
-                {elementSourceDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
-                    {getElementSourceOptions().map((option, index) => (
-                      <div
-                        key={index}
-                        onClick={() => {
-                          setSelectedElementSource(option);
-                          setElementSourceDropdownOpen(false);
-                        }}
-                        className="px-3 py-2 text-sm text-white hover:bg-[#404040] cursor-pointer"
-                      >
-                        {option}
-                      </div>
-                    ))}
+                  <div className="flex-1">
+                    <div className="text-white text-sm font-medium mb-1">
+                      {item.config.elementType}
+                    </div>
+                    <div className="text-gray-400 text-xs mb-0.5">
+                      {item.config.name}, {item.config.country}
+                    </div>
+                    <div className="text-gray-400 text-xs">
+                      Source: {item.config.source}
+                    </div>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Show imported file dropdown when "Use imported data" is selected */}
+        {elementDataSource === "Use imported data" && (
+          <div className="mt-3">
+            <label className="block text-white text-sm font-medium mb-2">
+              Select Imported Data
+            </label>
+            <button
+              onClick={() =>
+                setImportedElementFileDropdownOpen((prev) => !prev)
+              }
+              className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
+            >
+              <span className="text-sm truncate">
+                {selectedImportedElementFiles.length > 0
+                  ? `${selectedImportedElementFiles.length} selected`
+                  : "Choose file..."}
+              </span>
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
+                  importedElementFileDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {importedElementFileDropdownOpen && (
+              <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+                {uploadedFiles.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-400">
+                    No file/s detected! Upload first.
+                  </div>
+                ) : (
+                  <>
+                    {/* Search Box */}
+                    <div className="p-2 pb-1">
+                      <input
+                        type="text"
+                        placeholder="Search files..."
+                        value={elementFileSearchTerm}
+                        onChange={(e) =>
+                          setElementFileSearchTerm(e.target.value)
+                        }
+                        className="w-full p-2 bg-transparent rounded-md text-white text-sm outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
+                    {/* Filtered file list with checkboxes */}
+                    <div
+                      className="overflow-y-auto max-h-32 p-2"
+                      style={{
+                        scrollbarWidth: "thin",
+                        scrollbarColor: "#5a5a5a transparent",
+                      }}
+                    >
+                      {uploadedFiles
+                        .filter((file) =>
+                          file.name
+                            .toLowerCase()
+                            .includes(elementFileSearchTerm.toLowerCase())
+                        )
+                        .map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center py-2 px-2 hover:bg-[#454545] rounded cursor-pointer"
+                            onClick={() => {
+                              setSelectedImportedElementFiles((prev) =>
+                                prev.includes(file.name)
+                                  ? prev.filter((name) => name !== file.name)
+                                  : [...prev, file.name]
+                              );
+                            }}
+                          >
+                            <Checkbox
+                              className="mr-2.5 w-[16px] h-[16px] pointer-events-none"
+                              checked={selectedImportedElementFiles.includes(
+                                file.name
+                              )}
+                            />
+                            <span
+                              className="text-sm text-white truncate"
+                              title={file.name}
+                            >
+                              {file.name}
+                            </span>
+                          </div>
+                        ))}
+                      {uploadedFiles.filter((file) =>
+                        file.name
+                          .toLowerCase()
+                          .includes(elementFileSearchTerm.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-2 py-3 text-sm text-gray-400 text-center">
+                          No files found
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             )}
-
-            {/* Element Available Data Selection - shown when OSM source is selected */}
-            {selectedElementCountry === "Philippines" &&
-              selectedElementSource === "OSM" && (
-                <div className="relative">
-                  <button
-                    onClick={() =>
-                      setElementAvailableDataDropdownOpen((prev) => !prev)
-                    }
-                    className="flex justify-between items-center w-full bg-[#2a2a2a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#353535] transition"
-                  >
-                    <span className="text-sm truncate">
-                      {selectedElementAvailableData.length > 0
-                        ? `${selectedElementAvailableData.length} selected`
-                        : "Available data..."}
-                    </span>
-                    <ChevronDown
-                      size={16}
-                      className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
-                        elementAvailableDataDropdownOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {elementAvailableDataDropdownOpen && (
-                    <div className="absolute z-50 mt-1 w-full bg-[#2a2a2a] rounded-md shadow-lg overflow-hidden">
-                      {/* Search Box */}
-                      <div className="p-2">
-                        <input
-                          type="text"
-                          placeholder="Search data..."
-                          value={elementAvailableDataSearchTerm}
-                          onChange={(e) =>
-                            setElementAvailableDataSearchTerm(e.target.value)
-                          }
-                          className="w-full p-2 bg-[#2a2a2a] rounded-md text-white text-sm outline-none focus:ring-0 focus:outline-none hover:outline-none"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-
-                      {/* Filtered data list with checkboxes */}
-                      <div
-                        className="overflow-y-auto max-h-35 p-2"
-                        style={{
-                          scrollbarWidth: "thin",
-                          scrollbarColor: "#5a5a5a transparent",
-                        }}
-                        onScroll={(e) => e.stopPropagation()}
-                      >
-                        {getElementAvailableDataOptions()
-                          .filter((option) =>
-                            option
-                              .toLowerCase()
-                              .includes(
-                                elementAvailableDataSearchTerm.toLowerCase()
-                              )
-                          )
-                          .map((option, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center py-2 px-2 hover:bg-[#353535] rounded cursor-pointer"
-                              onClick={() =>
-                                handleElementAvailableDataToggle(option)
-                              }
-                            >
-                              <Checkbox
-                                className="mr-2.5 w-[16px] h-[16px] pointer-events-none"
-                                checked={selectedElementAvailableData.includes(
-                                  option
-                                )}
-                              />
-                              <span className="text-sm text-white">
-                                {option}
-                              </span>
-                            </div>
-                          ))}
-                        {getElementAvailableDataOptions().filter((option) =>
-                          option
-                            .toLowerCase()
-                            .includes(
-                              elementAvailableDataSearchTerm.toLowerCase()
-                            )
-                        ).length === 0 && (
-                          <div className="px-2 py-3 text-sm text-gray-400 text-center">
-                            No data found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
           </div>
         )}
       </div>
 
-      {/* Step 6.5: Select Imported File for Elements (conditionally shown) */}
-      {elementDataSource === "Use imported data" && (
-        <div className="relative">
-          <label className="block text-white text-sm font-medium mb-2">
-            Select Imported Data
-          </label>
-          <button
-            onClick={() => setElementFileDropdownOpen((prev) => !prev)}
-            className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
-          >
-            <span className="text-sm truncate">
-              {selectedElementFile || "Choose file..."}
-            </span>
-            <ChevronDown
-              size={16}
-              className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
-                elementFileDropdownOpen ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          {elementFileDropdownOpen && (
-            <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-              {uploadedFiles.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-gray-400">
-                  No file/s detected! Upload first.
-                </div>
-              ) : (
-                uploadedFiles.map((file, index) => (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      setSelectedElementFile(file.name);
-                      setElementFileDropdownOpen(false);
-                    }}
-                    className="px-3 py-2 text-sm text-white hover:bg-[#505050] cursor-pointer truncate"
-                    title={file.name}
-                  >
-                    {file.name}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Run Analysis Button */}
       <button
-        disabled={!isComplete}
+        disabled={!isComplete || isAnalyzing}
         onClick={handleRunAnalysis}
         className={`w-full py-2.5 rounded-md shadow-md font-medium transition
           ${
-            isComplete
+            isComplete && !isAnalyzing
               ? "bg-[#5A5C99] text-white hover:opacity-90"
               : "bg-[#3a3a3a] text-gray-500 cursor-not-allowed"
           }`}
       >
-        Run Exposure Analysis
+        {isAnalyzing ? "Analyzing..." : "Run Exposure Analysis"}
       </button>
 
       {/* Clear Steps Button */}
