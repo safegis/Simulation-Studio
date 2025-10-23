@@ -1725,13 +1725,28 @@ export default function MainUILayout() {
                         Analysis Overview
                       </h4>
                       <div className="grid grid-cols-2 gap-4 text-sm">
-                        {/* NEW: Hazard Analyzed count */}
+                        {/* Hazard Analyzed count */}
                         <div>
                           <div className="text-gray-400 mb-1">
                             Hazard/s Analyzed:
                           </div>
                           <div className="text-white">
                             {exposureResultsData.hazardBreakdown?.length || 1}{" "}
+                          </div>
+                        </div>
+                        {/* NEW: Analysis Time duration */}
+                        <div>
+                          <div className="text-gray-400 mb-1">
+                            Analysis Duration:
+                          </div>
+                          <div className="text-white">
+                            {exposureResultsData.analysisDuration ? (
+                              exposureResultsData.analysisDuration
+                            ) : (
+                              <span className="text-gray-500">
+                                Calculating...
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div>
@@ -1744,7 +1759,7 @@ export default function MainUILayout() {
                             )}
                           </div>
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <div className="text-gray-400 mb-1">Finished at:</div>
                           <div className="text-white">
                             {exposureResultsData.analysisTime ? (
@@ -1849,8 +1864,7 @@ export default function MainUILayout() {
                                               : "p-3"
                                           }`}
                                         >
-                                          {/* BEFORE: Header with centered element name */}
-                                          {/* AFTER: Header with left-aligned name and percentage badge when minimized */}
+                                          {/* Header */}
                                           {exposureResultsMinimized ? (
                                             <div className="flex items-center justify-between mb-0">
                                               <h5 className="text-sm font-medium text-left">
@@ -1870,7 +1884,7 @@ export default function MainUILayout() {
 
                                           {!exposureResultsMinimized && (
                                             <>
-                                              {/* Centered Donut Chart */}
+                                              {/* Donut Chart */}
                                               <div className="flex justify-center mb-1">
                                                 <div
                                                   style={{
@@ -1884,7 +1898,6 @@ export default function MainUILayout() {
                                                     height="100%"
                                                   >
                                                     <PieChart>
-                                                      {/* Base layer - all segments at normal size */}
                                                       <Pie
                                                         data={chartData}
                                                         cx="50%"
@@ -1904,7 +1917,6 @@ export default function MainUILayout() {
                                                           )
                                                         )}
                                                       </Pie>
-                                                      {/* Raised layer - only exposed segment */}
                                                       <Pie
                                                         data={[chartData[0]]}
                                                         cx="50%"
@@ -1922,7 +1934,6 @@ export default function MainUILayout() {
                                                       />
                                                     </PieChart>
                                                   </ResponsiveContainer>
-                                                  {/* Center text overlay */}
                                                   <div
                                                     style={{
                                                       position: "absolute",
@@ -1942,7 +1953,7 @@ export default function MainUILayout() {
                                                   </div>
                                                 </div>
                                               </div>
-                                              {/* Stats below chart */}
+                                              {/* Basic Stats */}
                                               <div className="text-sm space-y-1">
                                                 <div className="flex justify-between">
                                                   <span className="text-gray-400">
@@ -1966,7 +1977,212 @@ export default function MainUILayout() {
                                                     {element.unit || "km²"}
                                                   </span>
                                                 </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-gray-400">
+                                                    {element.unit === "km"
+                                                      ? "Unaffected length:"
+                                                      : "Unaffected by hazard:"}
+                                                  </span>
+                                                  <span className="text-white">
+                                                    {element.unaffectedArea}{" "}
+                                                    {element.unit || "km²"}
+                                                  </span>
+                                                </div>
                                               </div>
+
+                                              {/* NEW: Hazard Level Breakdown - Only for flood hazard data */}
+                                              {element.hazardLevelBreakdown &&
+                                                element.hazardLevelBreakdown
+                                                  .length > 0 && (
+                                                  <div className="mt-4 pt-3 border-t border-gray-600">
+                                                    <h6 className="text-xs font-semibold text-white mb-3">
+                                                      Affected{" "}
+                                                      {element.unit === "km"
+                                                        ? "Length"
+                                                        : "Area"}{" "}
+                                                      by Hazard Level
+                                                    </h6>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                      {element.hazardLevelBreakdown.map(
+                                                        (
+                                                          level: any,
+                                                          idx: number
+                                                        ) => {
+                                                          // Determine color based on hazard level
+                                                          const getColorClasses =
+                                                            (
+                                                              levelName: string
+                                                            ) => {
+                                                              if (
+                                                                levelName.includes(
+                                                                  "High"
+                                                                )
+                                                              ) {
+                                                                return {
+                                                                  bg: "bg-red-900/30",
+                                                                  border:
+                                                                    "border-red-600",
+                                                                  text: "text-red-400",
+                                                                };
+                                                              } else if (
+                                                                levelName.includes(
+                                                                  "Medium"
+                                                                )
+                                                              ) {
+                                                                return {
+                                                                  bg: "bg-orange-900/30",
+                                                                  border:
+                                                                    "border-orange-600",
+                                                                  text: "text-orange-400",
+                                                                };
+                                                              } else if (
+                                                                levelName.includes(
+                                                                  "Low"
+                                                                )
+                                                              ) {
+                                                                return {
+                                                                  bg: "bg-yellow-900/30",
+                                                                  border:
+                                                                    "border-yellow-600",
+                                                                  text: "text-yellow-400",
+                                                                };
+                                                              } else {
+                                                                return {
+                                                                  bg: "bg-gray-700/30",
+                                                                  border:
+                                                                    "border-gray-600",
+                                                                  text: "text-gray-400",
+                                                                };
+                                                              }
+                                                            };
+
+                                                          const colors =
+                                                            getColorClasses(
+                                                              level.hazardLevel
+                                                            );
+
+                                                          return (
+                                                            <div
+                                                              key={idx}
+                                                              className={`${colors.bg} ${colors.border} border-2 rounded-lg p-3 flex flex-col items-center justify-center`}
+                                                            >
+                                                              <div
+                                                                className={`${colors.text} text-lg font-bold mb-1`}
+                                                              >
+                                                                {level.measure}{" "}
+                                                                {level.unit}
+                                                              </div>
+                                                              <div className="text-white text-xs text-center font-medium">
+                                                                {
+                                                                  level.hazardLevel
+                                                                }
+                                                              </div>
+                                                            </div>
+                                                          );
+                                                        }
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              {/* NEW: Landuse Breakdown Table - Only for Land Cover */}
+                                              {element.landuseBreakdown &&
+                                                element.landuseBreakdown
+                                                  .length > 0 && (
+                                                  <div className="mt-4 pt-3 border-t border-gray-600">
+                                                    <h6 className="text-xs font-semibold text-white mb-2">
+                                                      Breakdown by Land use
+                                                    </h6>
+                                                    <div
+                                                      className="max-h-[250px] overflow-y-auto"
+                                                      style={{
+                                                        scrollbarWidth: "thin",
+                                                        scrollbarColor:
+                                                          "#706f6f transparent",
+                                                      }}
+                                                    >
+                                                      <table className="w-full text-xs">
+                                                        <thead className="sticky top-0 bg-[#3a3a3a] z-10">
+                                                          <tr className="text-gray-400 border-b border-gray-600">
+                                                            <th className="text-left py-2 pr-3 pl-0">
+                                                              Land use
+                                                            </th>
+                                                            <th className="text-center py-2 px-2">
+                                                              Total Area (km²)
+                                                            </th>
+                                                            <th className="text-center py-2 px-2">
+                                                              Affected Area
+                                                              (km²)
+                                                            </th>
+                                                            <th className="text-center py-2 px-2">
+                                                              Unaffected Area
+                                                              (km²)
+                                                            </th>
+                                                            <th className="text-center py-2 pl-2 pr-0">
+                                                              Percentage
+                                                              Affected (%)
+                                                            </th>
+                                                          </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                          {element.landuseBreakdown.map(
+                                                            (
+                                                              row: any,
+                                                              idx: number
+                                                            ) => (
+                                                              <tr
+                                                                key={idx}
+                                                                className="border-b border-gray-700 last:border-b-0 hover:bg-[#404040] transition"
+                                                              >
+                                                                <td
+                                                                  className="py-2 pr-3 pl-0 text-white"
+                                                                  title={
+                                                                    row.landuse
+                                                                  }
+                                                                >
+                                                                  {row.landuse}
+                                                                </td>
+                                                                <td className="py-2 px-2 text-center text-gray-300">
+                                                                  {parseFloat(
+                                                                    row.total_area_km2
+                                                                  ).toFixed(2)}
+                                                                </td>
+                                                                <td className="py-2 px-2 text-center text-gray-300">
+                                                                  {parseFloat(
+                                                                    row.affected_area_km2
+                                                                  ).toFixed(2)}
+                                                                </td>
+                                                                <td className="py-2 px-2 text-center text-gray-300">
+                                                                  {parseFloat(
+                                                                    row.unaffected_area_km2
+                                                                  ).toFixed(2)}
+                                                                </td>
+                                                                <td className="py-2 pl-2 pr-0 text-center">
+                                                                  <span
+                                                                    className={`font-semibold ${
+                                                                      row.percentage_affected >
+                                                                      50
+                                                                        ? "text-[#FFD700]"
+                                                                        : row.percentage_affected >
+                                                                          25
+                                                                        ? "text-yellow-400"
+                                                                        : "text-gray-300"
+                                                                    }`}
+                                                                  >
+                                                                    {parseFloat(
+                                                                      row.percentage_affected
+                                                                    ).toFixed(
+                                                                      2
+                                                                    )}
+                                                                  </span>
+                                                                </td>
+                                                              </tr>
+                                                            )
+                                                          )}
+                                                        </tbody>
+                                                      </table>
+                                                    </div>
+                                                  </div>
+                                                )}
                                             </>
                                           )}
                                         </div>

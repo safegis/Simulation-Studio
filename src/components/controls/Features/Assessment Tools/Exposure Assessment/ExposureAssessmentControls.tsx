@@ -413,6 +413,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                 element_data: element.elementData,
                 hazard_type: hazard.hazardType,
                 analysis_area: hazard.analysisArea,
+                element_type: element.elementType,
               }),
             }
           );
@@ -435,9 +436,20 @@ const ExposureAssessmentControls: React.FC<Props> = ({
               exposedFeatures: result.elements[0].exposedFeatures,
               totalSurfaceArea: result.elements[0].totalSurfaceArea,
               affectedArea: result.elements[0].affectedArea,
+              unaffectedArea: result.elements[0].unaffectedArea, // NEW
               totalFeatures: result.elements[0].totalFeatures,
               unit: result.unit || "km²",
+              landuseBreakdown: result.elements[0].landuseBreakdown || null,
+              hazardLevelBreakdown:
+                result.elements[0].hazardLevelBreakdown || null,
             });
+
+            // Log landuse breakdown if available
+            if (result.elements[0].landuseBreakdown) {
+              console.log(
+                `    ✓ Landuse breakdown: ${result.elements[0].landuseBreakdown.length} categories`
+              );
+            }
 
             if (
               result.affectedGeometries &&
@@ -474,6 +486,28 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           ? hazardIdentifiers[0].fullName
           : `${hazardIdentifiers.length} hazard scenarios`;
 
+      const endTime = new Date();
+      const startTimeDate = new Date(startTime);
+      const durationMs = endTime.getTime() - startTimeDate.getTime();
+
+      // Calculate duration in a human-readable format
+      const formatDuration = (ms: number): string => {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+
+        if (hours > 0) {
+          const remainingMinutes = minutes % 60;
+          const remainingSeconds = seconds % 60;
+          return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
+        } else if (minutes > 0) {
+          const remainingSeconds = seconds % 60;
+          return `${minutes}m ${remainingSeconds}s`;
+        } else {
+          return `${seconds}s`;
+        }
+      };
+
       const analysisData = {
         hazardType: hazardSummary,
         analysisArea:
@@ -482,7 +516,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             : "Multiple areas",
         scope: "Current map view",
         startTime: startTime,
-        analysisTime: new Date().toLocaleString("en-US", {
+        analysisTime: endTime.toLocaleString("en-US", {
           month: "2-digit",
           day: "2-digit",
           year: "numeric",
@@ -491,6 +525,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           second: "2-digit",
           hour12: true,
         }),
+        analysisDuration: formatDuration(durationMs), // NEW
         elements: allElements,
         hazardBreakdown: hazardIdentifiers,
       };
