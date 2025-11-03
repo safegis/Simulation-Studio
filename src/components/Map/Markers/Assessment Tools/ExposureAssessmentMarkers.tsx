@@ -195,6 +195,9 @@ export const drawAnalysisExposureElement = async (
         f.geometry.type === "LineString" ||
         f.geometry.type === "MultiLineString"
     );
+    const hasPoints = geojson.features.some(
+      (f) => f.geometry.type === "Point" || f.geometry.type === "MultiPoint"
+    );
 
     if (hasPolygons) {
       // Land cover - polygon fill
@@ -235,6 +238,24 @@ export const drawAnalysisExposureElement = async (
             "line-color": fillColor,
             "line-width": 2,
             "line-opacity": 0.7,
+          },
+        },
+        beforeId
+      );
+    } else if (hasPoints) {
+      // Point elements - circle markers with orange color
+      map.addLayer(
+        {
+          id: layerId,
+          type: "circle",
+          source: sourceId,
+          paint: {
+            "circle-radius": 8,
+            "circle-color": "#FF6B35", // Orange for point features
+            "circle-opacity": 0.7,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#FF4500",
+            "circle-stroke-opacity": 0.8,
           },
         },
         beforeId
@@ -368,4 +389,108 @@ export const clearAnalysisLayers = (
   });
 
   console.log("Cleared all analysis visualization layers");
+};
+
+export const drawAffectedPoints = (
+  map: mapboxgl.Map | null,
+  mapIsLoaded: boolean,
+  affectedPointsGeoJSON: GeoJSON.FeatureCollection
+) => {
+  if (!map || !mapIsLoaded) return;
+
+  const sourceId = "affected-points";
+  const layerId = "affected-points-layer";
+
+  try {
+    // Clean up existing layers
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+  } catch (e) {
+    console.warn(`Layer cleanup failed for ${layerId}:`, e);
+  }
+
+  // Filter only point geometries from affected areas
+  const pointFeatures = affectedPointsGeoJSON.features.filter(
+    (f) => f.geometry.type === "Point"
+  );
+
+  if (pointFeatures.length === 0) return;
+
+  const pointsGeoJSON: GeoJSON.FeatureCollection = {
+    type: "FeatureCollection",
+    features: pointFeatures,
+  };
+
+  // Add source
+  map.addSource(sourceId, {
+    type: "geojson",
+    data: pointsGeoJSON,
+  });
+
+  // Add circle layer with zoom-responsive radius (same as volcano markers)
+  map.addLayer({
+    id: layerId,
+    type: "circle",
+    source: sourceId,
+    paint: {
+      "circle-radius": 8, // Auto-scales with zoom
+      "circle-color": "#FF6B35", // Orange color for affected points
+      "circle-opacity": 0.7,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#FF4500",
+      "circle-stroke-opacity": 0.8,
+    },
+  });
+
+  // Add popup on click
+  map.on("click", layerId, (e) => {
+    if (!e.features || e.features.length === 0) return;
+
+    const props = e.features[0].properties!;
+
+    let html = `<div style="padding: 8px; min-width: 180px;">
+      <strong style="color: #FF6B35;">Affected Point</strong><br/>`;
+
+    if (props.elementName) {
+      html += `<span style="font-size: 12px;">Element: ${props.elementName}</span><br/>`;
+    }
+
+    html += `<span style="font-size: 11px; color: #666;">Geometry Type: Point</span>`;
+    html += "</div>";
+
+    new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+  });
+
+  // Change cursor on hover
+  map.on("mouseenter", layerId, () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+
+  map.on("mouseleave", layerId, () => {
+    map.getCanvas().style.cursor = "";
+  });
+
+  console.log(
+    `Drew ${pointFeatures.length} affected point markers with zoom-responsive sizing`
+  );
+};
+
+/**
+ * Clear affected point markers from map
+ */
+export const clearAffectedPoints = (
+  map: mapboxgl.Map | null,
+  mapIsLoaded: boolean
+) => {
+  if (!map || !mapIsLoaded) return;
+
+  const sourceId = "affected-points";
+  const layerId = "affected-points-layer";
+
+  try {
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+  } catch (e) {
+    console.warn(`Failed to clear affected points:`, e);
+  }
 };

@@ -862,78 +862,157 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       // Store for restoration after style changes
       latestAffectedAreas.current = geojson;
 
-      const sourceId = "affected-areas";
-      const layerId = "affected-areas-layer";
-      const outlineLayerId = "affected-areas-outline";
+      // BEFORE: All affected geometries were rendered as polygons/lines
+      // AFTER: Separate point geometries for proper zoom-responsive rendering
 
-      // Remove existing layers if they exist
-      if (map.getLayer(outlineLayerId)) map.removeLayer(outlineLayerId);
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
-
-      // Add source
-      map.addSource(sourceId, {
-        type: "geojson",
-        data: geojson,
-      });
-
-      // BEFORE: Used getTopSymbolLayerId which places below labels
-      // AFTER: Don't use beforeId to place on absolute top
-
-      // Add fill layer with semi-transparent red - NO beforeId = top layer
-      map.addLayer({
-        id: layerId,
-        type: "fill",
-        source: sourceId,
-        paint: {
-          "fill-color": "#FF0000",
-          "fill-opacity": 0.35, // Slightly more visible than analysis layers
-        },
-      });
-
-      // Add outline layer - NO beforeId = top layer
-      map.addLayer({
-        id: outlineLayerId,
-        type: "line",
-        source: sourceId,
-        paint: {
-          "line-color": "#FF0000",
-          "line-width": 2.5,
-          "line-opacity": 0.9,
-        },
-      });
-
-      // Add popup on click
-      const popup = new mapboxgl.Popup({
-        closeButton: true,
-        closeOnClick: true,
-      });
-
-      map.on("click", layerId, (e) => {
-        if (!e.features || e.features.length === 0) return;
-        const feature = e.features[0];
-        const props = feature.properties || {};
-
-        let html = '<div class="text-sm"><strong>Affected Area</strong><br/>';
-        for (const key in props) {
-          html += `<strong>${key}:</strong> ${props[key]}<br/>`;
-        }
-        html += "</div>";
-
-        popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
-      });
-
-      // Cursor change on hover
-      map.on("mouseenter", layerId, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", layerId, () => {
-        map.getCanvas().style.cursor = "";
-      });
-
-      console.log(
-        `Drew ${geojson.features.length} affected areas on TOP layer`
+      // Separate point and non-point geometries
+      const pointFeatures = geojson.features.filter(
+        (f) => f.geometry.type === "Point"
       );
+      const nonPointFeatures = geojson.features.filter(
+        (f) => f.geometry.type !== "Point"
+      );
+
+      // Handle non-point geometries (polygons and lines) as before
+      if (nonPointFeatures.length > 0) {
+        const sourceId = "affected-areas";
+        const layerId = "affected-areas-layer";
+        const outlineLayerId = "affected-areas-outline";
+
+        // Remove existing layers if they exist
+        if (map.getLayer(outlineLayerId)) map.removeLayer(outlineLayerId);
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+        // Add source with non-point features
+        map.addSource(sourceId, {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: nonPointFeatures,
+          },
+        });
+
+        // Add fill layer with semi-transparent red - NO beforeId = top layer
+        map.addLayer({
+          id: layerId,
+          type: "fill",
+          source: sourceId,
+          paint: {
+            "fill-color": "#FF0000",
+            "fill-opacity": 0.35,
+          },
+        });
+
+        // Add outline layer - NO beforeId = top layer
+        map.addLayer({
+          id: outlineLayerId,
+          type: "line",
+          source: sourceId,
+          paint: {
+            "line-color": "#FF0000",
+            "line-width": 2.5,
+            "line-opacity": 0.9,
+          },
+        });
+
+        // Add popup on click for non-point features
+        const popup = new mapboxgl.Popup({
+          closeButton: true,
+          closeOnClick: true,
+        });
+
+        map.on("click", layerId, (e) => {
+          if (!e.features || e.features.length === 0) return;
+          const feature = e.features[0];
+          const props = feature.properties || {};
+
+          let html = '<div class="text-sm"><strong>Affected Area</strong><br/>';
+          for (const key in props) {
+            html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+          }
+          html += "</div>";
+
+          popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+        });
+
+        // Cursor change on hover
+        map.on("mouseenter", layerId, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", layerId, () => {
+          map.getCanvas().style.cursor = "";
+        });
+
+        console.log(
+          `Drew ${nonPointFeatures.length} affected areas (polygons/lines) on TOP layer`
+        );
+      }
+
+      // Handle point geometries with zoom-responsive circles
+      if (pointFeatures.length > 0) {
+        const pointSourceId = "affected-points";
+        const pointLayerId = "affected-points-layer";
+
+        // Remove existing point layer if exists
+        if (map.getLayer(pointLayerId)) map.removeLayer(pointLayerId);
+        if (map.getSource(pointSourceId)) map.removeSource(pointSourceId);
+
+        // Add point source
+        map.addSource(pointSourceId, {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: pointFeatures,
+          },
+        });
+
+        // Add circle layer with zoom-responsive radius (like volcano markers)
+        map.addLayer({
+          id: pointLayerId,
+          type: "circle",
+          source: pointSourceId,
+          paint: {
+            "circle-radius": 8, // Auto-scales with zoom
+            "circle-color": "#FF0000",
+          },
+        });
+
+        // Add popup on click for point features
+        const pointPopup = new mapboxgl.Popup({
+          closeButton: true,
+          closeOnClick: true,
+        });
+
+        map.on("click", pointLayerId, (e) => {
+          if (!e.features || e.features.length === 0) return;
+          const feature = e.features[0];
+          const props = feature.properties || {};
+
+          let html =
+            '<div class="text-sm"><strong style="color: #FF6B35;">Affected Point</strong><br/>';
+          for (const key in props) {
+            if (key !== "raw") {
+              html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+            }
+          }
+          html += "</div>";
+
+          pointPopup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+        });
+
+        // Cursor change on hover
+        map.on("mouseenter", pointLayerId, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", pointLayerId, () => {
+          map.getCanvas().style.cursor = "";
+        });
+
+        console.log(
+          `Drew ${pointFeatures.length} affected point markers with zoom-responsive sizing`
+        );
+      }
     },
 
     fitBoundsToAffectedAreas: (geojson: GeoJSON.FeatureCollection) => {
@@ -943,30 +1022,127 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       try {
         // Calculate bounds from all affected area features
         const bounds = new mapboxgl.LngLatBounds();
+        let hasValidCoordinates = false; // NEW: Track if we have any valid coordinates
 
         geojson.features.forEach((feature) => {
           if (feature.geometry.type === "Polygon") {
             feature.geometry.coordinates[0].forEach((coord) => {
-              bounds.extend(coord as [number, number]);
+              // NEW: Validate coordinate before extending bounds
+              if (
+                Array.isArray(coord) &&
+                coord.length === 2 &&
+                typeof coord[0] === "number" &&
+                typeof coord[1] === "number" &&
+                !isNaN(coord[0]) &&
+                !isNaN(coord[1])
+              ) {
+                bounds.extend(coord as [number, number]);
+                hasValidCoordinates = true;
+              }
             });
           } else if (feature.geometry.type === "MultiPolygon") {
             feature.geometry.coordinates.forEach((polygon) => {
               polygon[0].forEach((coord) => {
-                bounds.extend(coord as [number, number]);
+                // NEW: Validate coordinate before extending bounds
+                if (
+                  Array.isArray(coord) &&
+                  coord.length === 2 &&
+                  typeof coord[0] === "number" &&
+                  typeof coord[1] === "number" &&
+                  !isNaN(coord[0]) &&
+                  !isNaN(coord[1])
+                ) {
+                  bounds.extend(coord as [number, number]);
+                  hasValidCoordinates = true;
+                }
               });
             });
           } else if (feature.geometry.type === "LineString") {
             feature.geometry.coordinates.forEach((coord) => {
-              bounds.extend(coord as [number, number]);
+              // NEW: Validate coordinate before extending bounds
+              if (
+                Array.isArray(coord) &&
+                coord.length === 2 &&
+                typeof coord[0] === "number" &&
+                typeof coord[1] === "number" &&
+                !isNaN(coord[0]) &&
+                !isNaN(coord[1])
+              ) {
+                bounds.extend(coord as [number, number]);
+                hasValidCoordinates = true;
+              }
             });
           } else if (feature.geometry.type === "MultiLineString") {
             feature.geometry.coordinates.forEach((line) => {
               line.forEach((coord) => {
-                bounds.extend(coord as [number, number]);
+                // NEW: Validate coordinate before extending bounds
+                if (
+                  Array.isArray(coord) &&
+                  coord.length === 2 &&
+                  typeof coord[0] === "number" &&
+                  typeof coord[1] === "number" &&
+                  !isNaN(coord[0]) &&
+                  !isNaN(coord[1])
+                ) {
+                  bounds.extend(coord as [number, number]);
+                  hasValidCoordinates = true;
+                }
               });
+            });
+          } else if (feature.geometry.type === "Point") {
+            // NEW: Handle Point geometries
+            const coord = feature.geometry.coordinates;
+            if (
+              Array.isArray(coord) &&
+              coord.length === 2 &&
+              typeof coord[0] === "number" &&
+              typeof coord[1] === "number" &&
+              !isNaN(coord[0]) &&
+              !isNaN(coord[1])
+            ) {
+              bounds.extend(coord as [number, number]);
+              hasValidCoordinates = true;
+            }
+          } else if (feature.geometry.type === "MultiPoint") {
+            // NEW: Handle MultiPoint geometries
+            feature.geometry.coordinates.forEach((coord) => {
+              if (
+                Array.isArray(coord) &&
+                coord.length === 2 &&
+                typeof coord[0] === "number" &&
+                typeof coord[1] === "number" &&
+                !isNaN(coord[0]) &&
+                !isNaN(coord[1])
+              ) {
+                bounds.extend(coord as [number, number]);
+                hasValidCoordinates = true;
+              }
             });
           }
         });
+
+        // NEW: Only attempt fitBounds if we have valid coordinates
+        if (!hasValidCoordinates) {
+          console.warn(
+            "No valid coordinates found in affected areas, cannot fit bounds"
+          );
+          return;
+        }
+
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+
+        if (
+          !sw ||
+          !ne ||
+          isNaN(sw.lng) ||
+          isNaN(sw.lat) ||
+          isNaN(ne.lng) ||
+          isNaN(ne.lat)
+        ) {
+          console.warn("Invalid bounds calculated, cannot fit bounds");
+          return;
+        }
 
         // Fit map to bounds with padding
         map.fitBounds(bounds, {
@@ -988,16 +1164,28 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       // Clear stored data
       latestAffectedAreas.current = null;
 
+      // BEFORE: Only cleared polygon/line layers
+      // AFTER: Also clear point layers
+
+      // Clear polygon/line layers
       const sourceId = "affected-areas";
       const layerId = "affected-areas-layer";
       const outlineLayerId = "affected-areas-outline";
 
-      // Remove layers
       if (map.getLayer(outlineLayerId)) map.removeLayer(outlineLayerId);
       if (map.getLayer(layerId)) map.removeLayer(layerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 
-      console.log("Cleared affected areas from map");
+      // Clear point layers
+      const pointSourceId = "affected-points";
+      const pointLayerId = "affected-points-layer";
+
+      if (map.getLayer(pointLayerId)) map.removeLayer(pointLayerId);
+      if (map.getSource(pointSourceId)) map.removeSource(pointSourceId);
+
+      console.log(
+        "Cleared affected areas (polygons, lines, and points) from map"
+      );
     },
     getUploadedLayerData,
   }));

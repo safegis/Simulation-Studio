@@ -1,3 +1,4 @@
+// \frontend\src\components\controls\Features\Assessment Tools\SelectAssessment.tsx
 "use client";
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
@@ -18,9 +19,13 @@ export default function SelectAssessment({
 }: Props) {
   if (!isVisible) return null;
 
-  const assessmentOptions = ["Exposure Assessment", "Vulnerability Assessment"];
+  const assessmentOptions = [
+    { label: "Exposure Assessment", disabled: false },
+    { label: "Vulnerability Assessment", disabled: true },
+  ];
 
-  const handleToggle = (label: string) => {
+  const handleToggle = (label: string, disabled: boolean) => {
+    if (disabled) return; // Don't allow toggling disabled options
     const updated = selectedAssessmentTools.includes(label)
       ? selectedAssessmentTools.filter((item) => item !== label)
       : [...selectedAssessmentTools, label];
@@ -57,17 +62,31 @@ export default function SelectAssessment({
 
       {/* Scrollable Tool List */}
       <div className="scrollbar-rounded overflow-y-auto px-4 pb-4 flex-1 space-y-3">
-        {assessmentOptions.map((label, i) => (
+        {assessmentOptions.map((option, i) => (
           <div
             key={i}
-            className="bg-[#3a3a3a] h-[160px] px-4 py-3 rounded-lg hover:bg-[#4a4a4a] transition flex items-center"
+            className={`bg-[#3a3a3a] h-[160px] px-4 py-3 rounded-lg transition flex items-center relative ${
+              option.disabled
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-[#4a4a4a] cursor-pointer"
+            }`}
           >
             <Checkbox
-              checked={selectedAssessmentTools.includes(label)}
-              onCheckedChange={() => handleToggle(label)}
+              checked={selectedAssessmentTools.includes(option.label)}
+              onCheckedChange={() =>
+                handleToggle(option.label, option.disabled)
+              }
               className="mr-4 w-[18px] h-[18px]"
+              disabled={option.disabled}
             />
-            <div className="text-[17px] font-medium">{label}</div>
+            <div className="flex flex-col">
+              <div className="text-[17px] font-medium">{option.label}</div>
+              {option.disabled && (
+                <div className="text-[13px] text-[#8183e5] mt-1">
+                  Coming Soon...
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </div>

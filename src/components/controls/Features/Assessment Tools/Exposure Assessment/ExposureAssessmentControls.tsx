@@ -120,6 +120,16 @@ const ExposureAssessmentControls: React.FC<Props> = ({
       });
     }
 
+    // Point Features
+    if (exposureElementsData["Point Features"]) {
+      exposureElementsData["Point Features"].forEach((config) => {
+        allData.push({
+          displayName: `${config.name}, ${config.country} - ${config.elementType} (${config.source})`,
+          config: config,
+        });
+      });
+    }
+
     return allData;
   };
 
@@ -303,7 +313,10 @@ const ExposureAssessmentControls: React.FC<Props> = ({
       const elementsToProcess: Array<{
         elementName: string;
         elementData: any;
-        elementType: "Land Cover" | "Transportation Networks";
+        elementType:
+          | "Land Cover"
+          | "Transportation Networks"
+          | "Point Features";
       }> = [];
 
       if (selectedElementData.length > 0) {
@@ -363,12 +376,19 @@ const ExposureAssessmentControls: React.FC<Props> = ({
           }
 
           // Determine element type from geometry
+          const hasPoints = elementData.features.some(
+            (f: any) =>
+              f.geometry.type === "Point" || f.geometry.type === "MultiPoint"
+          );
           const hasPolygons = elementData.features.some(
             (f: any) =>
               f.geometry.type === "Polygon" ||
               f.geometry.type === "MultiPolygon"
           );
-          const elementType = hasPolygons
+
+          const elementType = hasPoints
+            ? "Point Features"
+            : hasPolygons
             ? "Land Cover"
             : "Transportation Networks";
 

@@ -1956,11 +1956,13 @@ export default function MainUILayout() {
                                               {/* Basic Stats */}
                                               <div className="text-sm space-y-1">
                                                 <div className="flex justify-between">
-                                                  <span className="text-gray-400">
-                                                    {element.unit === "km"
+                                                  <div className="text-gray-400">
+                                                    {element.unit === "points"
+                                                      ? "Total Count:"
+                                                      : element.unit === "km"
                                                       ? "Total Length:"
                                                       : "Total Surface Area:"}
-                                                  </span>
+                                                  </div>
                                                   <span className="text-white">
                                                     {element.totalSurfaceArea}{" "}
                                                     {element.unit || "km²"}
@@ -1968,7 +1970,9 @@ export default function MainUILayout() {
                                                 </div>
                                                 <div className="flex justify-between">
                                                   <span className="text-gray-400">
-                                                    {element.unit === "km"
+                                                    {element.unit === "points"
+                                                      ? "Affected points:"
+                                                      : element.unit === "km"
                                                       ? "Affected length:"
                                                       : "Affected by hazard:"}
                                                   </span>
@@ -1979,7 +1983,9 @@ export default function MainUILayout() {
                                                 </div>
                                                 <div className="flex justify-between">
                                                   <span className="text-gray-400">
-                                                    {element.unit === "km"
+                                                    {element.unit === "points"
+                                                      ? "Unaffected points:"
+                                                      : element.unit === "km"
                                                       ? "Unaffected length:"
                                                       : "Unaffected by hazard:"}
                                                   </span>
@@ -1997,7 +2003,9 @@ export default function MainUILayout() {
                                                   <div className="mt-4 pt-3 border-t border-gray-600">
                                                     <h6 className="text-xs font-semibold text-white mb-3">
                                                       Affected{" "}
-                                                      {element.unit === "km"
+                                                      {element.unit === "points"
+                                                        ? "Points"
+                                                        : element.unit === "km"
                                                         ? "Length"
                                                         : "Area"}{" "}
                                                       by Hazard Level
