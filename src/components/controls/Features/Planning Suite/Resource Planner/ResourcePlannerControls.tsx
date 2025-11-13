@@ -32,7 +32,7 @@ export default function ResourcePlannerControls({
       >
         <div className="flex items-center gap-2">
           <Users size={18} />
-          <span className="text-base font-medium">Personnel</span>
+          <span className="text-[10px] font-medium">Personnel</span>
         </div>
         <ChevronDown
           size={18}
@@ -43,7 +43,7 @@ export default function ResourcePlannerControls({
       </button>
       {personnelExpanded && (
         <div className="pt-2 pb-5 px-2">
-          <div className="text-gray-400 text-xs text-center mb-4 ">
+          <div className="text-gray-400 text-[10px] text-center mb-4 ">
             Drag and drop a resource
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -63,7 +63,7 @@ export default function ResourcePlannerControls({
                 }
                 className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
               >
-                <span className="text-xs">{res.name}</span>
+                <span className="text-[10px]">{res.name}</span>
               </div>
             ))}
           </div>
@@ -77,7 +77,7 @@ export default function ResourcePlannerControls({
       >
         <div className="flex items-center gap-2">
           <Building size={18} />
-          <span className="text-base font-medium">Infrastructure</span>
+          <span className="text-[10px] font-medium">Infrastructure</span>
         </div>
         <ChevronDown
           size={18}
@@ -88,7 +88,7 @@ export default function ResourcePlannerControls({
       </button>
       {infraExpanded && (
         <div className="pt-2 pb-5 px-2">
-          <div className="text-gray-400 text-xs text-center mb-4 ">
+          <div className="text-gray-400 text-[10px] text-center mb-4 ">
             Drag and drop a resource
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -112,7 +112,7 @@ export default function ResourcePlannerControls({
                 }
                 className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
               >
-                <span className="text-xs text-center">{res.name}</span>
+                <span className="text-[10px] text-center">{res.name}</span>
               </div>
             ))}
           </div>
@@ -126,7 +126,7 @@ export default function ResourcePlannerControls({
       >
         <div className="flex items-center gap-2">
           <ShoppingBasket size={18} />
-          <span className="text-base font-medium">Supplies</span>
+          <span className="text-[10px] font-medium">Supplies</span>
         </div>
         <ChevronDown
           size={18}
@@ -137,7 +137,7 @@ export default function ResourcePlannerControls({
       </button>
       {suppliesExpanded && (
         <div className="pt-2 pb-5 px-2">
-          <div className="text-gray-400 text-xs text-center mb-4 ">
+          <div className="text-gray-400 text-[10px] text-center mb-4 ">
             Drag and drop a resource
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -157,7 +157,7 @@ export default function ResourcePlannerControls({
                 }
                 className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
               >
-                <span className="text-xs text-center">{res.name}</span>
+                <span className="text-[10px] text-center">{res.name}</span>
               </div>
             ))}
           </div>
@@ -169,7 +169,9 @@ export default function ResourcePlannerControls({
         <div className="text-white font-semibold mb-2">Resources on Map</div>
         <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
           {resourcesOnMap.length === 0 && (
-            <div className="text-gray-400 text-sm">No resources placed yet</div>
+            <div className="text-gray-400 text-[10px]">
+              No resources placed yet
+            </div>
           )}
           {resourcesOnMap.map((res) => (
             <div
@@ -179,11 +181,11 @@ export default function ResourcePlannerControls({
             >
               <div className="flex items-center justify-between">
                 <span>{res.data.name || res.type}</span>
-                <div className="flex items-center gap-[5px] text-gray-400 text-xs capitalize">
+                <div className="flex items-center gap-[5px] text-gray-400 text-[10px] capitalize">
                   <span>{res.type}</span>
                 </div>
               </div>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-[10px] text-gray-400 mt-1">
                 {res.coords.lat.toFixed(4)}, {res.coords.lng.toFixed(4)}
               </div>
             </div>
@@ -210,3 +212,5 @@ export default function ResourcePlannerControls({
     </>
   );
 }
+
+

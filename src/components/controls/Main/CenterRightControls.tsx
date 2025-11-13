@@ -140,88 +140,88 @@ export default function RightSideControls({
   };
 
   return (
-    <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
+    <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2">
       {/* 2D/3D Toggle */}
       {show3DControls && (
-        <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] h-[112px] overflow-hidden">
+        <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] overflow-hidden">
           <div
-            className="absolute w-[44px] h-[44px] left-2 rounded-lg bg-gradient-to-b from-[#9699FF] to-white transition-all duration-300 ease-in-out"
-            style={{ top: viewMode === "2d" ? "8px" : "60px" }}
+            className="absolute w-[32px] h-[32px] left-1 rounded bg-gradient-to-b from-[#9699FF] to-white transition-all duration-300 ease-in-out"
+            style={{ top: viewMode === "2d" ? "4px" : "40px" }}
           />
-          <div className="relative z-10 flex flex-col gap-2 items-center">
+          <div className="relative z-10 flex flex-col gap-1 items-center">
             <button
               onClick={switchTo2D}
-              className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg ${
+              className={`w-[32px] h-[32px] inline-flex items-center justify-center rounded ${
                 viewMode === "2d" ? "text-[#2E2E2E]" : "text-[#C7C7C7]"
               }`}
             >
-              <span className="font-semibold text-lg">2D</span>
+              <span className="font-semibold text-xs leading-none">2D</span>
             </button>
             <button
               onClick={switchTo3D}
-              className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg ${
+              className={`w-[32px] h-[32px] inline-flex items-center justify-center rounded ${
                 viewMode === "3d" ? "text-[#2E2E2E]" : "text-[#C7C7C7]"
               }`}
             >
-              <span className="font-semibold text-lg">3D</span>
+              <span className="font-semibold text-xs leading-none">3D</span>
             </button>
           </div>
         </div>
       )}
 
       {/* Zoom buttons */}
-      <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex flex-col gap-2">
+      <div className="bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] flex flex-col gap-1">
         <button
           onClick={() => handleZoom(1)}
-          className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
+          className="w-[32px] h-[32px] hover:bg-[#3a3a3a] text-[#C7C7C7] inline-flex items-center justify-center rounded transition"
         >
-          <ZoomIn width={28} height={28} />
+          <ZoomIn size={18} className="shrink-0" />
         </button>
         <button
           onClick={() => handleZoom(-1)}
-          className="hover:bg-[#3a3a3a] text-[#C7C7C7] p-2 rounded-lg transition"
+          className="w-[32px] h-[32px] hover:bg-[#3a3a3a] text-[#C7C7C7] inline-flex items-center justify-center rounded transition"
         >
-          <ZoomOut width={28} height={28} />
+          <ZoomOut size={18} className="shrink-0" />
         </button>
       </div>
 
       {/* GeoJSON Upload */}
-      <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+      <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] h-[40px] flex justify-center items-center">
         <button
           onClick={() => {
             setShowGeoJSONPanel((prev) => !prev);
             setShowBoundariesPanel(false); // Close boundaries panel
           }}
-          className={`w-[44px] h-[44px] flex items-center justify-center rounded-lg ${
+          className={`w-[32px] h-[32px] inline-flex items-center justify-center rounded transition ${
             showGeoJSONPanel
               ? "bg-gradient-to-b from-[#9699FF] to-white"
-              : "hover:bg-[#3a3a3a]"
+              : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
           }`}
         >
           <Layers2
-            width={28}
-            height={28}
+            size={18}
             color={showGeoJSONPanel ? "#2E2E2E" : "#C7C7C7"}
+            className="shrink-0"
           />
         </button>
 
         {showGeoJSONPanel && (
-          <div className="absolute right-full mr-[18px] top-1/2 -translate-y-1/2 w-96 bg-[#2E2E2E] rounded-xl shadow-md p-6 z-40 flex flex-col items-center">
-            <h3 className="text-lg font-semibold text-white mb-4">
+          <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-64 bg-[#2E2E2E] rounded-md shadow-md p-3 z-40 flex flex-col items-center">
+            <h3 className="text-[10px] font-semibold text-white mb-2">
               Import Geospatial Data
             </h3>
-            <div className="flex flex-col gap-2 w-full">
+            <div className="flex flex-col gap-1 w-full">
               {uploadedFiles.map((file, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between bg-[#3a3a3a] text-white px-3 py-2 rounded-lg w-full"
+                  className="flex items-center justify-between bg-[#3a3a3a] text-white px-2 py-1 rounded-sm w-full"
                 >
-                  <span className="truncate">{file.name}</span>
+                  <span className="truncate text-[10px]">{file.name}</span>
                   <button
                     onClick={() => handleRemoveFile(file.layerName)}
-                    className="text-red-400 hover:text-red-600 ml-2"
+                    className="text-red-400 hover:text-red-600 ml-1.5"
                   >
-                    <X size={18} />
+                    <X size={14} />
                   </button>
                 </div>
               ))}
@@ -231,14 +231,16 @@ export default function RightSideControls({
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`px-6 py-3 rounded-lg shadow-md cursor-pointer text-center w-full transition ${
+                className={`px-3 py-2 rounded-sm shadow-md cursor-pointer text-center w-full transition ${
                   isDragging
-                    ? "bg-transparent border-4 border-dashed border-[#9699FF] text-[#9699FF]"
+                    ? "bg-transparent border-2 border-dashed border-[#9699FF] text-[#9699FF]"
                     : "bg-[#5A5C99] text-white hover:opacity-90"
                 }`}
               >
-                <span className="font-medium">Choose or drop a file</span>
-                <span className="block text-sm mt-1 text-[#E0E0E0]">
+                <span className="font-medium text-[10px]">
+                  Choose or drop a file
+                </span>
+                <span className="block text-[10px] mt-0.5 text-[#E0E0E0]">
                   Supports: .geojson, .shp (zip), .kml
                 </span>
               </div>
@@ -257,29 +259,29 @@ export default function RightSideControls({
       </div>
 
       {/* Boundaries Button & Panel */}
-      <div className="relative bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+      <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] h-[40px] flex justify-center items-center">
         <button
           onClick={() => {
             setShowBoundariesPanel((prev) => !prev);
             setShowGeoJSONPanel(false); // Close GeoJSON panel
           }}
-          className={`w-[44px] h-[44px] text-[27px] font-semibold flex items-center justify-center rounded-lg ${
+          className={`w-[32px] h-[32px] text-base font-semibold inline-flex items-center justify-center rounded transition ${
             showBoundariesPanel
               ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E]"
               : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
-          } transition`}
+          }`}
         >
           B
         </button>
 
         {showBoundariesPanel && (
-          <div className="absolute right-full mr-[18px] top-1/2 -translate-y-1/2 w-[420px] bg-[#2E2E2E] rounded-xl shadow-md p-6 z-40 flex flex-col items-center">
-            <h3 className="text-lg font-semibold text-white mb-4">
+          <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-[300px] bg-[#2E2E2E] rounded-md shadow-md p-3 z-40 flex flex-col items-center">
+            <h3 className="text-[10px] font-semibold text-white mb-2">
               Add Boundaries to Map
             </h3>
 
-            <div className="flex flex-col gap-2 w-full">
-              <div className="flex gap-2 w-full">
+            <div className="flex flex-col gap-1 w-full">
+              <div className="flex gap-1 w-full">
                 {/* Added flex container */}
                 <div className="relative flex-1">
                   {" "}
@@ -287,7 +289,7 @@ export default function RightSideControls({
                   <button
                     ref={boundaryButtonRef}
                     onClick={() => setShowBoundaryDropdown((prev) => !prev)}
-                    className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2.5 px-4 rounded-md text-sm"
+                    className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px]"
                   >
                     <span
                       className={
@@ -298,8 +300,8 @@ export default function RightSideControls({
                       {/* Changed "Options" to "Select Country" */}
                     </span>
                     <ChevronDown
-                      size={16}
-                      className={`ml-2 transition-transform duration-200 ${
+                      size={12}
+                      className={`ml-1 transition-transform duration-200 ${
                         showBoundaryDropdown ? "rotate-180" : ""
                       }`}
                     />
@@ -308,7 +310,7 @@ export default function RightSideControls({
                     boundaryButtonRef.current &&
                     createPortal(
                       <div
-                        className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+                        className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
                         style={{
                           top:
                             boundaryButtonRef.current.getBoundingClientRect()
@@ -358,7 +360,7 @@ export default function RightSideControls({
                                   setBoundarySearchTerm("");
                                   setSelectedBoundaryLevel(null); // Add this line to reset boundary level
                                 }}
-                                className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-sm"
+                                className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px]"
                               >
                                 {option}
                               </div>
@@ -375,7 +377,7 @@ export default function RightSideControls({
                     setBoundarySearchTerm("");
                     setSelectedBoundaryLevel(null);
                   }}
-                  className="px-4 py-2.5 rounded-lg shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-sm"
+                  className="px-2 py-1.5 rounded-sm shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-[10px]"
                 >
                   Clear
                 </button>
@@ -384,15 +386,15 @@ export default function RightSideControls({
               {/* New conditional second dropdown */}
               {selectedBoundary && (
                 <>
-                  <span className="text-white text-sm mt-2">Boundary:</span>
-                  <div className="flex gap-2 w-full">
+                  <span className="text-white text-[10px] mt-1">Boundary:</span>
+                  <div className="flex gap-1 w-full">
                     <div className="relative flex-1">
                       <button
                         ref={boundaryLevelButtonRef}
                         onClick={() =>
                           setShowBoundaryLevelDropdown((prev) => !prev)
                         }
-                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-2.5 px-4 rounded-md text-sm"
+                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px]"
                       >
                         <span
                           className={
@@ -404,8 +406,8 @@ export default function RightSideControls({
                           {selectedBoundaryLevel || "Options"}
                         </span>
                         <ChevronDown
-                          size={16}
-                          className={`ml-2 transition-transform duration-200 ${
+                          size={12}
+                          className={`ml-1 transition-transform duration-200 ${
                             showBoundaryLevelDropdown ? "rotate-180" : ""
                           }`}
                         />
@@ -415,7 +417,7 @@ export default function RightSideControls({
                         boundaryLevelButtonRef.current &&
                         createPortal(
                           <div
-                            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+                            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
                             style={{
                               top:
                                 boundaryLevelButtonRef.current.getBoundingClientRect()
@@ -444,7 +446,7 @@ export default function RightSideControls({
                                       setSelectedBoundaryLevel(option.label);
                                       setShowBoundaryLevelDropdown(false);
                                     }}
-                                    className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-sm"
+                                    className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px]"
                                   >
                                     {option.label}
                                   </div>
@@ -460,7 +462,7 @@ export default function RightSideControls({
                       onClick={() => {
                         setSelectedBoundaryLevel(null);
                       }}
-                      className="px-4 py-2.5 rounded-lg shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-sm"
+                      className="px-2 py-1.5 rounded-sm shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-[10px]"
                     >
                       Clear
                     </button>

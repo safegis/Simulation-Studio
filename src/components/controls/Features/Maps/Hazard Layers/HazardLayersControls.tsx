@@ -288,7 +288,7 @@ export default function HazardMapControls({
       >
         <div className="flex items-center gap-2">
           <Droplet size={20} />
-          <span className="text-base font-medium">Hydro-Meteorological</span>
+          <span className="text-[10px] font-medium">Hydro-Meteorological</span>
         </div>
         <ChevronDown
           size={18}
@@ -307,7 +307,7 @@ export default function HazardMapControls({
                   checked={hydroCheckedItems.includes(item)}
                   onCheckedChange={() => toggleHydroItem(item)}
                 />
-                <span className="text-base">{item}</span>
+                <span className="text-[10px]">{item}</span>
               </div>
 
               {/* Weather dropdown controls */}
@@ -581,7 +581,7 @@ export default function HazardMapControls({
                           {/* CHANGED: Return Period checkboxes now only show when province is selected */}
                           {selectedFloodProvince && (
                             <div className="mt-3 space-y-1">
-                              <div className="text-white text-sm">
+                              <div className="text-white text-[10px]">
                                 Return Period:
                               </div>
                               {floodReturnPeriodOptions.map((period) => (
@@ -595,7 +595,7 @@ export default function HazardMapControls({
                                       toggleFloodReturnPeriod(period)
                                     }
                                   />
-                                  <span className="text-sm">{period}</span>
+                                  <span className="text-[10px]">{period}</span>
                                 </div>
                               ))}
                             </div>
@@ -620,7 +620,7 @@ export default function HazardMapControls({
       >
         <div className="flex items-center gap-2">
           <Mountain size={20} />
-          <span className="text-base font-medium">Geological</span>
+          <span className="text-[10px] font-medium">Geological</span>
         </div>
         <ChevronDown
           size={18}
@@ -638,7 +638,7 @@ export default function HazardMapControls({
                 checked={geologicalCheckedItems.includes(item)}
                 onCheckedChange={() => toggleGeologicalItem(item)}
               />
-              <span className="text-base">{item}</span>
+              <span className="text-[10px]">{item}</span>
             </div>
           ))}
         </div>
@@ -666,7 +666,7 @@ export default function HazardMapControls({
         weatherCountryButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 weatherCountryButtonRef.current.getBoundingClientRect().bottom +
@@ -701,7 +701,7 @@ export default function HazardMapControls({
         weatherLocationButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 weatherLocationButtonRef.current.getBoundingClientRect()
@@ -814,7 +814,7 @@ export default function HazardMapControls({
         municipalityProvinceButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 municipalityProvinceButtonRef.current.getBoundingClientRect()
@@ -1029,7 +1029,7 @@ export default function HazardMapControls({
         floodDataSourceButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 floodDataSourceButtonRef.current.getBoundingClientRect()
@@ -1065,7 +1065,7 @@ export default function HazardMapControls({
         floodCountryButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 floodCountryButtonRef.current.getBoundingClientRect().bottom +
@@ -1098,7 +1098,7 @@ export default function HazardMapControls({
         floodProvinceButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 floodProvinceButtonRef.current.getBoundingClientRect().bottom +
@@ -1141,3 +1141,5 @@ export default function HazardMapControls({
     </>
   );
 }
+
+

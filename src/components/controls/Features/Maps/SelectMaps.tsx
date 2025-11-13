@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -34,37 +33,37 @@ export default function SelectMaps({
 
   return (
     <div
-      className="mt-[18px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] flex flex-col pb-[25px]"
-      style={{ maxHeight: "calc(100vh - 91px - 18px)" }}
+      className="w-full bg-[#2E2E2E] rounded-lg shadow-md text-[#C7C7C7] flex flex-col pb-4"
+      style={{ maxHeight: "calc(100vh - 91px)" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 z-10">
-        <span className="text-[14px] font-medium text-[#C7C7C7]">
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 z-10">
+        <span className="text-[10px] font-medium text-[#C7C7C7]">
           Select layers to include:
         </span>
         <button
           onClick={selectedMaps.length === 0 ? undefined : onGoToToolPanel}
           disabled={selectedMaps.length === 0}
-          className={`text-sm flex items-center gap-1 transition ${
+          className={`text-[10px] flex items-center gap-0.5 transition ${
             selectedMaps.length === 0
               ? "text-[#555] cursor-not-allowed"
               : "text-[#8183e5] hover:text-[#a7a9fa]"
           }`}
         >
           Go to tool panel
-          <ChevronRight size={16} />
+          <ChevronRight size={12} />
         </button>
       </div>
 
       {/* Options */}
-      <div className="scrollbar-rounded overflow-y-auto px-4 pb-4 flex-1 space-y-3">
+      <div className="scrollbar-rounded overflow-y-auto px-3 pb-3 flex-1 space-y-2">
         {mapOptions.map((label, i) => {
           const bgImage = bgImages[label];
 
           return (
             <div
               key={i}
-              className={`option-card group h-[160px] px-4 py-3 rounded-lg transition flex items-center relative overflow-hidden
+              className={`option-card group h-[110px] px-3 py-2 rounded-md transition flex items-center relative overflow-hidden
               ${
                 bgImage
                   ? "bg-cover bg-center text-white hover:brightness-110"
@@ -74,7 +73,7 @@ export default function SelectMaps({
             >
               {/* Dark overlay */}
               {bgImage && (
-                <div className="absolute inset-0 bg-black/65 rounded-lg"></div>
+                <div className="absolute inset-0 bg-black/65 rounded-md"></div>
               )}
 
               {/* Animated border overlay */}
@@ -87,23 +86,23 @@ export default function SelectMaps({
                   y="2"
                   width="calc(100% - 4px)"
                   height="calc(100% - 4px)"
-                  rx="8" /* match rounded-lg */
-                  ry="8"
+                  rx="6"
+                  ry="6"
                   className="animated-border"
                   fill="none"
-                  stroke="#9699FF" // <-- your color here
-                  strokeWidth="3"
+                  stroke="#9699FF"
+                  strokeWidth="2"
                 />
                 <rect
                   x="2"
                   y="2"
                   width="calc(100% - 4px)"
                   height="calc(100% - 4px)"
-                  rx="8" /* match rounded-lg */
-                  ry="8"
+                  rx="6"
+                  ry="6"
                   className="animated-border"
                   fill="none"
-                  stroke="#9699FF" // <-- your color here
+                  stroke="#9699FF"
                   strokeWidth="1"
                 />
               </svg>
@@ -112,9 +111,9 @@ export default function SelectMaps({
                 <Checkbox
                   checked={selectedMaps.includes(label)}
                   onCheckedChange={() => handleToggle(label)}
-                  className="mr-4 w-[18px] h-[18px]"
+                  className="mr-3 w-[14px] h-[14px]"
                 />
-                <div className="text-[17px] font-medium drop-shadow-md">
+                <div className="text-[10px] font-medium drop-shadow-md">
                   {label}
                 </div>
               </div>

@@ -39,9 +39,9 @@ export default function CenterLeftControls({
   selectedAssessmentTools,
 }: CenterLeftControlsProps) {
   return (
-    <div className="absolute top-1/2 left-[18px] -translate-y-1/2 z-50 flex flex-col items-center gap-[18px]">
+    <div className="absolute top-1/2 left-[18px] -translate-y-1/2 z-50 flex flex-col items-center gap-2">
       {/* Top 4 Buttons Group */}
-      <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex flex-col gap-4">
+      <div className="bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] flex flex-col gap-1">
         <button
           onClick={() =>
             setShowSelectMaps((prev) => {
@@ -55,13 +55,13 @@ export default function CenterLeftControls({
               return newState;
             })
           }
-          className={`p-2 rounded-lg transition ${
+          className={`w-[32px] h-[32px] rounded transition inline-flex items-center justify-center ${
             showSelectMaps
               ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
               : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
           }`}
         >
-          <Earth width={28} height={28} />
+          <Earth size={18} className="shrink-0" />
         </button>
 
         <button
@@ -77,13 +77,13 @@ export default function CenterLeftControls({
               return newState;
             })
           }
-          className={`p-2 rounded-lg transition ${
+          className={`w-[32px] h-[32px] rounded transition inline-flex items-center justify-center ${
             showPathfinder
               ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
               : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
           }`}
         >
-          <MapPinned width={28} height={28} />
+          <MapPinned size={18} className="shrink-0" />
         </button>
 
         <button
@@ -99,13 +99,13 @@ export default function CenterLeftControls({
               return newState;
             })
           }
-          className={`p-2 rounded-lg transition ${
+          className={`w-[32px] h-[32px] rounded transition inline-flex items-center justify-center ${
             showAssessmentTools
               ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
               : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
           }`}
         >
-          <ChartColumn width={28} height={28} />
+          <ChartColumn size={18} className="shrink-0" />
         </button>
 
         <button
@@ -121,13 +121,13 @@ export default function CenterLeftControls({
               return newState;
             })
           }
-          className={`p-2 rounded-lg transition ${
+          className={`w-[32px] h-[32px] rounded transition inline-flex items-center justify-center ${
             showPlanningTools
               ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
               : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
           }`}
         >
-          <ListTodo width={28} height={28} />
+          <ListTodo size={18} className="shrink-0" />
         </button>
       </div>
 
@@ -135,7 +135,7 @@ export default function CenterLeftControls({
       {(selectedMaps.length > 0 ||
         selectedPlanningTools.length > 0 ||
         selectedAssessmentTools.length > 0) && (
-        <div className="bg-[#2E2E2E] p-2 rounded-xl shadow-md w-[60px] flex justify-center">
+        <div className="bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] h-[40px] flex justify-center items-center">
           <button
             onClick={() =>
               setShowToolPanel((prev) => {
@@ -149,13 +149,13 @@ export default function CenterLeftControls({
                 return newState;
               })
             }
-            className={`p-2 rounded-lg transition ${
+            className={`w-[32px] h-[32px] rounded transition inline-flex items-center justify-center ${
               showToolPanel
                 ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E] hover:opacity-90"
                 : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
             }`}
           >
-            <PanelLeft width={28} height={28} />
+            <PanelLeft size={18} className="shrink-0" />
           </button>
         </div>
       )}

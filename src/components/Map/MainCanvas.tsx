@@ -124,7 +124,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/streets-v12",
       center: [0, 0],
-      zoom: 2.5,
+      zoom: 1.8,
       pitch: 0,
       bearing: 0,
       antialias: true,
@@ -1193,7 +1193,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     <>
       <div
         ref={mapContainer}
-        className="fixed top-0 left-0 w-screen h-screen z-0"
+        className="absolute top-0 left-0 w-full h-full z-0"
       />
       {pendingResource && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[9999]">

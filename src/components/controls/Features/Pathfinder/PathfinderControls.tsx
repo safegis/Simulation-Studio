@@ -268,7 +268,7 @@ export default function PathfinderControls({
   };
 
   const buttonClass = (mode: string) =>
-    `p-3 rounded-lg transition ${
+    `p-1.5 rounded-sm transition ${
       selectedMode === mode
         ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E]"
         : "hover:bg-[#3A3A3A] text-[#C7C7C7]"
@@ -317,30 +317,32 @@ export default function PathfinderControls({
 
   return (
     <div
-      className="w-96 bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] flex flex-col p-4 scrollbar-rounded relative"
+      className="w-full bg-[#2E2E2E] rounded-lg shadow-md text-[#C7C7C7] flex flex-col p-3 scrollbar-rounded relative"
       style={{ maxHeight: "calc(100vh - 36px)", overflowY: "auto" }}
     >
-      <Tabs defaultValue="destination" className="w-full flex flex-col gap-4">
-        <TabsList className="bg-[#5A5A5A] rounded-lg w-full grid grid-cols-2 p-[5px] h-[44px]">
+      <Tabs defaultValue="destination" className="w-full flex flex-col gap-2.5">
+        <TabsList className="bg-[#5A5A5A] rounded-md w-full grid grid-cols-2 p-1 h-auto items-center">
           <TabsTrigger
             value="destination"
-            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] text-[#FFFFFF] text-[14px] font-medium rounded-sm flex items-center justify-center h-[34px] px-2"
+            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] data-[state=active]:shadow-none text-[#FFFFFF] text-[10px] font-medium rounded-sm flex items-center justify-center h-[24px] px-2 border-0"
+            style={{ lineHeight: "24px", padding: "0 0.5rem" }}
           >
             Set Destination
           </TabsTrigger>
           <TabsTrigger
             value="evacuation"
-            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] text-[#FFFFFF] text-[14px] font-medium rounded-sm flex items-center justify-center h-[34px] px-2"
+            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] data-[state=active]:shadow-none text-[#FFFFFF] text-[10px] font-medium rounded-sm flex items-center justify-center h-[24px] px-2 border-0"
+            style={{ lineHeight: "24px", padding: "0 0.5rem" }}
           >
             Find Evacuation Area
           </TabsTrigger>
         </TabsList>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {/* Inputs */}
           <div className="relative" ref={startContainerRef}>
-            <div className="bg-[#5A5A5A] h-[45px] flex items-center gap-3 px-4 rounded-lg shadow-md">
-              <MapPin width={25} height={25} color="#75F7A9" />
+            <div className="bg-[#5A5A5A] h-[30px] flex items-center gap-1.5 px-2 rounded-md shadow-md">
+              <MapPin width={15} height={15} color="#75F7A9" />
               <input
                 ref={startRef}
                 type="text"
@@ -362,14 +364,14 @@ export default function PathfinderControls({
                     );
                   }
                 }}
-                className="bg-transparent outline-none text-md text-[#C7C7C7] placeholder-[#999] w-full h-full"
+                className="bg-transparent outline-none text-[10px] text-[#C7C7C7] placeholder-[#999] w-full h-full"
               />
             </div>
             {startSuggestions.length > 0 &&
               ReactDOM.createPortal(
                 <ul
                   ref={startSuggestionsRef}
-                  className="absolute z-[999] mt-2 w-[384px] bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto text-[#2E2E2E] scrollbar-rounded"
+                  className="absolute z-[999] mt-1.5 bg-white rounded-md shadow-lg max-h-48 overflow-y-auto text-[#2E2E2E] scrollbar-rounded"
                   style={{
                     top: startContainerRef.current
                       ? startContainerRef.current.getBoundingClientRect()
@@ -393,7 +395,7 @@ export default function PathfinderControls({
                         startItemRefs.current[index] = el;
                       }}
                       onClick={() => handleSuggestionSelect(place)}
-                      className={`px-4 py-3 text-base cursor-pointer ${
+                      className={`px-2.5 py-1.5 text-[10px] cursor-pointer ${
                         startHighlightedIndex === index
                           ? "bg-[#5A5A5A] text-white"
                           : "hover:bg-[#eeeeee]"
@@ -408,8 +410,8 @@ export default function PathfinderControls({
           </div>
 
           <div className="relative" ref={destinationContainerRef}>
-            <div className="bg-[#5A5A5A] h-[45px] flex items-center gap-3 px-4 rounded-lg shadow-md">
-              <MapPin width={25} height={25} color="#FF9494" />
+            <div className="bg-[#5A5A5A] h-[30px] flex items-center gap-1.5 px-2 rounded-md shadow-md">
+              <MapPin width={15} height={15} color="#FF9494" />
               <input
                 ref={destinationRef}
                 type="text"
@@ -436,14 +438,14 @@ export default function PathfinderControls({
                     );
                   }
                 }}
-                className="bg-transparent outline-none text-md text-[#C7C7C7] placeholder-[#999] w-full h-full"
+                className="bg-transparent outline-none text-[10px] text-[#C7C7C7] placeholder-[#999] w-full h-full"
               />
             </div>
             {destinationSuggestions.length > 0 &&
               ReactDOM.createPortal(
                 <ul
                   ref={destinationSuggestionsRef}
-                  className="absolute z-[999] mt-2 w-[384px] bg-white rounded-xl shadow-lg max-h-60 overflow-y-auto text-[#2E2E2E] scrollbar-rounded"
+                  className="absolute z-[999] mt-1.5 bg-white rounded-md shadow-lg max-h-48 overflow-y-auto text-[#2E2E2E] scrollbar-rounded"
                   style={{
                     top: destinationContainerRef.current
                       ? destinationContainerRef.current.getBoundingClientRect()
@@ -469,7 +471,7 @@ export default function PathfinderControls({
                         destinationItemRefs.current[index] = el;
                       }}
                       onClick={() => handleDestinationSelect(place)}
-                      className={`px-4 py-3 text-base cursor-pointer ${
+                      className={`px-2.5 py-1.5 text-[10px] cursor-pointer ${
                         destinationHighlightedIndex === index
                           ? "bg-[#5A5A5A] text-white"
                           : "hover:bg-[#eeeeee]"
@@ -495,7 +497,7 @@ export default function PathfinderControls({
                   }
                 }}
               >
-                <Route size={28} />
+                <Route size={16} />
               </button>
 
               <button
@@ -511,7 +513,7 @@ export default function PathfinderControls({
                   }
                 }}
               >
-                <Car size={28} />
+                <Car size={16} />
               </button>
 
               <button
@@ -529,7 +531,7 @@ export default function PathfinderControls({
               >
                 <TwoWheelerIcon
                   style={{
-                    fontSize: 28,
+                    fontSize: 16,
                     color:
                       selectedMode === "motorcycle" ? "#2E2E2E" : "#C7C7C7",
                   }}
@@ -549,7 +551,7 @@ export default function PathfinderControls({
                   }
                 }}
               >
-                <Bike size={28} />
+                <Bike size={16} />
               </button>
 
               <button
@@ -565,7 +567,7 @@ export default function PathfinderControls({
                   }
                 }}
               >
-                <Footprints size={28} />
+                <Footprints size={16} />
               </button>
             </div>
           )}
@@ -573,11 +575,11 @@ export default function PathfinderControls({
           {/* Routes & Steps */}
           {routesData.length > 0 && (
             <>
-              <div className="flex items-center gap-2 mt-2">
-                <p className="text-white text-sm font-semibold">
+              <div className="flex items-center gap-1.5 mt-1">
+                <p className="text-white text-[10px] font-semibold">
                   Available Routes
                 </p>
-                <div className="bg-[#5A5A5A] text-[#00FF7B] text-[14px] font-semibold w-6 h-7 rounded-lg shadow-md flex items-center justify-center">
+                <div className="bg-[#5A5A5A] text-[#00FF7B] text-[10px] font-semibold w-5 h-5 rounded-sm shadow-md flex items-center justify-center">
                   {
                     routesData.filter((r) =>
                       selectedMode === "all" ? true : r.profile === selectedMode
@@ -589,18 +591,18 @@ export default function PathfinderControls({
                 <div className="relative ml-auto" ref={sortDropdownRef}>
                   <button
                     onClick={() => setShowSortDropdown((prev) => !prev)}
-                    className="flex items-center justify-between gap-1 bg-[#5A5A5A] text-white text-sm px-3 py-1 rounded-lg hover:bg-[#6A6A6A] transition w-[140px]"
+                    className="flex items-center justify-between gap-0.5 bg-[#5A5A5A] text-white text-[10px] px-2 py-0.5 rounded-sm hover:bg-[#6A6A6A] transition w-[95px]"
                   >
                     {selectedSort}
                     {showSortDropdown ? (
-                      <ChevronUp size={16} />
+                      <ChevronUp size={12} />
                     ) : (
-                      <ChevronDown size={16} />
+                      <ChevronDown size={12} />
                     )}
                   </button>
 
                   {showSortDropdown && (
-                    <div className="absolute right-0 mt-1 w-[140px] bg-[#5A5A5A] rounded-lg shadow-lg text-sm text-white z-50">
+                    <div className="absolute right-0 mt-0.5 w-[95px] bg-[#5A5A5A] rounded-sm shadow-lg text-[10px] text-white z-50">
                       {["Best balance", "Safest", "Fastest"].map(
                         (option, index) => (
                           <div
@@ -609,14 +611,14 @@ export default function PathfinderControls({
                               setSelectedSort(option);
                               setShowSortDropdown(false);
                             }}
-                            className={`px-4 py-1 cursor-pointer hover:bg-[#6A6A6A] 
+                            className={`px-2 py-0.5 cursor-pointer hover:bg-[#6A6A6A] 
             ${
               selectedSort === option
                 ? "bg-gradient-to-r from-[#9699FF] to-white text-black"
                 : ""
             }
-            ${index === 0 ? "rounded-t-lg" : ""}
-            ${index === 2 ? "rounded-b-lg" : ""}
+            ${index === 0 ? "rounded-t-sm" : ""}
+            ${index === 2 ? "rounded-b-sm" : ""}
           `}
                           >
                             {option}
@@ -628,7 +630,7 @@ export default function PathfinderControls({
                 </div>
               </div>
 
-              <div className="scrollbar-rounded max-h-160 overflow-y-auto bg-[#1E1E1E] p-3 rounded-xl space-y-4">
+              <div className="scrollbar-rounded max-h-160 overflow-y-auto bg-[#1E1E1E] p-2 rounded-md space-y-2">
                 {(selectedSort === "Fastest"
                   ? sortRoutesFastest(routesData)
                   : routesData
@@ -647,7 +649,7 @@ export default function PathfinderControls({
                           typeof featureIdx === "number" ? featureIdx : null
                         );
                       }}
-                      className={`border rounded-lg p-3 text-sm text-[#C7C7C7] cursor-pointer transition
+                      className={`border rounded-sm p-2 text-[10px] text-[#C7C7C7] cursor-pointer transition
                           ${
                             isSelected
                               ? "border-[#9699FF] shadow-lg"
@@ -656,32 +658,32 @@ export default function PathfinderControls({
                     >
                       <div className="flex items-center">
                         {/* Left: Icon and Time */}
-                        <div className="flex flex-col items-center justify-center px-1">
+                        <div className="flex flex-col items-center justify-center px-0.5">
                           {route.profile === "driving" && (
-                            <Car className="text-white" size={30} />
+                            <Car className="text-white" size={16} />
                           )}
                           {route.profile === "cycling" && (
-                            <Bike className="text-white" size={30} />
+                            <Bike className="text-white" size={16} />
                           )}
                           {route.profile === "walking" && (
-                            <Footprints className="text-white" size={30} />
+                            <Footprints className="text-white" size={16} />
                           )}
                           {route.profile === "motorcycle" && (
                             <TwoWheelerIcon
-                              style={{ fontSize: 30, color: "white" }}
+                              style={{ fontSize: 16, color: "white" }}
                             />
                           )}
-                          <span className="w-[55px] text-center text-[13px] text-[#AAAAAA] mt-2 inline-block">
+                          <span className="w-[40px] text-center text-[10px] text-[#AAAAAA] mt-1 inline-block">
                             {formatDuration(route.duration)}
                           </span>
                         </div>
 
                         {/* Divider */}
-                        <div className="w-px h-[70px] bg-[#555] mx-2" />
+                        <div className="w-px h-[45px] bg-[#555] mx-1" />
 
                         {/* Right: Title, Distance, Button */}
-                        <div className="flex flex-col justify-center pl-2 flex-1">
-                          <p className="font-semibold capitalize text-white">
+                        <div className="flex flex-col justify-center pl-1 flex-1">
+                          <p className="font-semibold capitalize text-white text-[10px]">
                             {selectedSort === "Fastest" ? (
                               <>
                                 {idx === 0 &&
@@ -700,7 +702,7 @@ export default function PathfinderControls({
                             )}
                           </p>
 
-                          <p className="text-sm mt-1">
+                          <p className="text-[10px] mt-0.5">
                             {(route.distance / 1000).toFixed(2)} km
                           </p>
 
@@ -711,13 +713,13 @@ export default function PathfinderControls({
                                 [routeKey]: !prev[routeKey],
                               }))
                             }
-                            className="flex items-center gap-1 text-[13px] text-transparent bg-gradient-to-r from-[#9699FF] to-white bg-clip-text hover:underline transition mt-3 w-fit"
+                            className="flex items-center gap-0.5 text-[10px] text-transparent bg-gradient-to-r from-[#9699FF] to-white bg-clip-text hover:underline transition mt-1.5 w-fit"
                           >
                             <ChevronDown
                               className={`transition-transform duration-300 text-[#9699FF] ${
                                 showStepsMap[routeKey] ? "rotate-180" : ""
                               }`}
-                              size={14}
+                              size={10}
                             />
                             {showStepsMap[routeKey] ? "Hide" : "Show"}{" "}
                             Directions
@@ -727,7 +729,7 @@ export default function PathfinderControls({
 
                       {/* Steps */}
                       {showStepsMap[routeKey] && (
-                        <ol className="list-decimal text-xs text-[#AAAAAA] pl-6 space-y-1 mt-[25px]">
+                        <ol className="list-decimal text-[10px] text-[#AAAAAA] pl-4 space-y-0.5 mt-2">
                           {route.steps.map((step: any, i: number) => (
                             <li key={i}>{step.maneuver.instruction}</li>
                           ))}
@@ -749,23 +751,23 @@ export default function PathfinderControls({
           <hr className="border-gray-500 my-2" />
 
           <div className="mt-4 space-y-2">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-[10px]">
               <span>Obstructions</span>
               <span>3</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-[10px]">
               <span>Congestion</span>
               <span>5</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-[10px]">
               <span>Road Closure</span>
               <span>1</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-[10px]">
               <span>Lane Closure</span>
               <span>2</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-[10px]">
               <span>Flooded Points</span>
               <span>4</span>
             </div>
@@ -774,7 +776,7 @@ export default function PathfinderControls({
             <div className="mt-2 text-center">
               <button
                 onClick={() => setShowModal(true)}
-                className="text-sm text-[#8183e5] hover:text-[#a7a9fa]"
+                className="text-[10px] text-[#8183e5] hover:text-[#a7a9fa]"
               >
                 More info
               </button>
@@ -803,25 +805,25 @@ export default function PathfinderControls({
             <hr className="border-gray-500 mb-4" />
 
             <div className="mt-4 space-y-2">
-              <div className="flex items-center gap-x-4 text-sm">
+              <div className="flex items-center gap-x-4 text-[10px]">
                 <span className="w-32">Obstructions</span>
                 <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
                   3
                 </span>
               </div>
-              <div className="flex items-center gap-x-4 text-sm">
+              <div className="flex items-center gap-x-4 text-[10px]">
                 <span className="w-32">Congestion</span>
                 <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
                   5
                 </span>
               </div>
-              <div className="flex items-center gap-x-4 text-sm">
+              <div className="flex items-center gap-x-4 text-[10px]">
                 <span className="w-32">Road Closure</span>
                 <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
                   1
                 </span>
               </div>
-              <div className="flex items-center gap-x-4 text-sm">
+              <div className="flex items-center gap-x-4 text-[10px]">
                 <span className="w-32">Lane Closure</span>
                 <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">
                   2
@@ -829,7 +831,7 @@ export default function PathfinderControls({
               </div>
 
               {/* Flooded Points */}
-              <div className="flex items-start gap-x-4 text-sm">
+              <div className="flex items-start gap-x-4 text-[10px]">
                 <span className="w-32">Flooded Points</span>
                 <div className="flex flex-col space-y-1">
                   <span className="bg-gradient-to-r from-[#9699FF] to-white bg-clip-text text-transparent">

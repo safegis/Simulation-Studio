@@ -28,6 +28,7 @@ type Props = {
   mapRef?: any;
   toggleChat: () => void;
   onExpandToggle?: (expanded: boolean) => void;
+  isExpanded?: boolean;
   // New props for view switching
   viewMode?: "2d" | "3d";
   switchTo2D?: () => void;
@@ -190,8 +191,8 @@ function ThinkingLoader() {
         </div>
       </div>
       {/* Loading text */}
-      <p className="mt-4 mb-6 text-[#C7C7C7] text-sm animate-pulse text-center">
-        SafeGIS AI is mapping your query...
+      <p className="mt-4 mb-6 text-[#C7C7C7] text-[10px] animate-pulse text-center">
+        Atlas is mapping your query...
       </p>
     </div>
   );
@@ -201,7 +202,8 @@ export default function SafeGISAIChat({
   isVisible,
   mapRef,
   toggleChat,
-  onExpandToggle, // NEW PROP
+  onExpandToggle,
+  isExpanded: isExpandedProp = false,
   viewMode = "2d",
   switchTo2D,
   switchTo3D,
@@ -219,6 +221,11 @@ export default function SafeGISAIChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Sync internal state with prop
+  useEffect(() => {
+    setIsExpanded(isExpandedProp);
+  }, [isExpandedProp]);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
@@ -369,18 +376,18 @@ export default function SafeGISAIChat({
   if (!isVisible && !animateVisible) {
     return (
       <>
-        {/* SafeGIS AI Chat Button */}
+        {/* Atlas Chat Button */}
         <button
           onClick={toggleChat}
-          className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
+          className="absolute bottom-[18px] right-[18px] w-13 h-13 rounded-md z-50 shadow-md flex items-center justify-center transition-all duration-300"
           style={{
             background: "linear-gradient(to bottom, #5A5C99, #232323)",
           }}
         >
           <img
             src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
-            alt="SafeGIS AI Logo"
-            className="w-12 h-12 -mt-[2.5px]"
+            alt="Atlas Logo"
+            className="w-8.5 h-8 -mt-[1.5px]"
           />
         </button>
       </>
@@ -583,7 +590,7 @@ export default function SafeGISAIChat({
         ...prev,
         {
           role: "assistant",
-          content: "Error: Failed to connect to SafeGIS AI.",
+          content: "Error: Failed to connect to Atlas.",
         },
       ]);
     } finally {
@@ -602,14 +609,16 @@ export default function SafeGISAIChat({
       <div
         className={`${
           isExpanded
-            ? "fixed top-0 right-0 h-screen w-[500px] rounded-none"
-            : "absolute bottom-[18px] h-[543.6px] right-[109px] w-[400px] rounded-[15px]"
-        } z-50 shadow-md origin-bottom-right flex flex-col
+            ? "fixed top-0 right-0 h-screen w-[360px] rounded-none border-l border-white/10"
+            : "absolute bottom-[18px] h-[393px] right-[88px] w-[280px] rounded-md py-2"
+        } ${
+          isExpanded ? "z-10" : "z-50"
+        } shadow-md origin-bottom-right flex flex-col
   ${
     isVisible
       ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
       : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
-  } py-3`}
+  }`}
         style={{
           background: "linear-gradient(to bottom, #5A5C99, #232323)",
           overflow: "hidden",
@@ -618,18 +627,18 @@ export default function SafeGISAIChat({
         <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
           {messages.length === 0 && (
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-6"
-              style={{ transform: "translateY(-50px)" }}
+              className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-3"
+              style={{ transform: "translateY(-30px)" }}
             >
               <img
                 src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
-                alt="SafeGIS AI Logo"
-                className="opacity-50 w-[120px]"
+                alt="Atlas Logo"
+                className="opacity-50 w-[90px]"
               />
-              <p className="text-white opacity-70 text-[20px] font-semibold mt-[12px]">
-                SafeGIS AI
+              <p className="text-white opacity-70 text-[16px] font-semibold mt-1.5">
+                Atlas
               </p>
-              <p className="text-[#C7C7C7] text-[14px] font-[400] mt-[8px] mb-[80px]">
+              <p className="text-[#C7C7C7] text-[10px] font-[400] mt-1 mb-12">
                 Need assistance? Ask away!
               </p>
             </div>
@@ -637,8 +646,8 @@ export default function SafeGISAIChat({
 
           {/* Messages */}
           <div
-            className={`flex-1 p-4 overflow-y-auto space-y-3 relative custom-scrollbar bg-transparent ${
-              isExpanded ? "pb-[180px]" : "pb-[180px]"
+            className={`flex-1 p-2 overflow-y-auto space-y-1.5 relative custom-scrollbar bg-transparent ${
+              isExpanded ? "pb-[120px]" : "pb-[120px]"
             }`}
           >
             {messages.map((msg, idx) => (
@@ -649,22 +658,22 @@ export default function SafeGISAIChat({
                 }`}
               >
                 <div
-                  className={`p-4 prose prose-invert break-words select-text ${
+                  className={`p-2 prose prose-invert break-words select-text ${
                     msg.role === "user"
-                      ? "bg-[#3e3f68] text-white rounded-xl max-w-[75%]"
-                      : "text-[#C7C7C7] w-full px-2 bg-transparent"
+                      ? "bg-[#3e3f68] text-white rounded-md max-w-[75%]"
+                      : "text-[#C7C7C7] w-full px-1 bg-transparent"
                   }`}
                 >
                   <ReactMarkdown
                     components={{
                       p: ({ node, ...props }) => (
                         <p
-                          className="mb-4 leading-relaxed text-[14px]"
+                          className="mb-2 leading-relaxed text-[10px]"
                           {...props}
                         />
                       ),
                       li: ({ node, ...props }) => (
-                        <li className="ml-6 list-disc text-[14px]" {...props} />
+                        <li className="ml-3 list-disc text-[10px]" {...props} />
                       ),
                     }}
                   >
@@ -680,34 +689,36 @@ export default function SafeGISAIChat({
 
           {/* Chat Input */}
           <div
-            className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 p-[10px] flex flex-col gap-2 flex-shrink-0 ${
-              isExpanded ? "w-[460px]" : "w-[370px]"
-            } bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg`}
+            className={`absolute bottom-2 left-1/2 transform -translate-x-1/2 p-2 flex flex-col gap-1 flex-shrink-0 ${
+              isExpanded ? "w-[345px]" : "w-[265px]"
+            } bg-white/5 backdrop-blur-xl border border-white/10 rounded-md shadow-lg`}
           >
-            <div className="flex justify-between items-center mb-0.5">
+            <div className="flex justify-between items-center mb-0">
               {/* Web Search */}
               <button
                 onClick={() => setWebSearchEnabled((prev) => !prev)}
-                className={`px-[8px] py-[17px] text-[13px] rounded-lg border transition-all duration-200 flex items-center justify-center h-[32px] gap-1.5 ${
+                className={`px-1.5 text-[9px] rounded-sm border transition-all duration-200 flex items-center justify-center h-[22px] gap-1 ${
                   webSearchEnabled
                     ? "bg-[#5A5C99]/35 border-[#8183c8] text-[#c6c8fb]"
                     : "bg-white/5 border-white/20 text-white/70 hover:text-white"
                 }`}
               >
-                <Globe size={16} />
-                Web Search
+                <span className="flex items-center" style={{ lineHeight: 0 }}>
+                  <Globe size={10} />
+                </span>
+                <span style={{ lineHeight: "22px" }}>Web Search</span>
               </button>
 
               {/* Actions */}
-              <div className="flex items-center">
+              <div className="flex items-center gap-0">
                 <button
                   onClick={handleNewSession}
-                  className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
+                  className="text-white hover:text-gray-200 h-[22px] w-[22px] flex items-center justify-center"
                 >
-                  <MessageCirclePlus size={20} />
+                  <MessageCirclePlus size={14} />
                 </button>
-                <button className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center">
-                  <History size={20} />
+                <button className="text-white hover:text-gray-200 h-[22px] w-[22px] flex items-center justify-center">
+                  <History size={14} />
                 </button>
                 <button
                   onClick={() => {
@@ -715,16 +726,16 @@ export default function SafeGISAIChat({
                     setIsExpanded(newExpanded);
                     onExpandToggle?.(newExpanded);
                   }}
-                  className="text-white hover:text-gray-200 h-[32px] w-[32px] flex items-center justify-center"
+                  className="text-white hover:text-gray-200 h-[22px] w-[22px] flex items-center justify-center"
                   title={isExpanded ? "Minimize" : "Expand"}
                 >
-                  {isExpanded ? <Minimize size={20} /> : <Expand size={20} />}
+                  {isExpanded ? <Minimize size={14} /> : <Expand size={14} />}
                 </button>
               </div>
             </div>
 
             {/* Textarea */}
-            <div className="flex flex-col w-full h-[110px] bg-white/5 backdrop-blur-xl rounded-xl shadow-lg p-1.5 border-animated">
+            <div className="flex flex-col w-full h-[70px] backdrop-blur-xl !rounded-[0.375rem] shadow-lg p-1 border-animated">
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
@@ -736,26 +747,26 @@ export default function SafeGISAIChat({
                 }}
                 placeholder={getTextareaPlaceholder()}
                 disabled={isTextareaDisabled}
-                className={`flex-1 resize-none overflow-y-auto bg-transparent text-[#C7C7C7] placeholder-[#C7C7C7]/70 text-[14px] rounded-md px-2 py-1 outline-none border-none custom-scrollbar ${
+                className={`flex-1 resize-none overflow-y-auto bg-transparent text-[#C7C7C7] placeholder-[#C7C7C7]/70 text-[10px] rounded-md px-1 py-0.5 outline-none border-none custom-scrollbar ${
                   isTextareaDisabled ? "cursor-not-allowed opacity-60" : ""
                 } ${isRecording ? "placeholder-orange-300" : ""} ${
                   isProcessingAudio ? "placeholder-blue-300" : ""
                 }`}
               />
 
-              <div className="flex justify-between mt-1.5">
+              <div className="flex justify-between mt-0.5">
                 <button
                   onClick={() => console.log("Plus button clicked")}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg text-white hover:text-gray-200 transition bg-transparent"
+                  className="h-5 w-5 flex items-center justify-center rounded-sm text-white hover:text-gray-200 transition bg-transparent"
                 >
-                  <Plus size={18} />
+                  <Plus size={13} />
                 </button>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   {/* Voice Prompt Button */}
                   <button
                     onClick={handleVoiceButtonClick}
                     disabled={isProcessingAudio}
-                    className={`h-8 w-8 flex items-center justify-center rounded-lg text-white transition ${
+                    className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
                       isRecording
                         ? "bg-red-500 hover:bg-red-600"
                         : isProcessingAudio
@@ -764,11 +775,11 @@ export default function SafeGISAIChat({
                     }`}
                   >
                     {isRecording ? (
-                      <CircleStop size={20} />
+                      <CircleStop size={13} />
                     ) : isProcessingAudio ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
                     ) : (
-                      <Mic size={18} />
+                      <Mic size={13} />
                     )}
                   </button>
                   {/* Send Prompt Button */}
@@ -780,7 +791,7 @@ export default function SafeGISAIChat({
                       isRecording ||
                       isProcessingAudio
                     }
-                    className={`h-8 w-8 flex items-center justify-center rounded-lg text-white transition ${
+                    className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
                       loading ||
                       !inputText.trim() ||
                       isRecording ||
@@ -789,7 +800,7 @@ export default function SafeGISAIChat({
                         : "bg-[#676767] hover:bg-[#737373]"
                     }`}
                   >
-                    <ArrowUp size={18} />
+                    <ArrowUp size={13} />
                   </button>
                 </div>
               </div>
@@ -802,15 +813,15 @@ export default function SafeGISAIChat({
       {!isExpanded && (
         <button
           onClick={toggleChat}
-          className="absolute bottom-[18px] right-[18px] w-18 h-18 rounded-[15px] z-50 shadow-md flex items-center justify-center transition-all duration-300"
+          className="absolute bottom-[18px] right-[18px] w-13 h-13 rounded-md z-50 shadow-md flex items-center justify-center transition-all duration-300"
           style={{
             background: "linear-gradient(to bottom, #6B6DCC, #2E2E2E)",
           }}
         >
           <img
             src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
-            alt="SafeGIS AI Logo"
-            className="w-12 h-12 -mt-[2.5px]"
+            alt="Atlas Logo"
+            className="w-8.5 h-8 -mt-[1.5px]"
           />
         </button>
       )}

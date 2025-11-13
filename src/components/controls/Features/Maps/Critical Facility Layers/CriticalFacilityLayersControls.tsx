@@ -32,7 +32,7 @@ function TransparentButton({
     <button className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition">
       <div className="flex items-center gap-2">
         {icon}
-        <span className="text-base font-medium">{label}</span>
+        <span className="text-[10px] font-medium">{label}</span>
       </div>
       <ChevronDown size={18} className="text-white" />
     </button>
@@ -468,7 +468,7 @@ export default function CriticalFacilityMapControls({
       >
         <div className="flex items-center gap-2">
           <LandPlot size={20} />
-          <span className="text-base font-medium">Emergency Shelters</span>
+          <span className="text-[10px] font-medium">Emergency Shelters</span>
         </div>
         <ChevronDown
           size={18}
@@ -604,7 +604,7 @@ export default function CriticalFacilityMapControls({
       >
         <div className="flex items-center gap-2">
           <BriefcaseMedical size={20} />
-          <span className="text-base font-medium">Medical / Health</span>
+          <span className="text-[10px] font-medium">Medical / Health</span>
         </div>
         <ChevronDown
           size={18}
@@ -728,7 +728,7 @@ export default function CriticalFacilityMapControls({
       >
         <div className="flex items-center gap-2">
           <Siren size={20} />
-          <span className="text-base font-medium">Command & Response</span>
+          <span className="text-[10px] font-medium">Command & Response</span>
         </div>
         <ChevronDown
           size={18}
@@ -747,7 +747,7 @@ export default function CriticalFacilityMapControls({
                   checked={commandResponseCheckedItems.includes(item)}
                   onCheckedChange={() => toggleCommandResponseItem(item)}
                 />
-                <span className="text-base">{item}</span>
+                <span className="text-[10px]">{item}</span>
               </div>
               {/* Fire Stations Coverage Dropdown */}
               {item === "Fire Stations" &&
@@ -843,7 +843,7 @@ export default function CriticalFacilityMapControls({
                     {/* Administrative Division Section - appears when "By administrative division" is selected */}
                     {selectedFireCoverage === "By administrative division" && (
                       <div className="space-y-2">
-                        <div className="text-white text-sm font-medium mt-4">
+                        <div className="text-white text-[10px] font-medium mt-4">
                           Define Scope:
                         </div>
                         <button
@@ -1071,7 +1071,7 @@ export default function CriticalFacilityMapControls({
                     {selectedPoliceCoverage ===
                       "By administrative division" && (
                       <div className="space-y-2">
-                        <div className="text-white text-sm font-medium mt-4">
+                        <div className="text-white text-[10px] font-medium mt-4">
                           Define Scope:
                         </div>
                         <button
@@ -1214,7 +1214,7 @@ export default function CriticalFacilityMapControls({
         fireStationButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 fireStationButtonRef.current.getBoundingClientRect().bottom + 4,
@@ -1245,7 +1245,7 @@ export default function CriticalFacilityMapControls({
         fireStationCountryButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 fireStationCountryButtonRef.current.getBoundingClientRect()
@@ -1328,7 +1328,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         fireStationScopeButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 fireStationScopeButtonRef.current.getBoundingClientRect()
@@ -1362,7 +1362,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         fireStationStateButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 fireStationStateButtonRef.current.getBoundingClientRect()
@@ -1443,7 +1443,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         fireStationDivisionTypeButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 fireStationDivisionTypeButtonRef.current.getBoundingClientRect()
@@ -1478,7 +1478,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         policeStationButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 policeStationButtonRef.current.getBoundingClientRect().bottom +
@@ -1511,7 +1511,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         policeStationCountryButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 policeStationCountryButtonRef.current.getBoundingClientRect()
@@ -1595,7 +1595,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         policeStationScopeButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 policeStationScopeButtonRef.current.getBoundingClientRect()
@@ -1630,7 +1630,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         policeStationStateButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 policeStationStateButtonRef.current.getBoundingClientRect()
@@ -1711,7 +1711,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         policeStationDivisionTypeButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 policeStationDivisionTypeButtonRef.current.getBoundingClientRect()
@@ -1746,7 +1746,7 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
         shelterCoverageButtonRef.current &&
         createPortal(
           <div
-            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-sm text-white overflow-hidden"
+            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
             style={{
               top:
                 shelterCoverageButtonRef.current.getBoundingClientRect()
@@ -1777,3 +1777,5 @@ ${index === arr.length - 1 ? "rounded-bl-md" : ""}`}
     </>
   );
 }
+
+

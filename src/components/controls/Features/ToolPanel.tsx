@@ -1161,7 +1161,7 @@ export default function ToolPanel({
 
   return (
     <div
-      className="mt-[18px] w-full bg-transparent rounded-xl shadow-md text-[#C7C7C7] flex flex-col overflow-y-auto scrollbar-rounded"
+      className="mt-[18px] w-full bg-transparent rounded-md shadow-md text-[#C7C7C7] flex flex-col overflow-y-auto scrollbar-rounded"
       style={{ maxHeight: "calc(100vh - 91px - 18px)", padding: "0px" }}
     >
       {[
@@ -1190,14 +1190,14 @@ export default function ToolPanel({
           <div key={key} className={index !== arr.length - 1 ? "mb-3" : ""}>
             <button
               onClick={() => togglePanel(key)}
-              className="flex justify-between items-center px-4 w-full rounded-xl"
-              style={{ height: "50px", backgroundColor: "#454545" }}
+              className="flex justify-between items-center px-4 w-full rounded-md"
+              style={{ height: "40px", backgroundColor: "#454545" }}
             >
-              <span className="text-base font-medium text-white">
+              <span className="text-[10px] font-medium text-white">
                 {displayName}
               </span>
               <ChevronDown
-                size={20}
+                size={14}
                 className={`text-white transform transition-transform duration-200 ${
                   isExpanded ? "rotate-180" : ""
                 }`}
@@ -1205,7 +1205,7 @@ export default function ToolPanel({
             </button>
 
             {isExpanded && (
-              <div className="bg-[#2E2E2E] text-sm text-white p-4 rounded-b-xl mt-2 space-y-2">
+              <div className="bg-[#2E2E2E] text-[10px] text-white p-4 rounded-b-xl mt-2 space-y-2">
                 {/* Hazard Layers Controls */}
                 {label === "Hazard Layers" && (
                   <HazardMapControls
@@ -1282,9 +1282,9 @@ function TransparentButton({
     <button className="flex justify-between items-center w-full bg-transparent text-white px-2 py-2 rounded hover:bg-[#3a3a3a] transition">
       <div className="flex items-center gap-2">
         {icon}
-        <span className="text-base font-medium">{label}</span>
+        <span className="text-[10px] font-medium">{label}</span>
       </div>
-      <ChevronDown size={18} className="text-white" />
+      <ChevronDown size={14} className="text-white" />
     </button>
   );
 }
@@ -1314,10 +1314,10 @@ function PanelToggle({
       >
         <div className="flex items-center gap-2">
           {icon}
-          <span className="text-base font-medium">{title}</span>
+          <span className="text-[10px] font-medium">{title}</span>
         </div>
         <ChevronDown
-          size={18}
+          size={14}
           className={`text-white transition-transform duration-200 ${
             expanded ? "rotate-180" : ""
           }`}
@@ -1328,11 +1328,11 @@ function PanelToggle({
           {items.map((item) => (
             <div key={item} className="flex items-center">
               <Checkbox
-                className="mr-3 w-[18px] h-[18px]"
+                className="mr-3 w-[14px] h-[14px]"
                 checked={checkedItems.includes(item)}
                 onCheckedChange={() => onCheck(item)}
               />
-              <span className="text-base">{item}</span>
+              <span className="text-[10px]">{item}</span>
             </div>
           ))}
         </div>
@@ -1340,3 +1340,4 @@ function PanelToggle({
     </>
   );
 }
+

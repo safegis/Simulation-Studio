@@ -372,6 +372,18 @@ export default function MainUILayout() {
       document.removeEventListener("mousedown", handleClickOutsideMapStyle);
   }, []);
 
+  // Trigger map resize when chat expands/collapses
+  useEffect(() => {
+    if (mapRef.current?.getMap) {
+      const map = mapRef.current.getMap();
+      // Wait for transition to complete before resizing
+      const timer = setTimeout(() => {
+        map?.resize();
+      }, 300); // Match the transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [isChatExpanded]);
+
   const handleSuggestionSelect = (place: any) => {
     setSearchText(place.properties.formatted);
     setSuggestions([]);
@@ -1039,7 +1051,7 @@ export default function MainUILayout() {
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden flex">
+    <div className="relative w-screen h-screen overflow-hidden flex m-0 p-0">
       {!isDesktop ? (
         <div className="flex items-center justify-center w-screen h-screen bg-[#1a1a1a] text-white text-center px-4">
           <div className="max-w-sm text-lg">
@@ -1048,10 +1060,11 @@ export default function MainUILayout() {
         </div>
       ) : (
         <>
+          {/* Map Container */}
           <div
             className={`transition-all duration-300 ${
-              isChatExpanded ? "w-[calc(100vw-500px)]" : "w-screen"
-            } h-screen`}
+              isChatExpanded ? "w-[calc(100vw-360px)]" : "w-screen"
+            } h-screen relative overflow-hidden`}
           >
             <MapComponent ref={mapRef} />
           </div>
@@ -1104,13 +1117,13 @@ export default function MainUILayout() {
                 suggestionsRef={suggestionsRef}
               />
             ) : (
-              <div className="absolute top-[18px] left-[96px] z-50">
+              <div className="absolute top-[18px] left-[76px] z-50 w-[280px]">
                 <PathfinderControls mapRef={mapRef} />
               </div>
             ))}
           {/* Panels - Hide when expanded */}
           {!isChatExpanded && showSelectMaps && (
-            <div className="absolute left-[96px] top-[73px] w-96 z-40">
+            <div className="absolute left-[76px] top-[73px] w-[280px] z-40">
               <SelectMaps
                 isVisible={true}
                 selectedMaps={selectedMaps}
@@ -1126,7 +1139,7 @@ export default function MainUILayout() {
             </div>
           )}
           {!isChatExpanded && showPlanningTools && (
-            <div className="absolute left-[96px] top-[73px] w-96 z-40">
+            <div className="absolute left-[76px] top-[73px] w-[280px] z-40">
               <SelectPlanningTools
                 isVisible={true}
                 selectedPlanningTools={selectedPlanningTools}
@@ -1142,7 +1155,7 @@ export default function MainUILayout() {
             </div>
           )}
           {!isChatExpanded && showAssessmentTools && (
-            <div className="absolute left-[96px] top-[73px] w-96 z-40">
+            <div className="absolute left-[76px] top-[73px] w-[280px] z-40">
               <SelectAssessment
                 isVisible={true}
                 selectedAssessmentTools={selectedAssessmentTools}
@@ -1158,7 +1171,7 @@ export default function MainUILayout() {
             </div>
           )}
           {!isChatExpanded && showToolPanel && (
-            <div className="absolute left-[96px] top-[73px] w-96 z-40">
+            <div className="absolute left-[76px] top-[73px] w-[280px] z-40">
               <ToolPanel
                 isVisible={true}
                 selectedMaps={selectedMaps}
@@ -1224,12 +1237,13 @@ export default function MainUILayout() {
               setUploadedFiles={setUploadedFiles}
             />
           )}
-          {/* SafeGIS AI Chat Button */}
+          {/* SafeGIS AI Chat - Always render, position changes based on expanded state */}
           <SafeGISAIChat
             isVisible={showChat}
             mapRef={mapRef}
             toggleChat={() => setShowChat((prev) => !prev)}
             onExpandToggle={setIsChatExpanded}
+            isExpanded={isChatExpanded}
             viewMode={viewMode}
             switchTo2D={switchTo2D}
             switchTo3D={switchTo3D}

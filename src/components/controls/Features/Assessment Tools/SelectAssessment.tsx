@@ -1,6 +1,5 @@
 // \frontend\src\components\controls\Features\Assessment Tools\SelectAssessment.tsx
 "use client";
-import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -34,14 +33,14 @@ export default function SelectAssessment({
 
   return (
     <div
-      className="mt-[18px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] flex flex-col pb-[25px]"
+      className="w-full bg-[#2E2E2E] rounded-lg shadow-md text-[#C7C7C7] flex flex-col pb-4"
       style={{
-        maxHeight: "calc(100vh - 91px - 18px)",
+        maxHeight: "calc(100vh - 91px)",
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 z-10">
-        <span className="text-[14px] font-medium text-[#C7C7C7]">
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 z-10">
+        <span className="text-[10px] font-medium text-[#C7C7C7]">
           Select tools to include:
         </span>
         <button
@@ -49,23 +48,23 @@ export default function SelectAssessment({
             selectedAssessmentTools.length === 0 ? undefined : onGoToToolPanel
           }
           disabled={selectedAssessmentTools.length === 0}
-          className={`text-sm flex items-center gap-1 transition ${
+          className={`text-[10px] flex items-center gap-0.5 transition ${
             selectedAssessmentTools.length === 0
               ? "text-[#555] cursor-not-allowed"
               : "text-[#8183e5] hover:text-[#a7a9fa]"
           }`}
         >
           Go to tool panel
-          <ChevronRight size={16} />
+          <ChevronRight size={12} />
         </button>
       </div>
 
       {/* Scrollable Tool List */}
-      <div className="scrollbar-rounded overflow-y-auto px-4 pb-4 flex-1 space-y-3">
+      <div className="scrollbar-rounded overflow-y-auto px-3 pb-3 flex-1 space-y-2">
         {assessmentOptions.map((option, i) => (
           <div
             key={i}
-            className={`bg-[#3a3a3a] h-[160px] px-4 py-3 rounded-lg transition flex items-center relative ${
+            className={`bg-[#3a3a3a] h-[110px] px-3 py-2 rounded-md transition flex items-center relative ${
               option.disabled
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-[#4a4a4a] cursor-pointer"
@@ -76,13 +75,13 @@ export default function SelectAssessment({
               onCheckedChange={() =>
                 handleToggle(option.label, option.disabled)
               }
-              className="mr-4 w-[18px] h-[18px]"
+              className="mr-3 w-[14px] h-[14px]"
               disabled={option.disabled}
             />
             <div className="flex flex-col">
-              <div className="text-[17px] font-medium">{option.label}</div>
+              <div className="text-[10px] font-medium">{option.label}</div>
               {option.disabled && (
-                <div className="text-[13px] text-[#8183e5] mt-1">
+                <div className="text-[10px] text-[#8183e5] mt-1">
                   Coming Soon...
                 </div>
               )}

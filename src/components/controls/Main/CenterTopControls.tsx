@@ -33,19 +33,19 @@ export default function CenterTopControls({
 }: CenterTopControlsProps) {
   return (
     <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
-      <div className="flex gap-[18px] relative">
+      <div className="flex gap-2.5 relative">
         {viewMode === "3d" && selectedTimeOfDay !== null && (
-          <div ref={timeOfDayRef} className="relative w-[190px]">
+          <div ref={timeOfDayRef} className="relative w-[140px]">
             <button
               onClick={() => setShowTimeOfDayDropdown((prev: boolean) => !prev)}
-              className="h-[55px] w-full px-5 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] 
-rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
+              className="h-[40px] w-full px-3 py-2 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] 
+rounded-md shadow-md hover:bg-[#3a3a3a] transition text-[11px] font-medium"
             >
               <span className="leading-none">Time of Day</span>
-              <ChevronDown size={22} />
+              <ChevronDown size={15} />
             </button>
             {showTimeOfDayDropdown && (
-              <div className="absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
+              <div className="absolute top-[48px] w-full bg-[#2E2E2E] rounded-md shadow-md text-[#C7C7C7] p-1.5 z-50">
                 {["Auto", "Morning", "Daytime", "Evening", "Nighttime"].map(
                   (label, idx) => {
                     const isSelected = selectedTimeOfDay === label;
@@ -53,7 +53,7 @@ rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
                       <div
                         key={idx}
                         onClick={() => handleTimeOfDayChange(label)}
-                        className={`p-2 rounded-md cursor-pointer flex items-center gap-2 transition ${
+                        className={`px-2 py-1.5 rounded-sm cursor-pointer flex items-center gap-1 transition text-[11px] ${
                           isSelected
                             ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E] font-medium"
                             : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
@@ -61,27 +61,27 @@ rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
                       >
                         {label === "Morning" ? (
                           <Sunrise
-                            size={18}
+                            size={14}
                             color={isSelected ? "#2E2E2E" : "#C7C7C7"}
                           />
                         ) : label === "Daytime" ? (
                           <Sun
-                            size={18}
+                            size={14}
                             color={isSelected ? "#2E2E2E" : "#C7C7C7"}
                           />
                         ) : label === "Evening" ? (
                           <Sunset
-                            size={18}
+                            size={14}
                             color={isSelected ? "#2E2E2E" : "#C7C7C7"}
                           />
                         ) : label === "Nighttime" ? (
                           <Moon
-                            size={18}
+                            size={14}
                             color={isSelected ? "#2E2E2E" : "#C7C7C7"}
                           />
                         ) : (
                           <SyncIcon
-                            fontSize="small"
+                            sx={{ fontSize: 14 }}
                             style={{
                               color: isSelected ? "#2E2E2E" : "#C7C7C7",
                             }}
@@ -97,17 +97,17 @@ rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
           </div>
         )}
 
-        <div ref={mapStyleRef} className="relative w-[190px]">
+        <div ref={mapStyleRef} className="relative w-[140px]">
           <button
             onClick={() => setShowMapStyleDropdown((prev: boolean) => !prev)} // ✅ typed
-            className="h-[55px] w-full px-5 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] 
-rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
+            className="h-[40px] w-full px-3 py-2 flex items-center justify-between bg-[#2E2E2E] text-[#C7C7C7] 
+rounded-md shadow-md hover:bg-[#3a3a3a] transition text-[11px] font-medium"
           >
             <span className="leading-none">Map Style</span>
-            <ChevronDown size={22} />
+            <ChevronDown size={15} />
           </button>
           {showMapStyleDropdown && (
-            <div className="text-sm absolute top-[60px] w-full bg-[#2E2E2E] rounded-xl shadow-md text-[#C7C7C7] p-3 z-50">
+            <div className="text-[11px] absolute top-[48px] w-full bg-[#2E2E2E] rounded-md shadow-md text-[#C7C7C7] p-1.5 z-50">
               {[
                 "Default (Custom Mapbox Standard)",
                 "Satellite (Mapbox)",
@@ -122,7 +122,7 @@ rounded-xl shadow-md hover:bg-[#3a3a3a] transition text-base font-medium"
                   <div
                     key={idx}
                     onClick={() => handleMapStyleChange(label)}
-                    className={`p-2 rounded-md cursor-pointer transition flex items-center gap-2 ${
+                    className={`px-2 py-1.5 rounded-sm cursor-pointer transition flex items-center gap-1 ${
                       isSelected
                         ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E] font-medium"
                         : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
