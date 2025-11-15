@@ -69,9 +69,15 @@ export default function SelectPlanningTools({
             <Checkbox
               checked={selectedPlanningTools.includes(label)}
               onCheckedChange={() => handleToggle(label)}
-              className="mr-3 w-[14px] h-[14px]"
+              className="mr-3"
+              style={{
+                width: "14px",
+                height: "14px",
+                minWidth: "14px",
+                minHeight: "14px",
+              }}
             />
-            <div className="text-[10px] font-medium">{label}</div>
+            <div className="text-[12px] font-medium">{label}</div>
           </div>
         ))}
       </div>

@@ -584,7 +584,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Instructions */}
       <div className="text-gray-300 text-[10px]">
         Analyze exposed elements and assets within hazard zones
@@ -592,12 +592,12 @@ const ExposureAssessmentControls: React.FC<Props> = ({
 
       {/* Step 1: Select Hazard Data */}
       <div className="relative">
-        <label className="block text-white text-[10px] font-medium mb-2">
+        <label className="block text-white text-[10px] font-medium mb-1.5">
           1. Select Hazard Data
         </label>
         <button
           onClick={() => setHazardDataDropdownOpen((prev) => !prev)}
-          className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
+          className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-2.5 py-2 rounded shadow-md hover:bg-[#454545] transition"
         >
           <span className="text-[10px]">
             {hazardDataSource || "Choose data source..."}
@@ -611,7 +611,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
         </button>
 
         {hazardDataDropdownOpen && (
-          <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+          <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded shadow-lg overflow-hidden">
             {hazardDataOptions.map((option, index) => (
               <div
                 key={index}
@@ -619,7 +619,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                   setHazardDataSource(option);
                   setHazardDataDropdownOpen(false);
                 }}
-                className="px-3 py-2 text-[10px] text-white hover:bg-[#505050] cursor-pointer"
+                className="px-2.5 py-2 text-[10px] text-white hover:bg-[#505050] cursor-pointer"
               >
                 {option}
               </div>
@@ -629,10 +629,12 @@ const ExposureAssessmentControls: React.FC<Props> = ({
 
         {/* Show existing data cards when "Use existing data" is selected */}
         {hazardDataSource === "Use existing data" && (
-          <div className="mt-3 bg-[#3a3a3a] rounded-md shadow-md p-4 space-y-3">
-            <div className="text-white text-[10px] mb-2">Select data to use:</div>
+          <div className="mt-2 bg-[#3a3a3a] rounded shadow-md p-3 space-y-2">
+            <div className="text-white text-[10px] mb-1.5">
+              Select data to use:
+            </div>
             <div
-              className="space-y-2 max-h-[300px] overflow-y-auto pr-2"
+              className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1.5"
               style={{
                 scrollbarWidth: "thin",
                 scrollbarColor: "#706f6f transparent",
@@ -648,7 +650,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                         : [...prev, item.displayName]
                     );
                   }}
-                  className={`p-3 rounded-md cursor-pointer transition flex items-center gap-3 ${
+                  className={`p-2 rounded cursor-pointer transition flex items-center gap-2 ${
                     selectedHazardData.includes(item.displayName)
                       ? "bg-[#3d3e69] border-2 border-[#9699FF]"
                       : "bg-[#2a2a2a] hover:bg-[#353535]"
@@ -657,6 +659,12 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                   <Checkbox
                     checked={selectedHazardData.includes(item.displayName)}
                     className="pointer-events-none"
+                    style={{
+                      width: "14px",
+                      height: "14px",
+                      minWidth: "14px",
+                      minHeight: "14px",
+                    }}
                   />
                   <div className="flex-1">
                     <div className="text-white text-[10px] font-medium mb-1">
@@ -677,13 +685,13 @@ const ExposureAssessmentControls: React.FC<Props> = ({
 
         {/* Show imported file dropdown when "Use imported data" is selected */}
         {hazardDataSource === "Use imported data" && (
-          <div className="mt-3">
-            <label className="block text-white text-[10px] font-medium mb-2">
+          <div className="mt-2">
+            <label className="block text-white text-[10px] font-medium mb-1.5">
               Select Imported Data
             </label>
             <button
               onClick={() => setImportedHazardFileDropdownOpen((prev) => !prev)}
-              className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
+              className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-2.5 py-2 rounded shadow-md hover:bg-[#454545] transition"
             >
               <span className="text-[10px] truncate">
                 {selectedImportedHazardFiles.length > 0
@@ -691,7 +699,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                   : "Choose file..."}
               </span>
               <ChevronDown
-                size={16}
+                size={14}
                 className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
                   importedHazardFileDropdownOpen ? "rotate-180" : ""
                 }`}
@@ -699,15 +707,15 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             </button>
 
             {importedHazardFileDropdownOpen && (
-              <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+              <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded shadow-lg overflow-hidden">
                 {uploadedFiles.length === 0 ? (
-                  <div className="px-3 py-2 text-[10px] text-gray-400">
+                  <div className="px-2.5 py-2 text-[10px] text-gray-400">
                     No file/s detected! Upload first.
                   </div>
                 ) : (
                   <>
                     {/* Search Box */}
-                    <div className="p-2 pb-1">
+                    <div className="p-1.5 pb-1">
                       <input
                         type="text"
                         placeholder="Search files..."
@@ -715,14 +723,14 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                         onChange={(e) =>
                           setHazardFileSearchTerm(e.target.value)
                         }
-                        className="w-full p-2 bg-transparent rounded-md text-white text-[10px] outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                        className="w-full p-1.5 bg-transparent rounded text-white text-[10px] outline-none focus:ring-0 focus:outline-none hover:outline-none"
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
 
                     {/* Filtered file list with checkboxes */}
                     <div
-                      className="overflow-y-auto max-h-32 p-2"
+                      className="overflow-y-auto max-h-32 p-1.5"
                       style={{
                         scrollbarWidth: "thin",
                         scrollbarColor: "#5a5a5a transparent",
@@ -737,7 +745,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                         .map((file, index) => (
                           <div
                             key={index}
-                            className="flex items-center py-2 px-2 hover:bg-[#454545] rounded cursor-pointer"
+                            className="flex items-center py-2 px-2.5 hover:bg-[#454545] rounded cursor-pointer"
                             onClick={() => {
                               setSelectedImportedHazardFiles((prev) =>
                                 prev.includes(file.name)
@@ -747,7 +755,13 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                             }}
                           >
                             <Checkbox
-                              className="mr-2.5 w-[16px] h-[16px] pointer-events-none"
+                              className="mr-2.5 pointer-events-none"
+                              style={{
+                                width: "14px",
+                                height: "14px",
+                                minWidth: "14px",
+                                minHeight: "14px",
+                              }}
                               checked={selectedImportedHazardFiles.includes(
                                 file.name
                               )}
@@ -765,7 +779,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                           .toLowerCase()
                           .includes(hazardFileSearchTerm.toLowerCase())
                       ).length === 0 && (
-                        <div className="px-2 py-3 text-[10px] text-gray-400 text-center">
+                        <div className="px-2.5 py-2 text-[10px] text-gray-400 text-center">
                           No files found
                         </div>
                       )}
@@ -780,7 +794,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
 
       {/* Step 2: Select Exposed Element/s */}
       <div className="relative">
-        <label className="block text-white text-[10px] font-medium mb-2">
+        <label className="block text-white text-[10px] font-medium mb-1.5">
           2. Select Exposed Element/s
         </label>
         <button
@@ -792,7 +806,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             (hazardDataSource === "Use existing data" &&
               selectedHazardData.length === 0)
           }
-          className={`flex justify-between items-center w-full px-3 py-2 rounded-md shadow-md transition
+          className={`flex justify-between items-center w-full px-2.5 py-2 rounded shadow-md transition
             ${
               hazardDataSource &&
               ((hazardDataSource === "Use imported data" &&
@@ -807,7 +821,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             {elementDataSource || "Choose data source..."}
           </span>
           <ChevronDown
-            size={16}
+            size={14}
             className={`transition-transform duration-200 ${
               elementDataDropdownOpen ? "rotate-180" : ""
             }`}
@@ -815,7 +829,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
         </button>
 
         {elementDataDropdownOpen && (
-          <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+          <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded shadow-lg overflow-hidden">
             {elementDataOptions.map((option, index) => (
               <div
                 key={index}
@@ -823,7 +837,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                   setElementDataSource(option);
                   setElementDataDropdownOpen(false);
                 }}
-                className="px-3 py-2 text-[10px] text-white hover:bg-[#505050] cursor-pointer"
+                className="px-2.5 py-2 text-[10px] text-white hover:bg-[#505050] cursor-pointer"
               >
                 {option}
               </div>
@@ -833,10 +847,12 @@ const ExposureAssessmentControls: React.FC<Props> = ({
 
         {/* Show existing data cards when "Use existing data" is selected */}
         {elementDataSource === "Use existing data" && (
-          <div className="mt-3 bg-[#3a3a3a] rounded-md shadow-md p-4 space-y-3">
-            <div className="text-white text-[10px] mb-2">Select data to use:</div>
+          <div className="mt-2 bg-[#3a3a3a] rounded shadow-md p-3 space-y-2">
+            <div className="text-white text-[10px] mb-1.5">
+              Select data to use:
+            </div>
             <div
-              className="space-y-2 max-h-[300px] overflow-y-auto pr-2"
+              className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1.5"
               style={{
                 scrollbarWidth: "thin",
                 scrollbarColor: "#706f6f transparent",
@@ -852,7 +868,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                         : [...prev, item.displayName]
                     );
                   }}
-                  className={`p-3 rounded-md cursor-pointer transition flex items-center gap-3 ${
+                  className={`p-2 rounded cursor-pointer transition flex items-center gap-2 ${
                     selectedElementData.includes(item.displayName)
                       ? "bg-[#3d3e69] border-2 border-[#9699FF]"
                       : "bg-[#2a2a2a] hover:bg-[#353535]"
@@ -861,6 +877,12 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                   <Checkbox
                     checked={selectedElementData.includes(item.displayName)}
                     className="pointer-events-none"
+                    style={{
+                      width: "14px",
+                      height: "14px",
+                      minWidth: "14px",
+                      minHeight: "14px",
+                    }}
                   />
                   <div className="flex-1">
                     <div className="text-white text-[10px] font-medium mb-1">
@@ -881,15 +903,15 @@ const ExposureAssessmentControls: React.FC<Props> = ({
 
         {/* Show imported file dropdown when "Use imported data" is selected */}
         {elementDataSource === "Use imported data" && (
-          <div className="mt-3">
-            <label className="block text-white text-[10px] font-medium mb-2">
+          <div className="mt-2">
+            <label className="block text-white text-[10px] font-medium mb-1.5">
               Select Imported Data
             </label>
             <button
               onClick={() =>
                 setImportedElementFileDropdownOpen((prev) => !prev)
               }
-              className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-3 py-2 rounded-md shadow-md hover:bg-[#454545] transition"
+              className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-2.5 py-2 rounded shadow-md hover:bg-[#454545] transition"
             >
               <span className="text-[10px] truncate">
                 {selectedImportedElementFiles.length > 0
@@ -897,7 +919,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                   : "Choose file..."}
               </span>
               <ChevronDown
-                size={16}
+                size={14}
                 className={`transition-transform duration-200 flex-shrink-0 ml-2 ${
                   importedElementFileDropdownOpen ? "rotate-180" : ""
                 }`}
@@ -905,15 +927,15 @@ const ExposureAssessmentControls: React.FC<Props> = ({
             </button>
 
             {importedElementFileDropdownOpen && (
-              <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded-md shadow-lg overflow-hidden">
+              <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded shadow-lg overflow-hidden">
                 {uploadedFiles.length === 0 ? (
-                  <div className="px-3 py-2 text-[10px] text-gray-400">
+                  <div className="px-2.5 py-2 text-[10px] text-gray-400">
                     No file/s detected! Upload first.
                   </div>
                 ) : (
                   <>
                     {/* Search Box */}
-                    <div className="p-2 pb-1">
+                    <div className="p-1.5 pb-1">
                       <input
                         type="text"
                         placeholder="Search files..."
@@ -921,14 +943,14 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                         onChange={(e) =>
                           setElementFileSearchTerm(e.target.value)
                         }
-                        className="w-full p-2 bg-transparent rounded-md text-white text-[10px] outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                        className="w-full p-1.5 bg-transparent rounded text-white text-[10px] outline-none focus:ring-0 focus:outline-none hover:outline-none"
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
 
                     {/* Filtered file list with checkboxes */}
                     <div
-                      className="overflow-y-auto max-h-32 p-2"
+                      className="overflow-y-auto max-h-32 p-1.5"
                       style={{
                         scrollbarWidth: "thin",
                         scrollbarColor: "#5a5a5a transparent",
@@ -943,7 +965,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                         .map((file, index) => (
                           <div
                             key={index}
-                            className="flex items-center py-2 px-2 hover:bg-[#454545] rounded cursor-pointer"
+                            className="flex items-center py-2 px-2.5 hover:bg-[#454545] rounded cursor-pointer"
                             onClick={() => {
                               setSelectedImportedElementFiles((prev) =>
                                 prev.includes(file.name)
@@ -953,7 +975,13 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                             }}
                           >
                             <Checkbox
-                              className="mr-2.5 w-[16px] h-[16px] pointer-events-none"
+                              className="mr-2.5 pointer-events-none"
+                              style={{
+                                width: "14px",
+                                height: "14px",
+                                minWidth: "14px",
+                                minHeight: "14px",
+                              }}
                               checked={selectedImportedElementFiles.includes(
                                 file.name
                               )}
@@ -971,7 +999,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
                           .toLowerCase()
                           .includes(elementFileSearchTerm.toLowerCase())
                       ).length === 0 && (
-                        <div className="px-2 py-3 text-[10px] text-gray-400 text-center">
+                        <div className="px-2.5 py-2 text-[10px] text-gray-400 text-center">
                           No files found
                         </div>
                       )}
@@ -988,34 +1016,31 @@ const ExposureAssessmentControls: React.FC<Props> = ({
       <button
         disabled={!isComplete || isAnalyzing}
         onClick={handleRunAnalysis}
-        className={`w-full py-2.5 rounded-md shadow-md font-medium transition
+        className={`w-full px-2.5 py-2 rounded shadow-md font-medium transition mt-2
           ${
             isComplete && !isAnalyzing
               ? "bg-[#5A5C99] text-white hover:opacity-90"
               : "bg-[#3a3a3a] text-gray-500 cursor-not-allowed"
           }`}
       >
-        {isAnalyzing ? "Analyzing..." : "Run Exposure Analysis"}
+        {isAnalyzing ? "Analyzing..." : "Run Assessment"}
       </button>
 
       {/* Clear Steps Button */}
-      <div className="-mt-2">
-        <button
-          onClick={handleClearSteps}
-          disabled={!hasAnySelection}
-          className={`w-full py-2.5 rounded-md shadow-md font-medium transition
-            ${
-              hasAnySelection
-                ? "bg-[#5A5C99] text-white hover:opacity-90"
-                : "bg-[#3a3a3a] text-gray-500 cursor-not-allowed"
-            }`}
-        >
-          Clear Steps
-        </button>
-      </div>
+      <button
+        onClick={handleClearSteps}
+        disabled={!hasAnySelection}
+        className={`w-full px-2.5 py-2 rounded shadow-md font-medium transition
+          ${
+            hasAnySelection
+              ? "bg-[#5A5C99] text-white hover:opacity-90"
+              : "bg-[#3a3a3a] text-gray-500 cursor-not-allowed"
+          }`}
+      >
+        Clear Steps
+      </button>
     </div>
   );
 };
 
 export default ExposureAssessmentControls;
-

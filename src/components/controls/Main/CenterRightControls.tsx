@@ -1,7 +1,7 @@
 // \SafeGIS\Simulation-Studio\frontend\src\components\controls\Main\CenterRightControls.tsx
 "use client";
 
-import { ZoomIn, ZoomOut, Layers2, X, ChevronDown } from "lucide-react";
+import { ZoomIn, ZoomOut, Layers2, X, ChevronDown, Upload } from "lucide-react";
 import { RefObject, useRef, useState } from "react";
 import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 import { createPortal } from "react-dom";
@@ -37,6 +37,7 @@ export default function RightSideControls({
   const [boundarySearchTerm, setBoundarySearchTerm] = useState("");
   const boundaryButtonRef = useRef<HTMLButtonElement>(null);
   const [showBoundaryDropdown, setShowBoundaryDropdown] = useState(false);
+  const [hoveredButton, setHoveredButton] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -140,7 +141,7 @@ export default function RightSideControls({
   };
 
   return (
-    <div className="absolute right-[18px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2">
+    <div className="absolute right-[15px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2">
       {/* 2D/3D Toggle */}
       {show3DControls && (
         <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] overflow-hidden">
@@ -192,6 +193,8 @@ export default function RightSideControls({
             setShowGeoJSONPanel((prev) => !prev);
             setShowBoundariesPanel(false); // Close boundaries panel
           }}
+          onMouseEnter={() => setHoveredButton("importFiles")}
+          onMouseLeave={() => setHoveredButton(null)}
           className={`w-[32px] h-[32px] inline-flex items-center justify-center rounded transition ${
             showGeoJSONPanel
               ? "bg-gradient-to-b from-[#9699FF] to-white"
@@ -204,10 +207,15 @@ export default function RightSideControls({
             className="shrink-0"
           />
         </button>
+        {hoveredButton === "importFiles" && !showGeoJSONPanel && (
+          <div className="absolute right-[50px] top-1/2 -translate-y-1/2 bg-white text-black text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-[9999]">
+            Import Map Files
+          </div>
+        )}
 
         {showGeoJSONPanel && (
           <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-64 bg-[#2E2E2E] rounded-md shadow-md p-3 z-40 flex flex-col items-center">
-            <h3 className="text-[10px] font-semibold text-white mb-2">
+            <h3 className="text-[11px] font-semibold text-white mb-2">
               Import Geospatial Data
             </h3>
             <div className="flex flex-col gap-1 w-full">
@@ -231,16 +239,17 @@ export default function RightSideControls({
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`px-3 py-2 rounded-sm shadow-md cursor-pointer text-center w-full transition ${
+                className={`px-3 py-2 rounded-sm shadow-md cursor-pointer text-center w-full transition flex flex-col items-center justify-center ${
                   isDragging
                     ? "bg-transparent border-2 border-dashed border-[#9699FF] text-[#9699FF]"
                     : "bg-[#5A5C99] text-white hover:opacity-90"
                 }`}
               >
-                <span className="font-medium text-[10px]">
+                <Upload size={20} className="mb-2" />
+                <span className="font-medium text-[11px] leading-tight">
                   Choose or drop a file
                 </span>
-                <span className="block text-[10px] mt-0.5 text-[#E0E0E0]">
+                <span className="block text-[10px] mt-0.5 text-[#E0E0E0] leading-tight">
                   Supports: .geojson, .shp (zip), .kml
                 </span>
               </div>
@@ -265,6 +274,8 @@ export default function RightSideControls({
             setShowBoundariesPanel((prev) => !prev);
             setShowGeoJSONPanel(false); // Close GeoJSON panel
           }}
+          onMouseEnter={() => setHoveredButton("boundaries")}
+          onMouseLeave={() => setHoveredButton(null)}
           className={`w-[32px] h-[32px] text-base font-semibold inline-flex items-center justify-center rounded transition ${
             showBoundariesPanel
               ? "bg-gradient-to-b from-[#9699FF] to-white text-[#2E2E2E]"
@@ -273,6 +284,11 @@ export default function RightSideControls({
         >
           B
         </button>
+        {hoveredButton === "boundaries" && !showBoundariesPanel && (
+          <div className="absolute right-[50px] top-1/2 -translate-y-1/2 bg-white text-black text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-[9999]">
+            Add Boundaries
+          </div>
+        )}
 
         {showBoundariesPanel && (
           <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-[300px] bg-[#2E2E2E] rounded-md shadow-md p-3 z-40 flex flex-col items-center">

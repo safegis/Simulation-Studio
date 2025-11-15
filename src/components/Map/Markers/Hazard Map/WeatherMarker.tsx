@@ -159,34 +159,184 @@ export const drawWeatherMarkers = (
       .setLngLat(weatherInfo.coordinates)
       .addTo(map);
 
-    // Add popup on click
+    // Add popup on click with earthquake-style design
     const weatherCondition = getWeatherIcon(weatherInfo.weatherCode);
-    const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-      <div style="min-width: 200px; font-family: Arial, sans-serif;">
-        <h3 style="margin: 0 0 10px 0; color: #333;">${
-          weatherInfo.location
-        }</h3>
-        <div style="display: flex; align-items: center; margin-bottom: 8px;">
-          <strong style="color: #666;">Condition:</strong>
-          <span style="margin-left: 8px;">${weatherCondition.description}</span>
+
+    // Inject CSS to override Mapbox default popup styles (only once)
+    if (!document.getElementById("weather-popup-styles")) {
+      const style = document.createElement("style");
+      style.id = "weather-popup-styles";
+      style.textContent = `
+        .weather-popup .mapboxgl-popup-content {
+          background: transparent !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+        }
+        .weather-popup .mapboxgl-popup-close-button {
+          color: #C7C7C7;
+          font-size: 16px;
+          padding: 4px 8px;
+          background: #2a2a2a;
+          border-radius: 0 6px 0 4px;
+          transition: all 0.2s;
+          border: 1px solid #3a3a3a;
+        }
+        .weather-popup .mapboxgl-popup-close-button:hover {
+          color: white;
+          background: #9699FF;
+          border-color: #9699FF;
+        }
+        .weather-popup .mapboxgl-popup-tip {
+          border-top-color: #1a1a1a !important;
+          border-bottom-color: #1a1a1a !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const popup = new mapboxgl.Popup({
+      offset: 25,
+      className: "weather-popup",
+      closeButton: true,
+      closeOnClick: false,
+      maxWidth: "none",
+    }).setHTML(`
+      <div style="
+        min-width: 200px;
+        max-width: 240px;
+        background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+        border-radius: 6px;
+        padding: 8px;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+      ">
+        <!-- Location Header -->
+        <div style="
+          font-size: 11px;
+          font-weight: 600;
+          color: #ffffff;
+          margin-bottom: 6px;
+          padding-bottom: 4px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        ">
+          ${weatherInfo.location}
         </div>
-        <div style="display: flex; align-items: center; margin-bottom: 8px;">
-          <strong style="color: #666;">Temperature:</strong>
-          <span style="margin-left: 8px;">${Math.round(
-            weatherInfo.temperature
-          )}°C</span>
+
+        <!-- Condition Section -->
+        <div style="
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 6px;
+          padding: 6px 8px;
+          margin-bottom: 4px;
+        ">
+          <div style="
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9699FF;
+            margin-bottom: 2px;
+            font-weight: 500;
+          ">CONDITION</div>
+          <div style="
+            font-size: 11px;
+            font-weight: 600;
+            color: #ffffff;
+          ">${weatherCondition.description}</div>
         </div>
-        <div style="display: flex; align-items: center; margin-bottom: 8px;">
-          <strong style="color: #666;">Wind Speed:</strong>
-          <span style="margin-left: 8px;">${Math.round(
-            weatherInfo.windSpeed
-          )} km/h</span>
+
+        <!-- Temperature Section -->
+        <div style="
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 6px;
+          padding: 6px 8px;
+          margin-bottom: 4px;
+        ">
+          <div style="
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9699FF;
+            margin-bottom: 2px;
+            font-weight: 500;
+          ">TEMPERATURE</div>
+          <div style="
+            font-size: 18px;
+            font-weight: 700;
+            color: #FFA500;
+            line-height: 1;
+          ">${Math.round(weatherInfo.temperature)}°C</div>
         </div>
-        <div style="display: flex; align-items: center;">
-          <strong style="color: #666;">Humidity:</strong>
-          <span style="margin-left: 8px;">${Math.round(
-            weatherInfo.humidity
-          )}%</span>
+
+        <!-- Wind & Humidity Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+          <!-- Wind Speed -->
+          <div style="
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 6px 8px;
+          ">
+            <div style="
+              font-size: 8px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #9699FF;
+              margin-bottom: 2px;
+              font-weight: 500;
+            ">WIND SPEED</div>
+            <div style="
+              font-size: 11px;
+              font-weight: 600;
+              color: #ffffff;
+            ">${Math.round(weatherInfo.windSpeed)} km/h</div>
+          </div>
+
+          <!-- Humidity -->
+          <div style="
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 6px 8px;
+          ">
+            <div style="
+              font-size: 8px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #9699FF;
+              margin-bottom: 2px;
+              font-weight: 500;
+            ">HUMIDITY</div>
+            <div style="
+              font-size: 11px;
+              font-weight: 600;
+              color: #ffffff;
+            ">${Math.round(weatherInfo.humidity)}%</div>
+          </div>
+        </div>
+
+        <!-- Source -->
+        <div style="
+          margin-top: 6px;
+          padding-top: 4px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          font-size: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #9699FF;
+          font-weight: 500;
+        ">
+          SOURCE
+        </div>
+        <div style="
+          font-size: 10px;
+          color: #C7C7C7;
+          font-weight: 500;
+          margin-top: 2px;
+        ">
+          Open-Meteo
         </div>
       </div>
     `);

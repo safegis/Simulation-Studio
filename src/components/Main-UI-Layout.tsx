@@ -19,6 +19,8 @@ import UserSettings from "./controls/Main/UserSettings";
 import CenterTopControls from "./controls/Main/CenterTopControls";
 import CenterBottomClock from "./controls/Main/CenterBottomClock";
 import ToolPanel from "./controls/Features/ToolPanel";
+import LiveHazardMonitor from "./controls/Main/LiveHazardMonitor";
+import LayersPanel from "./controls/Main/LayersPanel";
 import CropDinIcon from "@mui/icons-material/CropDin";
 import CropLandscapeIcon from "@mui/icons-material/CropLandscape";
 import CropPortraitIcon from "@mui/icons-material/CropPortrait";
@@ -52,6 +54,17 @@ export default function MainUILayout() {
   const [selectedMapStyle, setSelectedMapStyle] = useState<string>(
     "Default (Custom Mapbox Standard)"
   );
+
+  // Live Hazard Monitor state
+  const [showLiveHazardMonitor, setShowLiveHazardMonitor] = useState(false);
+  const [liveEarthquakeEnabled, setLiveEarthquakeEnabled] = useState(false);
+  const [liveWeatherEnabled, setLiveWeatherEnabled] = useState(false);
+  const [selectedEarthquakeSources, setSelectedEarthquakeSources] = useState<
+    string[]
+  >([]);
+  const [selectedWeatherSources, setSelectedWeatherSources] = useState<
+    string[]
+  >([]);
   const [showToolPanel, setShowToolPanel] = useState(false);
   const [selectedMaps, setSelectedMaps] = useState<string[]>([]);
   const [showAffectedAreas, setShowAffectedAreas] = useState(false);
@@ -1050,6 +1063,128 @@ export default function MainUILayout() {
     setAffectedAreasData(null);
   };
 
+  // Handle earthquake data fetching based on selected sources
+  const liveEarthquakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const fetchAndDisplayEarthquakes = async () => {
+      if (selectedEarthquakeSources.length === 0) {
+        // Clear earthquake markers if no sources selected
+        mapRef.current?.drawEarthquakeDots?.([]);
+        return;
+      }
+
+      // Import the earthquake data fetching function
+      const { fetchMultipleEarthquakeSources } = await import(
+        "./controls/Main/EarthquakeDataConfig"
+      );
+
+      // Fetch data from all selected sources
+      const allFeatures = await fetchMultipleEarthquakeSources(
+        selectedEarthquakeSources
+      );
+
+      // Draw all earthquake markers on the map
+      console.log(
+        `Drawing ${allFeatures.length} total earthquake markers on map`
+      );
+      if (allFeatures.length > 0) {
+        mapRef.current?.drawEarthquakeDots?.(allFeatures);
+      } else {
+        // Clear markers if no data
+        mapRef.current?.drawEarthquakeDots?.([]);
+      }
+    };
+
+    // Initial fetch
+    fetchAndDisplayEarthquakes();
+
+    // Set up polling interval (every 60 seconds)
+    if (selectedEarthquakeSources.length > 0) {
+      liveEarthquakeIntervalRef.current = setInterval(
+        fetchAndDisplayEarthquakes,
+        60000
+      );
+    }
+
+    // Cleanup
+    return () => {
+      if (liveEarthquakeIntervalRef.current) {
+        clearInterval(liveEarthquakeIntervalRef.current);
+        liveEarthquakeIntervalRef.current = null;
+      }
+    };
+  }, [selectedEarthquakeSources]);
+
+  // Handle weather data fetching based on selected sources
+  const liveWeatherIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const fetchAndDisplayWeather = async () => {
+      if (selectedWeatherSources.length === 0) {
+        // Clear weather markers if no sources selected
+        const { clearWeatherMarkers } = await import(
+          "./Map/Markers/Hazard Map/WeatherMarker"
+        );
+        clearWeatherMarkers();
+        return;
+      }
+
+      // Import the weather data fetching function
+      const { fetchMultipleWeatherSources } = await import(
+        "./controls/Main/WeatherDataConfig"
+      );
+
+      // Fetch data from all selected sources
+      const allWeatherData = await fetchMultipleWeatherSources(
+        selectedWeatherSources
+      );
+
+      // Draw weather markers on the map
+      console.log(
+        `Drawing ${allWeatherData.length} total weather markers on map`
+      );
+
+      if (allWeatherData.length > 0) {
+        const { drawWeatherMarkers } = await import(
+          "./Map/Markers/Hazard Map/WeatherMarker"
+        );
+
+        const map = mapRef.current?.getMap();
+        const mapIsLoaded = map?.isStyleLoaded() || false;
+
+        if (map && mapIsLoaded) {
+          drawWeatherMarkers(map, mapIsLoaded, allWeatherData);
+        }
+      } else {
+        // Clear markers if no data
+        const { clearWeatherMarkers } = await import(
+          "./Map/Markers/Hazard Map/WeatherMarker"
+        );
+        clearWeatherMarkers();
+      }
+    };
+
+    // Initial fetch
+    fetchAndDisplayWeather();
+
+    // Set up polling interval (every 30 minutes for weather updates)
+    if (selectedWeatherSources.length > 0) {
+      liveWeatherIntervalRef.current = setInterval(
+        fetchAndDisplayWeather,
+        1800000 // 30 minutes
+      );
+    }
+
+    // Cleanup
+    return () => {
+      if (liveWeatherIntervalRef.current) {
+        clearInterval(liveWeatherIntervalRef.current);
+        liveWeatherIntervalRef.current = null;
+      }
+    };
+  }, [selectedWeatherSources]);
+
   return (
     <div className="relative w-screen h-screen overflow-hidden flex m-0 p-0">
       {!isDesktop ? (
@@ -1100,6 +1235,8 @@ export default function MainUILayout() {
               selectedMaps={selectedMaps}
               selectedPlanningTools={selectedPlanningTools}
               selectedAssessmentTools={selectedAssessmentTools}
+              showLiveHazardMonitor={showLiveHazardMonitor}
+              setShowLiveHazardMonitor={setShowLiveHazardMonitor}
             />
           )}
           {/* Location Search Bar or Pathfinder Controls - Hide when expanded */}
@@ -1117,13 +1254,26 @@ export default function MainUILayout() {
                 suggestionsRef={suggestionsRef}
               />
             ) : (
-              <div className="absolute top-[18px] left-[76px] z-50 w-[280px]">
+              <div className="absolute top-[15px] left-[70px] z-50 w-[280px]">
                 <PathfinderControls mapRef={mapRef} />
               </div>
             ))}
           {/* Panels - Hide when expanded */}
+          {!isChatExpanded && showLiveHazardMonitor && (
+            <div className="absolute left-[70px] top-[70px] w-[280px] z-40">
+              <LiveHazardMonitor
+                isVisible={true}
+                earthquakeEnabled={liveEarthquakeEnabled}
+                weatherEnabled={liveWeatherEnabled}
+                onEarthquakeToggle={setLiveEarthquakeEnabled}
+                onWeatherToggle={setLiveWeatherEnabled}
+                onEarthquakeSourcesChange={setSelectedEarthquakeSources}
+                onWeatherSourcesChange={setSelectedWeatherSources}
+              />
+            </div>
+          )}
           {!isChatExpanded && showSelectMaps && (
-            <div className="absolute left-[76px] top-[73px] w-[280px] z-40">
+            <div className="absolute left-[70px] top-[70px] w-[280px] z-40">
               <SelectMaps
                 isVisible={true}
                 selectedMaps={selectedMaps}
@@ -1139,7 +1289,7 @@ export default function MainUILayout() {
             </div>
           )}
           {!isChatExpanded && showPlanningTools && (
-            <div className="absolute left-[76px] top-[73px] w-[280px] z-40">
+            <div className="absolute left-[70px] top-[70px] w-[280px] z-40">
               <SelectPlanningTools
                 isVisible={true}
                 selectedPlanningTools={selectedPlanningTools}
@@ -1155,7 +1305,7 @@ export default function MainUILayout() {
             </div>
           )}
           {!isChatExpanded && showAssessmentTools && (
-            <div className="absolute left-[76px] top-[73px] w-[280px] z-40">
+            <div className="absolute left-[70px] top-[70px] w-[280px] z-40">
               <SelectAssessment
                 isVisible={true}
                 selectedAssessmentTools={selectedAssessmentTools}
@@ -1171,7 +1321,7 @@ export default function MainUILayout() {
             </div>
           )}
           {!isChatExpanded && showToolPanel && (
-            <div className="absolute left-[76px] top-[73px] w-[280px] z-40">
+            <div className="absolute left-[70px] top-[70px] w-[280px] z-40">
               <ToolPanel
                 isVisible={true}
                 selectedMaps={selectedMaps}
@@ -1235,6 +1385,17 @@ export default function MainUILayout() {
               mapRef={mapRef}
               uploadedFiles={uploadedFiles}
               setUploadedFiles={setUploadedFiles}
+            />
+          )}
+          {/* Layers Panel - Show when there are active layers */}
+          {!isChatExpanded && !showPathfinder && (
+            <LayersPanel
+              uploadedFiles={uploadedFiles}
+              mapRef={mapRef}
+              earthquakeEnabled={earthquakeEnabled}
+              volcanoListEnabled={volcanoListEnabled}
+              activeFaultsEnabled={activeFaultsEnabled}
+              congestionEnabled={congestionEnabled}
             />
           )}
           {/* SafeGIS AI Chat - Always render, position changes based on expanded state */}
@@ -1676,9 +1837,9 @@ export default function MainUILayout() {
           {/* Exposure Assessment Results - Hide when expanded */}
           {!isChatExpanded && showExposureResults && (
             <div
-              className="absolute z-50 bg-[#2E2E2E]/75 backdrop-blur-xs rounded-xl shadow-lg w-[650px] text-white"
+              className="absolute z-50 bg-[#2E2E2E]/75 backdrop-blur-xs rounded-md shadow-lg w-[500px] text-white"
               style={{
-                bottom: `${109 - exposureResultsPosition.y}px`,
+                bottom: `${80 - exposureResultsPosition.y}px`,
                 left: `calc(50% + ${exposureResultsPosition.x}px)`,
                 transform: "translateX(-50%)",
                 cursor: isDraggingResults ? "grabbing" : "auto",
@@ -1686,7 +1847,7 @@ export default function MainUILayout() {
             >
               {/* Header */}
               <div
-                className="flex justify-between items-center px-4 py-3 bg-[#3a3a3a] rounded-t-xl cursor-grab active:cursor-grabbing"
+                className="flex justify-between items-center px-3 py-2 bg-[#3a3a3a] rounded-t-md cursor-grab active:cursor-grabbing"
                 onMouseDown={(e) => {
                   setIsDraggingResults(true);
                   dragStartPos.current = {
@@ -1695,7 +1856,7 @@ export default function MainUILayout() {
                   };
                 }}
               >
-                <h3 className="text-[15px] font-semibold">
+                <h3 className="text-[11px] font-semibold">
                   Exposure Assessment Results
                 </h3>
                 {!isAnalysisRunning && (
@@ -1706,7 +1867,7 @@ export default function MainUILayout() {
                     className="text-white hover:text-gray-300 transition flex items-center"
                   >
                     <ChevronDown
-                      size={22}
+                      size={16}
                       className={`transition-transform duration-200 ${
                         exposureResultsMinimized ? "rotate-180" : ""
                       }`}
@@ -1716,32 +1877,32 @@ export default function MainUILayout() {
               </div>
               {/* Content */}
               <div
-                className={exposureResultsMinimized ? "px-4 pt-3" : "px-5 py-3"}
+                className={exposureResultsMinimized ? "px-3 pt-2" : "px-3 py-2"}
               >
                 {isAnalysisRunning ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="relative w-16 h-16 mb-4">
-                      <div className="absolute inset-0 border-4 border-gray-600 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-t-[#9699FF] rounded-full animate-spin"></div>
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="relative w-12 h-12 mb-3">
+                      <div className="absolute inset-0 border-3 border-gray-600 rounded-full"></div>
+                      <div className="absolute inset-0 border-3 border-t-[#9699FF] rounded-full animate-spin"></div>
                     </div>
-                    <div className="text-white text-lg font-medium mb-2">
+                    <div className="text-white text-[11px] font-medium mb-1">
                       Running Assessment...
                     </div>
-                    <div className="text-gray-400 text-sm">
+                    <div className="text-gray-400 text-[9px]">
                       Analyzing exposure data, please wait
                     </div>
                   </div>
                 ) : exposureResultsData ? (
                   <>
                     {/* Analysis Overview */}
-                    <div className="mb-5">
-                      <h4 className="text-sm font-semibold mb-3">
+                    <div className="mb-3">
+                      <h4 className="text-[10px] font-semibold mb-2">
                         Analysis Overview
                       </h4>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
                         {/* Hazard Analyzed count */}
                         <div>
-                          <div className="text-gray-400 mb-1">
+                          <div className="text-gray-400 mb-0.5">
                             Hazard/s Analyzed:
                           </div>
                           <div className="text-white">
@@ -1750,7 +1911,7 @@ export default function MainUILayout() {
                         </div>
                         {/* NEW: Analysis Time duration */}
                         <div>
-                          <div className="text-gray-400 mb-1">
+                          <div className="text-gray-400 mb-0.5">
                             Analysis Duration:
                           </div>
                           <div className="text-white">
@@ -1764,7 +1925,9 @@ export default function MainUILayout() {
                           </div>
                         </div>
                         <div>
-                          <div className="text-gray-400 mb-1">Started at:</div>
+                          <div className="text-gray-400 mb-0.5">
+                            Started at:
+                          </div>
                           <div className="text-white">
                             {exposureResultsData.startTime ? (
                               exposureResultsData.startTime
@@ -1774,7 +1937,9 @@ export default function MainUILayout() {
                           </div>
                         </div>
                         <div>
-                          <div className="text-gray-400 mb-1">Finished at:</div>
+                          <div className="text-gray-400 mb-0.5">
+                            Finished at:
+                          </div>
                           <div className="text-white">
                             {exposureResultsData.analysisTime ? (
                               exposureResultsData.analysisTime
@@ -1790,8 +1955,8 @@ export default function MainUILayout() {
 
                     {/* Results grouped by hazard */}
                     <div
-                      className={`max-h-[350px] overflow-y-auto ${
-                        !exposureResultsMinimized ? "pr-2" : ""
+                      className={`max-h-[280px] overflow-y-auto ${
+                        !exposureResultsMinimized ? "pr-1" : ""
                       }`}
                       style={{
                         scrollbarWidth: "thin",
@@ -1821,19 +1986,19 @@ export default function MainUILayout() {
                                 : [hazardKey, null];
 
                             return (
-                              <div key={hazardIndex} className="mb-4">
+                              <div key={hazardIndex} className="mb-2">
                                 {/* CHANGED: Always show header, removed condition */}
-                                <div className="mb-2 pb-2 border-b border-gray-600">
-                                  <div className="text-white font-semibold text-sm flex items-start gap-2">
-                                    <span className="bg-[#5A5C99] px-2 py-1 rounded text-xs whitespace-nowrap">
+                                <div className="mb-1.5 pb-1.5 border-b border-gray-600">
+                                  <div className="text-white font-semibold text-[10px] flex items-start gap-1.5">
+                                    <span className="bg-[#5A5C99] px-1.5 py-0.5 rounded text-[9px] whitespace-nowrap">
                                       Hazard Data:
                                     </span>
                                     <div className="flex flex-col">
-                                      <span className="text-xs">
+                                      <span className="text-[9px]">
                                         {hazardType}
                                       </span>
                                       {analysisArea && (
-                                        <span className="text-xs text-gray-400 mt-0.5">
+                                        <span className="text-[9px] text-gray-400 mt-0.5">
                                           {analysisArea}
                                         </span>
                                       )}
@@ -1841,7 +2006,7 @@ export default function MainUILayout() {
                                   </div>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="space-y-1.5">
                                   {elements.map(
                                     (element: any, elementIndex: number) => {
                                       const total = parseFloat(
@@ -1872,25 +2037,25 @@ export default function MainUILayout() {
                                       return (
                                         <div
                                           key={elementIndex}
-                                          className={`bg-[#3a3a3a] rounded-lg ${
+                                          className={`bg-[#3a3a3a] rounded ${
                                             exposureResultsMinimized
-                                              ? "p-2.5"
-                                              : "p-3"
+                                              ? "p-2"
+                                              : "p-2"
                                           }`}
                                         >
                                           {/* Header */}
                                           {exposureResultsMinimized ? (
                                             <div className="flex items-center justify-between mb-0">
-                                              <h5 className="text-sm font-medium text-left">
+                                              <h5 className="text-[10px] font-medium text-left">
                                                 {element.name}
                                               </h5>
-                                              <span className="bg-[#FFD700] text-[#2E2E2E] px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap ml-2">
+                                              <span className="bg-[#FFD700] text-[#2E2E2E] px-1.5 py-0.5 rounded text-[9px] font-semibold whitespace-nowrap ml-2">
                                                 {percentage.toFixed(2)}% Exposed
                                               </span>
                                             </div>
                                           ) : (
-                                            <div className="mb-3">
-                                              <h5 className="text-sm font-medium text-center">
+                                            <div className="mb-2">
+                                              <h5 className="text-[10px] font-medium text-center">
                                                 {element.name}
                                               </h5>
                                             </div>
@@ -1902,8 +2067,8 @@ export default function MainUILayout() {
                                               <div className="flex justify-center mb-1">
                                                 <div
                                                   style={{
-                                                    width: "155px",
-                                                    height: "155px",
+                                                    width: "110px",
+                                                    height: "110px",
                                                     position: "relative",
                                                   }}
                                                 >
@@ -1916,8 +2081,8 @@ export default function MainUILayout() {
                                                         data={chartData}
                                                         cx="50%"
                                                         cy="50%"
-                                                        innerRadius={50}
-                                                        outerRadius={65}
+                                                        innerRadius={35}
+                                                        outerRadius={45}
                                                         dataKey="value"
                                                         startAngle={90}
                                                         endAngle={-270}
@@ -1935,8 +2100,8 @@ export default function MainUILayout() {
                                                         data={[chartData[0]]}
                                                         cx="50%"
                                                         cy="50%"
-                                                        innerRadius={50}
-                                                        outerRadius={70}
+                                                        innerRadius={35}
+                                                        outerRadius={50}
                                                         dataKey="value"
                                                         startAngle={90}
                                                         endAngle={
@@ -1958,17 +2123,17 @@ export default function MainUILayout() {
                                                       textAlign: "center",
                                                     }}
                                                   >
-                                                    <div className="text-white text-lg font-bold">
+                                                    <div className="text-white text-sm font-bold">
                                                       {percentage.toFixed(2)}%
                                                     </div>
-                                                    <div className="text-gray-400 text-xs">
+                                                    <div className="text-gray-400 text-[9px]">
                                                       Exposed
                                                     </div>
                                                   </div>
                                                 </div>
                                               </div>
                                               {/* Basic Stats */}
-                                              <div className="text-sm space-y-1">
+                                              <div className="text-[10px] space-y-0.5">
                                                 <div className="flex justify-between">
                                                   <div className="text-gray-400">
                                                     {element.unit === "points"
@@ -2014,8 +2179,8 @@ export default function MainUILayout() {
                                               {element.hazardLevelBreakdown &&
                                                 element.hazardLevelBreakdown
                                                   .length > 0 && (
-                                                  <div className="mt-4 pt-3 border-t border-gray-600">
-                                                    <h6 className="text-xs font-semibold text-white mb-3">
+                                                  <div className="mt-2 pt-2 border-t border-gray-600">
+                                                    <h6 className="text-[9px] font-semibold text-white mb-1.5">
                                                       Affected{" "}
                                                       {element.unit === "points"
                                                         ? "Points"
@@ -2024,7 +2189,7 @@ export default function MainUILayout() {
                                                         : "Area"}{" "}
                                                       by Hazard Level
                                                     </h6>
-                                                    <div className="grid grid-cols-3 gap-2">
+                                                    <div className="grid grid-cols-3 gap-1.5">
                                                       {element.hazardLevelBreakdown.map(
                                                         (
                                                           level: any,
@@ -2086,15 +2251,15 @@ export default function MainUILayout() {
                                                           return (
                                                             <div
                                                               key={idx}
-                                                              className={`${colors.bg} ${colors.border} border-2 rounded-lg p-3 flex flex-col items-center justify-center`}
+                                                              className={`${colors.bg} ${colors.border} border rounded p-1.5 flex flex-col items-center justify-center`}
                                                             >
                                                               <div
-                                                                className={`${colors.text} text-lg font-bold mb-1`}
+                                                                className={`${colors.text} text-sm font-bold mb-0.5`}
                                                               >
                                                                 {level.measure}{" "}
                                                                 {level.unit}
                                                               </div>
-                                                              <div className="text-white text-xs text-center font-medium">
+                                                              <div className="text-white text-[9px] text-center font-medium">
                                                                 {
                                                                   level.hazardLevel
                                                                 }
@@ -2110,36 +2275,36 @@ export default function MainUILayout() {
                                               {element.landuseBreakdown &&
                                                 element.landuseBreakdown
                                                   .length > 0 && (
-                                                  <div className="mt-4 pt-3 border-t border-gray-600">
-                                                    <h6 className="text-xs font-semibold text-white mb-2">
+                                                  <div className="mt-2 pt-2 border-t border-gray-600">
+                                                    <h6 className="text-[9px] font-semibold text-white mb-1.5">
                                                       Breakdown by Land use
                                                     </h6>
                                                     <div
-                                                      className="max-h-[250px] overflow-y-auto"
+                                                      className="max-h-[180px] overflow-y-auto"
                                                       style={{
                                                         scrollbarWidth: "thin",
                                                         scrollbarColor:
                                                           "#706f6f transparent",
                                                       }}
                                                     >
-                                                      <table className="w-full text-xs">
+                                                      <table className="w-full text-[9px]">
                                                         <thead className="sticky top-0 bg-[#3a3a3a] z-10">
                                                           <tr className="text-gray-400 border-b border-gray-600">
-                                                            <th className="text-left py-2 pr-3 pl-0">
+                                                            <th className="text-left py-1 pr-2 pl-0">
                                                               Land use
                                                             </th>
-                                                            <th className="text-center py-2 px-2">
+                                                            <th className="text-center py-1 px-1">
                                                               Total Area (km²)
                                                             </th>
-                                                            <th className="text-center py-2 px-2">
+                                                            <th className="text-center py-1 px-1">
                                                               Affected Area
                                                               (km²)
                                                             </th>
-                                                            <th className="text-center py-2 px-2">
+                                                            <th className="text-center py-1 px-1">
                                                               Unaffected Area
                                                               (km²)
                                                             </th>
-                                                            <th className="text-center py-2 pl-2 pr-0">
+                                                            <th className="text-center py-1 pl-1 pr-0">
                                                               Percentage
                                                               Affected (%)
                                                             </th>
@@ -2156,29 +2321,29 @@ export default function MainUILayout() {
                                                                 className="border-b border-gray-700 last:border-b-0 hover:bg-[#404040] transition"
                                                               >
                                                                 <td
-                                                                  className="py-2 pr-3 pl-0 text-white"
+                                                                  className="py-1 pr-2 pl-0 text-white"
                                                                   title={
                                                                     row.landuse
                                                                   }
                                                                 >
                                                                   {row.landuse}
                                                                 </td>
-                                                                <td className="py-2 px-2 text-center text-gray-300">
+                                                                <td className="py-1 px-1 text-center text-gray-300">
                                                                   {parseFloat(
                                                                     row.total_area_km2
                                                                   ).toFixed(2)}
                                                                 </td>
-                                                                <td className="py-2 px-2 text-center text-gray-300">
+                                                                <td className="py-1 px-1 text-center text-gray-300">
                                                                   {parseFloat(
                                                                     row.affected_area_km2
                                                                   ).toFixed(2)}
                                                                 </td>
-                                                                <td className="py-2 px-2 text-center text-gray-300">
+                                                                <td className="py-1 px-1 text-center text-gray-300">
                                                                   {parseFloat(
                                                                     row.unaffected_area_km2
                                                                   ).toFixed(2)}
                                                                 </td>
-                                                                <td className="py-2 pl-2 pr-0 text-center">
+                                                                <td className="py-1 pl-1 pr-0 text-center">
                                                                   <span
                                                                     className={`font-semibold ${
                                                                       row.percentage_affected >
@@ -2226,8 +2391,8 @@ export default function MainUILayout() {
               {!isAnalysisRunning &&
                 !exposureResultsMinimized &&
                 exposureResultsData && (
-                  <div className="flex gap-3 px-3.5 pb-3.5">
-                    <button className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition text-sm font-medium">
+                  <div className="flex gap-2 px-2.5 pb-2.5">
+                    <button className="flex-1 py-1.5 rounded bg-[#5A5C99] text-white hover:opacity-90 transition text-[10px] font-medium">
                       Export Report
                     </button>
                     <button
@@ -2238,7 +2403,7 @@ export default function MainUILayout() {
                         setIsAnalysisRunning(false);
                         handleClearAffectedAreas();
                       }}
-                      className="flex-1 py-2 rounded-md bg-[#5A5C99] text-white hover:opacity-90 transition text-sm font-medium"
+                      className="flex-1 py-1.5 rounded bg-[#5A5C99] text-white hover:opacity-90 transition text-[10px] font-medium"
                     >
                       Close Analysis
                     </button>

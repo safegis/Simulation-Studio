@@ -32,7 +32,7 @@ export default function CenterTopControls({
   setShowMapStyleDropdown, // ✅ added
 }: CenterTopControlsProps) {
   return (
-    <div className="absolute top-[18px] left-1/2 transform -translate-x-1/2 z-50">
+    <div className="absolute top-[15px] left-1/2 transform -translate-x-1/2 z-50">
       <div className="flex gap-2.5 relative">
         {viewMode === "3d" && selectedTimeOfDay !== null && (
           <div ref={timeOfDayRef} className="relative w-[140px]">
@@ -42,7 +42,12 @@ export default function CenterTopControls({
 rounded-md shadow-md hover:bg-[#3a3a3a] transition text-[11px] font-medium"
             >
               <span className="leading-none">Time of Day</span>
-              <ChevronDown size={15} />
+              <ChevronDown
+                size={15}
+                className={`transition-transform duration-200 ${
+                  showTimeOfDayDropdown ? "rotate-180" : ""
+                }`}
+              />
             </button>
             {showTimeOfDayDropdown && (
               <div className="absolute top-[48px] w-full bg-[#2E2E2E] rounded-md shadow-md text-[#C7C7C7] p-1.5 z-50">
@@ -104,7 +109,12 @@ rounded-md shadow-md hover:bg-[#3a3a3a] transition text-[11px] font-medium"
 rounded-md shadow-md hover:bg-[#3a3a3a] transition text-[11px] font-medium"
           >
             <span className="leading-none">Map Style</span>
-            <ChevronDown size={15} />
+            <ChevronDown
+              size={15}
+              className={`transition-transform duration-200 ${
+                showMapStyleDropdown ? "rotate-180" : ""
+              }`}
+            />
           </button>
           {showMapStyleDropdown && (
             <div className="text-[11px] absolute top-[48px] w-full bg-[#2E2E2E] rounded-md shadow-md text-[#C7C7C7] p-1.5 z-50">

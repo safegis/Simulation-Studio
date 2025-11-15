@@ -75,11 +75,17 @@ export default function SelectAssessment({
               onCheckedChange={() =>
                 handleToggle(option.label, option.disabled)
               }
-              className="mr-3 w-[14px] h-[14px]"
+              className="mr-3"
+              style={{
+                width: "14px",
+                height: "14px",
+                minWidth: "14px",
+                minHeight: "14px",
+              }}
               disabled={option.disabled}
             />
             <div className="flex flex-col">
-              <div className="text-[10px] font-medium">{option.label}</div>
+              <div className="text-[12px] font-medium">{option.label}</div>
               {option.disabled && (
                 <div className="text-[10px] text-[#8183e5] mt-1">
                   Coming Soon...

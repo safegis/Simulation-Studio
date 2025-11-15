@@ -746,7 +746,7 @@ export default function PathfinderControls({
 
       {/* Floating top-right summary box */}
       {routesData.length > 0 && (
-        <div className="fixed top-[18px] right-[18px] bg-[#2E2E2E] rounded-xl shadow-md text-white p-4 z-[1000] min-w-[230px] max-w-[290px] min-h-[230px]">
+        <div className="fixed top-[15px] right-[15px] bg-[#2E2E2E] rounded-xl shadow-md text-white p-4 z-[1000] min-w-[230px] max-w-[290px] min-h-[230px]">
           <p className="text-center font-semibold">Route Hazards</p>
           <hr className="border-gray-500 my-2" />
 

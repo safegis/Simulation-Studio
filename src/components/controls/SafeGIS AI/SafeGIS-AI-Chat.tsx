@@ -12,6 +12,7 @@ import {
   Mic,
   Globe,
   CircleStop,
+  AtSign,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import AgentFns from "./Agent Functions/Map-Search";
@@ -174,24 +175,24 @@ const convertToWav = async (audioBlob: Blob): Promise<Blob> => {
 function ThinkingLoader() {
   return (
     <div className="flex flex-col items-center justify-center py-4">
-      <div className="relative w-28 h-28">
+      <div className="relative w-20 h-20">
         {/* Centered spinning circles */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 z-10">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 z-10">
           {/* Outer solid spinner */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-4 border-t-transparent border-[#9699FF] animate-spin-slow"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full border-3 border-t-transparent border-[#9699FF] animate-spin-slow"></div>
           {/* Inner smaller dashed spinner */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full border-2 border-dashed border-[#C7C7C7] animate-spin-reverse"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-2 border-dashed border-[#C7C7C7] animate-spin-reverse"></div>
         </div>
         {/* Orbiting dots with breathing effect */}
-        <div className="absolute top-1/2 left-1/2 w-full h-full">
-          <div className="absolute w-3 h-3 bg-[#9699FF] rounded-full animate-orbit-breath-0 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-3 h-3 bg-[#C7C7C7] rounded-full animate-orbit-breath-90 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-3 h-3 bg-[#5A5C99] rounded-full animate-orbit-breath-180 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-3 h-3 bg-[#ffffff] rounded-full animate-orbit-breath-270 -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute top-1/2 left-1/2 w-16 h-16">
+          <div className="absolute w-2.5 h-2.5 bg-[#9699FF] rounded-full animate-orbit-breath-0 -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute w-2.5 h-2.5 bg-[#C7C7C7] rounded-full animate-orbit-breath-90 -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute w-2.5 h-2.5 bg-[#5A5C99] rounded-full animate-orbit-breath-180 -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute w-2.5 h-2.5 bg-[#ffffff] rounded-full animate-orbit-breath-270 -translate-x-1/2 -translate-y-1/2"></div>
         </div>
       </div>
       {/* Loading text */}
-      <p className="mt-4 mb-6 text-[#C7C7C7] text-[10px] animate-pulse text-center">
+      <p className="mt-8 mb-6 text-[#C7C7C7] text-[10px] animate-pulse text-center">
         Atlas is mapping your query...
       </p>
     </div>
@@ -379,7 +380,7 @@ export default function SafeGISAIChat({
         {/* Atlas Chat Button */}
         <button
           onClick={toggleChat}
-          className="absolute bottom-[18px] right-[18px] w-13 h-13 rounded-md z-50 shadow-md flex items-center justify-center transition-all duration-300"
+          className="absolute bottom-[15px] right-[15px] w-13 h-13 rounded-md z-50 shadow-md flex items-center justify-center transition-all duration-300"
           style={{
             background: "linear-gradient(to bottom, #5A5C99, #232323)",
           }}
@@ -387,7 +388,7 @@ export default function SafeGISAIChat({
           <img
             src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
             alt="Atlas Logo"
-            className="w-8.5 h-8 -mt-[1.5px]"
+            className="w-8.5 h-8 -mt-[1.5px] mr-[1px]"
           />
         </button>
       </>
@@ -610,7 +611,7 @@ export default function SafeGISAIChat({
         className={`${
           isExpanded
             ? "fixed top-0 right-0 h-screen w-[360px] rounded-none border-l border-white/10"
-            : "absolute bottom-[18px] h-[393px] right-[88px] w-[280px] rounded-md py-2"
+            : "absolute bottom-[15px] h-[393px] right-[82px] w-[280px] rounded-md py-2"
         } ${
           isExpanded ? "z-10" : "z-50"
         } shadow-md origin-bottom-right flex flex-col
@@ -755,12 +756,20 @@ export default function SafeGISAIChat({
               />
 
               <div className="flex justify-between mt-0.5">
-                <button
-                  onClick={() => console.log("Plus button clicked")}
-                  className="h-5 w-5 flex items-center justify-center rounded-sm text-white hover:text-gray-200 transition bg-transparent"
-                >
-                  <Plus size={13} />
-                </button>
+                <div className="flex gap-0.5">
+                  <button
+                    onClick={() => console.log("Plus button clicked")}
+                    className="h-5 w-5 flex items-center justify-center rounded-sm text-white hover:text-gray-200 transition bg-transparent"
+                  >
+                    <Plus size={13} />
+                  </button>
+                  <button
+                    onClick={() => console.log("At-sign button clicked")}
+                    className="h-5 w-5 flex items-center justify-center rounded-sm text-white hover:text-gray-200 transition bg-transparent"
+                  >
+                    <AtSign size={12} />
+                  </button>
+                </div>
                 <div className="flex gap-1">
                   {/* Voice Prompt Button */}
                   <button
@@ -800,7 +809,7 @@ export default function SafeGISAIChat({
                         : "bg-[#676767] hover:bg-[#737373]"
                     }`}
                   >
-                    <ArrowUp size={13} />
+                    <ArrowUp size={13} className="shrink-0" />
                   </button>
                 </div>
               </div>
@@ -813,7 +822,7 @@ export default function SafeGISAIChat({
       {!isExpanded && (
         <button
           onClick={toggleChat}
-          className="absolute bottom-[18px] right-[18px] w-13 h-13 rounded-md z-50 shadow-md flex items-center justify-center transition-all duration-300"
+          className="absolute bottom-[15px] right-[15px] w-13 h-13 rounded-md z-50 shadow-md flex items-center justify-center transition-all duration-300"
           style={{
             background: "linear-gradient(to bottom, #6B6DCC, #2E2E2E)",
           }}
@@ -821,7 +830,7 @@ export default function SafeGISAIChat({
           <img
             src="/Images/Feature-Icons/SafeGIS-AI-Logo.png"
             alt="Atlas Logo"
-            className="w-8.5 h-8 -mt-[1.5px]"
+            className="w-8.5 h-8 -mt-[1.5px] mr-[1px]"
           />
         </button>
       )}

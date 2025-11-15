@@ -1161,8 +1161,8 @@ export default function ToolPanel({
 
   return (
     <div
-      className="mt-[18px] w-full bg-transparent rounded-md shadow-md text-[#C7C7C7] flex flex-col overflow-y-auto scrollbar-rounded"
-      style={{ maxHeight: "calc(100vh - 91px - 18px)", padding: "0px" }}
+      className="w-full bg-transparent rounded-md shadow-md text-[#C7C7C7] flex flex-col overflow-y-auto scrollbar-rounded"
+      style={{ maxHeight: "calc(100vh - 91px)", padding: "0px" }}
     >
       {[
         ...selectedMaps,
@@ -1190,10 +1190,12 @@ export default function ToolPanel({
           <div key={key} className={index !== arr.length - 1 ? "mb-3" : ""}>
             <button
               onClick={() => togglePanel(key)}
-              className="flex justify-between items-center px-4 w-full rounded-md"
+              className={`flex justify-between items-center px-4 w-full ${
+                isExpanded ? "rounded-t-md" : "rounded-md"
+              }`}
               style={{ height: "40px", backgroundColor: "#454545" }}
             >
-              <span className="text-[10px] font-medium text-white">
+              <span className="text-[11px] font-medium text-white">
                 {displayName}
               </span>
               <ChevronDown
@@ -1205,7 +1207,7 @@ export default function ToolPanel({
             </button>
 
             {isExpanded && (
-              <div className="bg-[#2E2E2E] text-[10px] text-white p-4 rounded-b-xl mt-2 space-y-2">
+              <div className="bg-[#2E2E2E] text-[10px] text-white p-3 rounded-b-md mt-2 space-y-2">
                 {/* Hazard Layers Controls */}
                 {label === "Hazard Layers" && (
                   <HazardMapControls
@@ -1340,4 +1342,3 @@ function PanelToggle({
     </>
   );
 }
-

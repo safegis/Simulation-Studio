@@ -33,7 +33,7 @@ const LocationSearchBar = forwardRef<HTMLDivElement, LocationSearchBarProps>(
     return (
       <div
         ref={searchContainerRef}
-        className="absolute top-[18px] left-[76px] z-50 w-[280px]"
+        className="absolute top-[15px] left-[70px] z-50 w-[280px]"
       >
         <div className="bg-[#2E2E2E] h-[40px] flex items-center gap-2 px-2.5 rounded-md shadow-md text-[#C7C7C7]">
           <Search width={15} height={15} className="flex-shrink-0" />
