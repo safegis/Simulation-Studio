@@ -268,7 +268,7 @@ export default function PathfinderControls({
   };
 
   const buttonClass = (mode: string) =>
-    `p-1.5 rounded-sm transition ${
+    `w-9 h-9 flex items-center justify-center rounded-lg transition ${
       selectedMode === mode
         ? "bg-gradient-to-r from-[#9699FF] to-white text-[#2E2E2E]"
         : "hover:bg-[#3A3A3A] text-[#C7C7C7]"
@@ -497,7 +497,7 @@ export default function PathfinderControls({
                   }
                 }}
               >
-                <Route size={16} />
+                <Route size={20} />
               </button>
 
               <button
@@ -513,7 +513,7 @@ export default function PathfinderControls({
                   }
                 }}
               >
-                <Car size={16} />
+                <Car size={20} />
               </button>
 
               <button
@@ -531,7 +531,7 @@ export default function PathfinderControls({
               >
                 <TwoWheelerIcon
                   style={{
-                    fontSize: 16,
+                    fontSize: 20,
                     color:
                       selectedMode === "motorcycle" ? "#2E2E2E" : "#C7C7C7",
                   }}
@@ -551,7 +551,7 @@ export default function PathfinderControls({
                   }
                 }}
               >
-                <Bike size={16} />
+                <Bike size={20} />
               </button>
 
               <button
@@ -567,7 +567,7 @@ export default function PathfinderControls({
                   }
                 }}
               >
-                <Footprints size={16} />
+                <Footprints size={20} />
               </button>
             </div>
           )}
@@ -576,10 +576,10 @@ export default function PathfinderControls({
           {routesData.length > 0 && (
             <>
               <div className="flex items-center gap-1.5 mt-1">
-                <p className="text-white text-[10px] font-semibold">
+                <p className="text-white text-[9px] font-semibold">
                   Available Routes
                 </p>
-                <div className="bg-[#5A5A5A] text-[#00FF7B] text-[10px] font-semibold w-5 h-5 rounded-sm shadow-md flex items-center justify-center">
+                <div className="bg-[#5A5A5A] text-[#00FF7B] text-[9px] font-semibold w-5 h-5 rounded-sm shadow-md flex items-center justify-center">
                   {
                     routesData.filter((r) =>
                       selectedMode === "all" ? true : r.profile === selectedMode
@@ -591,7 +591,7 @@ export default function PathfinderControls({
                 <div className="relative ml-auto" ref={sortDropdownRef}>
                   <button
                     onClick={() => setShowSortDropdown((prev) => !prev)}
-                    className="flex items-center justify-between gap-0.5 bg-[#5A5A5A] text-white text-[10px] px-2 py-0.5 rounded-sm hover:bg-[#6A6A6A] transition w-[95px]"
+                    className="flex items-center justify-between gap-0.5 bg-[#5A5A5A] text-white text-[9px] px-2 py-0.5 rounded-sm hover:bg-[#6A6A6A] transition w-[95px]"
                   >
                     {selectedSort}
                     {showSortDropdown ? (
@@ -602,7 +602,7 @@ export default function PathfinderControls({
                   </button>
 
                   {showSortDropdown && (
-                    <div className="absolute right-0 mt-0.5 w-[95px] bg-[#5A5A5A] rounded-sm shadow-lg text-[10px] text-white z-50">
+                    <div className="absolute right-0 mt-0.5 w-[95px] bg-[#5A5A5A] rounded-sm shadow-lg text-[9px] text-white z-50">
                       {["Best balance", "Safest", "Fastest"].map(
                         (option, index) => (
                           <div
@@ -673,7 +673,7 @@ export default function PathfinderControls({
                               style={{ fontSize: 16, color: "white" }}
                             />
                           )}
-                          <span className="w-[40px] text-center text-[10px] text-[#AAAAAA] mt-1 inline-block">
+                          <span className="w-[40px] text-center text-[9px] text-[#AAAAAA] mt-1 inline-block">
                             {formatDuration(route.duration)}
                           </span>
                         </div>
@@ -713,7 +713,7 @@ export default function PathfinderControls({
                                 [routeKey]: !prev[routeKey],
                               }))
                             }
-                            className="flex items-center gap-0.5 text-[10px] text-transparent bg-gradient-to-r from-[#9699FF] to-white bg-clip-text hover:underline transition mt-1.5 w-fit"
+                            className="flex items-center gap-0.5 text-[9px] text-transparent bg-gradient-to-r from-[#9699FF] to-white bg-clip-text hover:underline transition mt-1.5 w-fit"
                           >
                             <ChevronDown
                               className={`transition-transform duration-300 text-[#9699FF] ${
@@ -729,7 +729,7 @@ export default function PathfinderControls({
 
                       {/* Steps */}
                       {showStepsMap[routeKey] && (
-                        <ol className="list-decimal text-[10px] text-[#AAAAAA] pl-4 space-y-0.5 mt-2">
+                        <ol className="list-decimal text-[9px] text-[#AAAAAA] pl-4 space-y-0.5 mt-2">
                           {route.steps.map((step: any, i: number) => (
                             <li key={i}>{step.maneuver.instruction}</li>
                           ))}
@@ -746,34 +746,34 @@ export default function PathfinderControls({
 
       {/* Floating top-right summary box */}
       {routesData.length > 0 && (
-        <div className="fixed top-[15px] right-[15px] bg-[#2E2E2E] rounded-xl shadow-md text-white p-4 z-[1000] min-w-[230px] max-w-[290px] min-h-[230px]">
-          <p className="text-center font-semibold">Route Hazards</p>
+        <div className="fixed top-[15px] right-[15px] bg-[#2E2E2E] rounded-xl shadow-md text-white p-3.5 z-[1000] w-[210px]">
+          <p className="text-center text-[13px] font-semibold">Route Hazards</p>
           <hr className="border-gray-500 my-2" />
 
-          <div className="mt-4 space-y-2">
-            <div className="flex justify-between text-[10px]">
-              <span>Obstructions</span>
-              <span>3</span>
+          <div className="mt-3 space-y-2">
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="flex-1">Obstructions</span>
+              <span className="text-right min-w-[40px]">3</span>
             </div>
-            <div className="flex justify-between text-[10px]">
-              <span>Congestion</span>
-              <span>5</span>
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="flex-1">Congestion</span>
+              <span className="text-right min-w-[40px]">5</span>
             </div>
-            <div className="flex justify-between text-[10px]">
-              <span>Road Closure</span>
-              <span>1</span>
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="flex-1">Road Closure</span>
+              <span className="text-right min-w-[40px]">1</span>
             </div>
-            <div className="flex justify-between text-[10px]">
-              <span>Lane Closure</span>
-              <span>2</span>
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="flex-1">Lane Closure</span>
+              <span className="text-right min-w-[40px]">2</span>
             </div>
-            <div className="flex justify-between text-[10px]">
-              <span>Flooded Points</span>
-              <span>4</span>
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="flex-1">Flooded Points</span>
+              <span className="text-right min-w-[40px]">4</span>
             </div>
 
             {/* More info button */}
-            <div className="mt-2 text-center">
+            <div className="text-center">
               <button
                 onClick={() => setShowModal(true)}
                 className="text-[10px] text-[#8183e5] hover:text-[#a7a9fa]"

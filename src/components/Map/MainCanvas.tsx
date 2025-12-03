@@ -132,6 +132,44 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     mapInstance.current = map;
     map.on("load", () => {
       mapIsLoaded.current = true;
+
+      // Add custom popup styles for consistent dark theme
+      if (!document.getElementById("earthquake-popup-styles")) {
+        const style = document.createElement("style");
+        style.id = "earthquake-popup-styles";
+        style.textContent = `
+          .custom-earthquake-popup .mapboxgl-popup-content {
+            padding: 0;
+            background: transparent;
+            box-shadow: none;
+            position: relative;
+          }
+          .custom-earthquake-popup .mapboxgl-popup-close-button {
+            color: #C7C7C7;
+            font-size: 16px;
+            padding: 4px 8px;
+            background: #2a2a2a;
+            border-radius: 0 6px 0 4px;
+            transition: all 0.2s;
+            border: 1px solid #3a3a3a;
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 10;
+            cursor: pointer;
+          }
+          .custom-earthquake-popup .mapboxgl-popup-close-button:hover {
+            color: white;
+            background: #9699FF;
+            border-color: #9699FF;
+          }
+          .custom-earthquake-popup .mapboxgl-popup-tip {
+            border-top-color: #2E2E2E;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
       map.on("moveend", () => {
         try {
           const b = map.getBounds();
@@ -250,6 +288,8 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     const popup = new mapboxgl.Popup({
       closeButton: true,
       closeOnClick: true,
+      maxWidth: "none",
+      className: "custom-earthquake-popup",
     });
 
     map.on("click", layerId, (e) => {
@@ -257,11 +297,65 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       const feature = e.features[0];
       const props = feature.properties || {};
 
-      let html = '<div class="text-sm"><strong>Affected Area</strong><br/>';
+      // Build property rows with consistent styling
+      let propertyRows = "";
       for (const key in props) {
-        html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+        propertyRows += `
+          <div style="
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            padding: 6px;
+            margin-bottom: 6px;
+          ">
+            <div style="
+              color: #9699FF;
+              font-size: 8px;
+              font-weight: 500;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 2px;
+            ">
+              ${key}
+            </div>
+            <div style="
+              color: #C7C7C7;
+              font-size: 11px;
+              font-weight: 600;
+              word-break: break-word;
+            ">
+              ${props[key]}
+            </div>
+          </div>
+        `;
       }
-      html += "</div>";
+
+      const html = `
+        <div style="
+          background: #2E2E2E;
+          border-radius: 6px;
+          padding: 8px;
+          min-width: 200px;
+          max-width: 280px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+          border: 1px solid #3a3a3a;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        ">
+          <!-- Title -->
+          <div style="
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            line-height: 1.3;
+          ">
+            Affected Area
+          </div>
+
+          <!-- Properties -->
+          ${propertyRows}
+        </div>
+      `;
 
       popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
     });
@@ -811,17 +905,75 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       const popup = new mapboxgl.Popup({
         closeButton: true,
         closeOnClick: true,
+        maxWidth: "none",
+        className: "custom-earthquake-popup",
       });
       const attachPopup = (layerId: string) => {
         map.on("click", layerId, (e) => {
           if (!e.features || e.features.length === 0) return;
           const feature = e.features[0];
           const props = feature.properties || {};
-          let html = "<div class='text-sm'>";
+
+          // Build property rows with consistent styling
+          let propertyRows = "";
           for (const key in props) {
-            html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+            propertyRows += `
+              <div style="
+                background: #2a2a2a;
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                padding: 6px;
+                margin-bottom: 6px;
+              ">
+                <div style="
+                  color: #9699FF;
+                  font-size: 8px;
+                  font-weight: 500;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+                  margin-bottom: 2px;
+                ">
+                  ${key}
+                </div>
+                <div style="
+                  color: #C7C7C7;
+                  font-size: 11px;
+                  font-weight: 600;
+                  word-break: break-word;
+                ">
+                  ${props[key]}
+                </div>
+              </div>
+            `;
           }
-          html += "</div>";
+
+          const html = `
+            <div style="
+              background: #2E2E2E;
+              border-radius: 6px;
+              padding: 8px;
+              min-width: 200px;
+              max-width: 280px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+              border: 1px solid #3a3a3a;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            ">
+              <!-- Title -->
+              <div style="
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                margin-bottom: 8px;
+                line-height: 1.3;
+              ">
+                Feature Properties
+              </div>
+
+              <!-- Properties -->
+              ${propertyRows}
+            </div>
+          `;
+
           popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
         });
         // Cursor change on hover
@@ -920,6 +1072,8 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         const popup = new mapboxgl.Popup({
           closeButton: true,
           closeOnClick: true,
+          maxWidth: "none",
+          className: "custom-earthquake-popup",
         });
 
         map.on("click", layerId, (e) => {
@@ -927,11 +1081,65 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           const feature = e.features[0];
           const props = feature.properties || {};
 
-          let html = '<div class="text-sm"><strong>Affected Area</strong><br/>';
+          // Build property rows with consistent styling
+          let propertyRows = "";
           for (const key in props) {
-            html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+            propertyRows += `
+              <div style="
+                background: #2a2a2a;
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                padding: 6px;
+                margin-bottom: 6px;
+              ">
+                <div style="
+                  color: #9699FF;
+                  font-size: 8px;
+                  font-weight: 500;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+                  margin-bottom: 2px;
+                ">
+                  ${key}
+                </div>
+                <div style="
+                  color: #C7C7C7;
+                  font-size: 11px;
+                  font-weight: 600;
+                  word-break: break-word;
+                ">
+                  ${props[key]}
+                </div>
+              </div>
+            `;
           }
-          html += "</div>";
+
+          const html = `
+            <div style="
+              background: #2E2E2E;
+              border-radius: 6px;
+              padding: 8px;
+              min-width: 200px;
+              max-width: 280px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+              border: 1px solid #3a3a3a;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            ">
+              <!-- Title -->
+              <div style="
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                margin-bottom: 8px;
+                line-height: 1.3;
+              ">
+                Affected Area
+              </div>
+
+              <!-- Properties -->
+              ${propertyRows}
+            </div>
+          `;
 
           popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
         });
@@ -982,6 +1190,8 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         const pointPopup = new mapboxgl.Popup({
           closeButton: true,
           closeOnClick: true,
+          maxWidth: "none",
+          className: "custom-earthquake-popup",
         });
 
         map.on("click", pointLayerId, (e) => {
@@ -989,14 +1199,67 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           const feature = e.features[0];
           const props = feature.properties || {};
 
-          let html =
-            '<div class="text-sm"><strong style="color: #FF6B35;">Affected Point</strong><br/>';
+          // Build property rows with consistent styling
+          let propertyRows = "";
           for (const key in props) {
             if (key !== "raw") {
-              html += `<strong>${key}:</strong> ${props[key]}<br/>`;
+              propertyRows += `
+                <div style="
+                  background: #2a2a2a;
+                  border: 1px solid #3a3a3a;
+                  border-radius: 4px;
+                  padding: 6px;
+                  margin-bottom: 6px;
+                ">
+                  <div style="
+                    color: #9699FF;
+                    font-size: 8px;
+                    font-weight: 500;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-bottom: 2px;
+                  ">
+                    ${key}
+                  </div>
+                  <div style="
+                    color: #C7C7C7;
+                    font-size: 11px;
+                    font-weight: 600;
+                    word-break: break-word;
+                  ">
+                    ${props[key]}
+                  </div>
+                </div>
+              `;
             }
           }
-          html += "</div>";
+
+          const html = `
+            <div style="
+              background: #2E2E2E;
+              border-radius: 6px;
+              padding: 8px;
+              min-width: 200px;
+              max-width: 280px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+              border: 1px solid #3a3a3a;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            ">
+              <!-- Title -->
+              <div style="
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                margin-bottom: 8px;
+                line-height: 1.3;
+              ">
+                Affected Point
+              </div>
+
+              <!-- Properties -->
+              ${propertyRows}
+            </div>
+          `;
 
           pointPopup.setLngLat(e.lngLat).setHTML(html).addTo(map);
         });
