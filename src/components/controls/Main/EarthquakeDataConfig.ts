@@ -7,7 +7,7 @@ export interface EarthquakeDataConfig {
 
 export const earthquakeData: EarthquakeDataConfig[] = [
   {
-    name: "Latest Earthquake Information (Philippince Seismic Network)",
+    name: "Latest Earthquake Information (Philippines Seismic Network)",
     scope: "Philippines",
     source: "Philippine Institute of Volcanology and Seismology (PHIVOLCS)",
     dataUrl: "http://localhost:8000/earthquakes/latest",
@@ -46,7 +46,7 @@ export async function fetchEarthquakeData(sourceName: string): Promise<any[]> {
     // Process based on source type
     if (
       sourceName ===
-      "Latest Earthquake Information (Philippince Seismic Network)"
+      "Latest Earthquake Information (Philippines Seismic Network)"
     ) {
       return processPhilippineEarthquakeData(data);
     } else if (sourceName === "Latest Earthquakes") {

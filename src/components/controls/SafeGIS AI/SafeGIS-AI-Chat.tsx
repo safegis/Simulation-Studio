@@ -15,14 +15,7 @@ import {
   AtSign,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import AgentFns from "./Agent Functions/Map-Search";
-import ViewSwitchAgent from "./Agent Functions/SwitchMapView";
-import MapStyleAgent from "./Agent Functions/SwitchMapStyle";
-import EarthquakeAgent from "./Agent Functions/Control Hazard Layers/Toggle-Earthquake";
-import VolcanoListAgent from "./Agent Functions/Control Hazard Layers/Toggle-VolcanoList";
-import ActiveFaultsAgent from "./Agent Functions/Control Hazard Layers/Toggle-ActiveFaults";
-import CongestionAgent from "./Agent Functions/Control Hazard Layers/Toggle-Congestion";
-import { runQandA } from "./Agent Functions/QandA";
+import LangGraphAdapter, { LangGraphMessage } from "./LangGraphAdapter";
 
 type Props = {
   isVisible: boolean;
@@ -38,58 +31,31 @@ type Props = {
   // props for map style switching
   selectedMapStyle?: string;
   handleMapStyleChange?: (style: string) => void;
-  // Earthquake control callbacks
-  earthquakeControlCallbacks?: {
-    enableEarthquakeHazard: () => void;
-    disableEarthquakeHazard: () => void;
-    isEarthquakeEnabled: () => boolean;
-    stopEarthquakePolling?: () => void;
-    openToolPanel?: () => void;
-    selectHazardLayers?: () => void;
-    expandHazardLayersDropdown?: () => void;
-    expandGeologicalDropdown?: () => void;
-  };
-  // Volcano list control callbacks
-  volcanoListControlCallbacks?: {
-    enableVolcanoList: () => void;
-    disableVolcanoList: () => void;
-    isVolcanoListEnabled: () => boolean;
-    openToolPanel?: () => void;
-    selectHazardLayers?: () => void;
-    expandHazardLayersDropdown?: () => void;
-    expandGeologicalDropdown?: () => void;
-  };
-  // Active faults control callbacks
-  activeFaultsControlCallbacks?: {
-    enableActiveFaults: () => void;
-    disableActiveFaults: () => void;
-    isActiveFaultsEnabled: () => boolean;
-    openToolPanel?: () => void;
-    selectHazardLayers?: () => void;
-    expandHazardLayersDropdown?: () => void;
-    expandGeologicalDropdown?: () => void;
-  };
-  // Congestion control callbacks
-  congestionControlCallbacks?: {
-    enableCongestion: () => void;
-    disableCongestion: () => void;
-    isCongestionEnabled: () => boolean;
-    stopCongestionPolling?: () => void;
-    getCongestionSharedRefs?: () => {
-      intervalId: NodeJS.Timeout | null;
-      timerId: number | null;
-      boundsCallback: ((bbox: [number, number, number, number]) => void) | null;
-    };
-    openToolPanel?: () => void;
-    selectHazardLayers?: () => void;
-    expandHazardLayersDropdown?: () => void;
-    expandTrafficDropdown?: () => void;
+  // Live Hazard Monitor control callbacks
+  liveHazardMonitorCallbacks?: {
+    openLiveHazardMonitor: () => void;
+    expandEarthquakeSection: () => void;
+    expandWeatherSection: () => void;
+    selectEarthquakeSource: (sourceName: string) => void;
+    selectWeatherSource: (sourceName: string) => void;
+    getSelectedEarthquakeSources: () => string[];
+    getSelectedWeatherSources: () => string[];
   };
 };
 
 type Message = {
   role: "user" | "assistant";
   content: string;
+};
+
+type ConversationContext = {
+  type:
+    | "map_style_suggestion"
+    | "location_clarification"
+    | "view_mode_suggestion"
+    | null;
+  data?: any;
+  timestamp: number;
 };
 
 // Utility function to convert AudioBuffer to WAV format
@@ -211,10 +177,7 @@ export default function SafeGISAIChat({
   setViewMode,
   selectedMapStyle = "Default (Custom Mapbox Standard)",
   handleMapStyleChange,
-  earthquakeControlCallbacks,
-  volcanoListControlCallbacks,
-  activeFaultsControlCallbacks,
-  congestionControlCallbacks,
+  liveHazardMonitorCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [isHiding, setIsHiding] = useState(false);
@@ -222,6 +185,9 @@ export default function SafeGISAIChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<
+    LangGraphMessage[]
+  >([]);
 
   // Sync internal state with prop
   useEffect(() => {
@@ -395,203 +361,178 @@ export default function SafeGISAIChat({
     );
   }
 
-  // Replace the handleSend function in your SafeGIS-AI-Chat.tsx with this updated version
-
+  // LangGraph Multi-Agent System Integration
   const handleSend = async () => {
     if (!inputText.trim()) return;
 
     const userText = inputText;
-    const newMessages: Message[] = [
-      ...messages,
-      { role: "user", content: userText },
-    ];
-    setMessages(newMessages);
+    setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setInputText("");
     setLoading(true);
 
     try {
-      let agentHandled = false;
-
-      // Use embedding-based intent classification
-      let intent:
-        | "earthquake"
-        | "volcano"
-        | "activefaults"
-        | "congestion"
-        | "map"
-        | "view"
-        | "mapstyle"
-        | "qa" = "qa";
-
-      try {
-        console.log("Classifying intent with embeddings for:", userText);
-
-        const intentResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
-            "/generate",
-            "/classify-intent"
-          )}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              prompt: userText,
-            }),
-          }
-        );
-
-        const intentData = await intentResponse.json();
-
-        if (intentData.error) {
-          console.warn("Intent classification error:", intentData.error);
-          intent = "qa"; // Safe fallback
-        } else {
-          const classifiedIntent = intentData.intent;
-
-          // Log similarity scores for debugging
-          console.log("Intent similarities:", intentData.similarities);
-
-          // Validate the classified intent
-          if (
-            classifiedIntent === "map" ||
-            classifiedIntent === "view" ||
-            classifiedIntent === "mapstyle" ||
-            classifiedIntent === "earthquake" ||
-            classifiedIntent === "volcano" ||
-            classifiedIntent === "activefaults" ||
-            classifiedIntent === "congestion" ||
-            classifiedIntent === "qa"
-          ) {
-            intent = classifiedIntent;
-            console.log("Classified intent:", intent);
-          } else {
-            console.warn(
-              "Invalid intent from classifier, defaulting to qa:",
-              classifiedIntent
-            );
-            intent = "qa";
-          }
+      // Send to LangGraph backend
+      const response = await LangGraphAdapter.sendToLangGraph(
+        userText,
+        conversationHistory,
+        {
+          currentMapStyle: selectedMapStyle,
+          viewMode: viewMode,
         }
-      } catch (err) {
-        console.warn("Intent classification failed, defaulting to qa", err);
-        intent = "qa";
-      }
+      );
 
-      // Handle intents (rest remains the same)
-      if (intent === "earthquake") {
-        if (earthquakeControlCallbacks) {
-          const earthquakeHandled =
-            await EarthquakeAgent.runEarthquakeHazardAgent(
-              userText,
-              mapRef,
-              earthquakeControlCallbacks,
-              (role, content) => {
-                setMessages((prev) => [...prev, { role, content }]);
+      // Process response and execute actions
+      await LangGraphAdapter.processLangGraphResponse(
+        response,
+        {
+          searchLocation: async (query: string) => {
+            // Location search - fly to location on map
+            if (mapRef?.current) {
+              try {
+                // Use Geoapify for geocoding
+                const geocodeResponse = await fetch(
+                  `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(
+                    query
+                  )}&limit=1&format=json&apiKey=${
+                    process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY
+                  }`
+                );
+                const geocodeData = await geocodeResponse.json();
+
+                if (geocodeData.results && geocodeData.results.length > 0) {
+                  const result = geocodeData.results[0];
+                  const lngLat: [number, number] = [result.lon, result.lat];
+
+                  // Fly to location
+                  if (mapRef.current.flyTo) {
+                    mapRef.current.flyTo({ center: lngLat, zoom: 12 });
+                  }
+
+                  // Add marker if available
+                  if (mapRef.current.addLocationMarker) {
+                    mapRef.current.addLocationMarker(result.lon, result.lat);
+                  }
+                }
+              } catch (error) {
+                console.error("Location search error:", error);
               }
-            );
-          agentHandled = earthquakeHandled;
-        }
-      } else if (intent === "volcano") {
-        if (volcanoListControlCallbacks) {
-          const volcanoHandled = await VolcanoListAgent.runVolcanoListAgent(
-            userText,
-            mapRef,
-            volcanoListControlCallbacks,
-            (role, content) => {
-              setMessages((prev) => [...prev, { role, content }]);
             }
-          );
-          agentHandled = volcanoHandled;
-        }
-      } else if (intent === "activefaults") {
-        if (activeFaultsControlCallbacks) {
-          const activeFaultsHandled =
-            await ActiveFaultsAgent.runActiveFaultsAgent(
-              userText,
-              mapRef,
-              activeFaultsControlCallbacks,
-              (role, content) => {
-                setMessages((prev) => [...prev, { role, content }]);
-              }
-            );
-          agentHandled = activeFaultsHandled;
-        }
-      } else if (intent === "congestion") {
-        if (congestionControlCallbacks) {
-          const congestionHandled = await CongestionAgent.runCongestionAgent(
-            userText,
-            mapRef,
-            congestionControlCallbacks,
-            (role, content) => {
-              setMessages((prev) => [...prev, { role, content }]);
+          },
+          changeMapStyle: (style: string) => {
+            if (handleMapStyleChange) {
+              handleMapStyleChange(style);
             }
-          );
-          agentHandled = congestionHandled;
-        }
-      } else if (intent === "view") {
-        if (switchTo2D && switchTo3D && setViewMode) {
-          const viewSwitchHandled = await ViewSwitchAgent.runViewSwitchAgent(
-            userText,
-            mapRef,
-            {
-              switchTo2D,
-              switchTo3D,
-              setViewMode,
-            },
-            (role, content) => {
-              setMessages((prev) => [...prev, { role, content }]);
-            },
-            viewMode
-          );
-          agentHandled = viewSwitchHandled;
-        }
-      } else if (intent === "mapstyle") {
-        if (handleMapStyleChange) {
-          const mapStyleHandled = await MapStyleAgent.runMapStyleAgent(
-            userText,
-            mapRef,
-            {
-              handleMapStyleChange,
-            },
-            (role, content) => {
-              setMessages((prev) => [...prev, { role, content }]);
-            },
-            selectedMapStyle
-          );
-          agentHandled = mapStyleHandled;
-        }
-      } else if (intent === "map") {
-        try {
-          await AgentFns.runAgent(userText, mapRef, (role, content) => {
-            setMessages((prev) => [...prev, { role, content }]);
-          });
-          agentHandled = true;
-        } catch (agentErr) {
-          console.error("Agent error:", agentErr);
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: "Agent failed: " + String(agentErr) },
-          ]);
-        }
-      }
+          },
+          switchViewMode: (mode: "2d" | "3d") => {
+            if (mode === "2d" && switchTo2D) {
+              switchTo2D();
+              if (setViewMode) setViewMode("2d");
+            } else if (mode === "3d" && switchTo3D) {
+              switchTo3D();
+              if (setViewMode) setViewMode("3d");
+            }
+          },
+          controlEarthquake: (
+            action: "enable" | "disable",
+            source: "philippine" | "global"
+          ) => {
+            if (liveHazardMonitorCallbacks) {
+              liveHazardMonitorCallbacks.openLiveHazardMonitor();
+              liveHazardMonitorCallbacks.expandEarthquakeSection();
 
-      // Default to Q&A if not handled by an agent
-      if (!agentHandled) {
-        const formattedMessage = await runQandA(newMessages, userText);
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: formattedMessage },
-        ]);
-      }
-    } catch (err) {
-      console.error("Error in handleSend:", err);
+              const sourceMap: { [key: string]: string } = {
+                philippine:
+                  "Latest Earthquake Information (Philippines Seismic Network)",
+                global: "Latest Earthquakes",
+              };
+
+              const sourceName = sourceMap[source];
+
+              if (action === "enable") {
+                liveHazardMonitorCallbacks.selectEarthquakeSource(sourceName);
+              } else {
+                // Disable - toggle off if currently selected
+                const currentSources =
+                  liveHazardMonitorCallbacks.getSelectedEarthquakeSources();
+                if (currentSources.includes(sourceName)) {
+                  liveHazardMonitorCallbacks.selectEarthquakeSource(sourceName);
+                }
+              }
+            }
+          },
+          controlWeather: (
+            action: "enable" | "disable",
+            scope: string,
+            province?: string
+          ) => {
+            if (liveHazardMonitorCallbacks) {
+              liveHazardMonitorCallbacks.openLiveHazardMonitor();
+              liveHazardMonitorCallbacks.expandWeatherSection();
+
+              const allSources = [
+                "Current Weather Condition (Philippines - By Province)",
+                "Current Weather Condition (Abra - By City/Municipality)",
+                "Current Weather Condition (Agusan del Norte - By City/Municipality)",
+                "Current Weather Condition (Agusan del Sur - By City/Municipality)",
+                "Current Weather Condition (Aklan - By City/Municipality)",
+              ];
+
+              const citySources = [
+                "Current Weather Condition (Abra - By City/Municipality)",
+                "Current Weather Condition (Agusan del Norte - By City/Municipality)",
+                "Current Weather Condition (Agusan del Sur - By City/Municipality)",
+                "Current Weather Condition (Aklan - By City/Municipality)",
+              ];
+
+              let sourcesToToggle: string[] = [];
+
+              if (scope === "province") {
+                sourcesToToggle = [
+                  "Current Weather Condition (Philippines - By Province)",
+                ];
+              } else if (scope === "all") {
+                sourcesToToggle = allSources;
+              } else if (scope === "all_cities") {
+                sourcesToToggle = citySources;
+              } else if (scope === "city" && province) {
+                // Specific province city data
+                sourcesToToggle = [
+                  `Current Weather Condition (${province} - By City/Municipality)`,
+                ];
+              }
+
+              if (action === "enable") {
+                // Enable selected sources
+                sourcesToToggle.forEach((sourceName) => {
+                  liveHazardMonitorCallbacks.selectWeatherSource(sourceName);
+                });
+              } else {
+                // Disable - toggle off if currently selected
+                const currentSources =
+                  liveHazardMonitorCallbacks.getSelectedWeatherSources();
+                sourcesToToggle.forEach((sourceName) => {
+                  if (currentSources.includes(sourceName)) {
+                    liveHazardMonitorCallbacks.selectWeatherSource(sourceName);
+                  }
+                });
+              }
+            }
+          },
+        },
+        (role: "user" | "assistant", content: string) => {
+          setMessages((prev) => [...prev, { role, content }]);
+        }
+      );
+
+      // Update conversation history
+      setConversationHistory(response.conversation_history);
+    } catch (error) {
+      console.error("Error:", error);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Error: Failed to connect to Atlas.",
+          content: "Failed to process request. Please try again.",
         },
       ]);
     } finally {

@@ -539,7 +539,12 @@ export default function MainUILayout() {
 
   const handleMapStyleChange = (label: string) => {
     const map = mapRef.current;
-    if (!map) return;
+    console.log("handleMapStyleChange called with:", label);
+    console.log("Map ref exists:", !!map);
+    if (!map) {
+      console.log("Map ref is null, cannot change style");
+      return;
+    }
 
     setSelectedMapStyle(label);
     setShowMapStyleDropdown(false);
@@ -574,32 +579,39 @@ export default function MainUILayout() {
     }
 
     // ✅ Apply the correct Mapbox style
+    let styleUrl = "";
     switch (label) {
       case "Default (Custom Mapbox Standard)":
-        map.setMapStyle(
+        styleUrl =
           viewMode === "3d"
             ? "mapbox://styles/shain34/cmesokqei00z501sdedixesto"
-            : "mapbox://styles/mapbox/streets-v12"
-        );
+            : "mapbox://styles/mapbox/streets-v12";
         break;
       case "Satellite (Mapbox)":
-        map.setMapStyle("mapbox://styles/mapbox/standard-satellite");
+        styleUrl = "mapbox://styles/mapbox/standard-satellite";
         break;
       case "Outdoors (Mapbox)":
-        map.setMapStyle("mapbox://styles/mapbox/outdoors-v12");
+        styleUrl = "mapbox://styles/mapbox/outdoors-v12";
         break;
       case "Light (Mapbox)":
-        map.setMapStyle("mapbox://styles/mapbox/light-v11");
+        styleUrl = "mapbox://styles/mapbox/light-v11";
         break;
       case "Dark (Mapbox)":
-        map.setMapStyle("mapbox://styles/mapbox/dark-v11");
+        styleUrl = "mapbox://styles/mapbox/dark-v11";
         break;
       case "Navigation Day (Mapbox)":
-        map.setMapStyle("mapbox://styles/mapbox/navigation-day-v1");
+        styleUrl = "mapbox://styles/mapbox/navigation-day-v1";
         break;
       case "Navigation Night (Mapbox)":
-        map.setMapStyle("mapbox://styles/mapbox/navigation-night-v1");
+        styleUrl = "mapbox://styles/mapbox/navigation-night-v1";
         break;
+    }
+
+    if (styleUrl) {
+      console.log("Applying map style:", styleUrl);
+      map.setMapStyle(styleUrl);
+    } else {
+      console.log("No matching style found for label:", label);
     }
     // Restore aspect ratio shape after style change
     if (savedAspectRatioShapeRef.current) {
@@ -1269,6 +1281,8 @@ export default function MainUILayout() {
                 onWeatherToggle={setLiveWeatherEnabled}
                 onEarthquakeSourcesChange={setSelectedEarthquakeSources}
                 onWeatherSourcesChange={setSelectedWeatherSources}
+                initialSelectedEarthquakes={selectedEarthquakeSources}
+                initialSelectedWeather={selectedWeatherSources}
               />
             </div>
           )}
@@ -1411,117 +1425,30 @@ export default function MainUILayout() {
             setViewMode={setViewMode}
             selectedMapStyle={selectedMapStyle}
             handleMapStyleChange={handleMapStyleChange}
-            earthquakeControlCallbacks={{
-              enableEarthquakeHazard,
-              disableEarthquakeHazard,
-              isEarthquakeEnabled,
-              stopEarthquakePolling: () => {
-                if (earthquakeIntervalRef.current) {
-                  clearInterval(earthquakeIntervalRef.current);
-                  earthquakeIntervalRef.current = null;
-                }
+            liveHazardMonitorCallbacks={{
+              openLiveHazardMonitor: () => setShowLiveHazardMonitor(true),
+              expandEarthquakeSection: () => {
+                // Earthquake section is expanded by default when Live Hazard Monitor opens
               },
-              openToolPanel: () => {
-                setShowToolPanel(true);
-                setShowSelectMaps(false);
-                setShowPathfinder(false);
-                setShowPlanningTools(false);
-                setShowAssessmentTools(false);
+              expandWeatherSection: () => {
+                // Weather section is expanded by default when Live Hazard Monitor opens
               },
-              selectHazardLayers: () => {
-                setSelectedMaps((prev) =>
-                  prev.includes("Hazard Layers")
-                    ? prev
-                    : [...prev, "Hazard Layers"]
+              selectEarthquakeSource: (sourceName: string) => {
+                setSelectedEarthquakeSources((prev) =>
+                  prev.includes(sourceName)
+                    ? prev.filter((name) => name !== sourceName)
+                    : [...prev, sourceName]
                 );
               },
-              expandHazardLayersDropdown: () => {
-                setExpandedPanels((prev) => ({
-                  ...prev,
-                  "map-Hazard Layers": true,
-                }));
-              },
-              expandGeologicalDropdown: () => setGeologicalExpanded(true),
-            }}
-            volcanoListControlCallbacks={{
-              enableVolcanoList,
-              disableVolcanoList,
-              isVolcanoListEnabled,
-              openToolPanel: () => {
-                setShowToolPanel(true);
-                setShowSelectMaps(false);
-                setShowPathfinder(false);
-                setShowPlanningTools(false);
-                setShowAssessmentTools(false);
-              },
-              selectHazardLayers: () => {
-                setSelectedMaps((prev) =>
-                  prev.includes("Hazard Layers")
-                    ? prev
-                    : [...prev, "Hazard Layers"]
+              selectWeatherSource: (sourceName: string) => {
+                setSelectedWeatherSources((prev) =>
+                  prev.includes(sourceName)
+                    ? prev.filter((name) => name !== sourceName)
+                    : [...prev, sourceName]
                 );
               },
-              expandHazardLayersDropdown: () => {
-                setExpandedPanels((prev) => ({
-                  ...prev,
-                  "map-Hazard Layers": true,
-                }));
-              },
-              expandGeologicalDropdown: () => setGeologicalExpanded(true),
-            }}
-            activeFaultsControlCallbacks={{
-              enableActiveFaults,
-              disableActiveFaults,
-              isActiveFaultsEnabled,
-              openToolPanel: () => {
-                setShowToolPanel(true);
-                setShowSelectMaps(false);
-                setShowPathfinder(false);
-                setShowPlanningTools(false);
-                setShowAssessmentTools(false);
-              },
-              selectHazardLayers: () => {
-                setSelectedMaps((prev) =>
-                  prev.includes("Hazard Layers")
-                    ? prev
-                    : [...prev, "Hazard Layers"]
-                );
-              },
-              expandHazardLayersDropdown: () => {
-                setExpandedPanels((prev) => ({
-                  ...prev,
-                  "map-Hazard Layers": true,
-                }));
-              },
-              expandGeologicalDropdown: () => setGeologicalExpanded(true),
-            }}
-            congestionControlCallbacks={{
-              enableCongestion,
-              disableCongestion,
-              isCongestionEnabled,
-              stopCongestionPolling,
-              getCongestionSharedRefs,
-              openToolPanel: () => {
-                setShowToolPanel(true);
-                setShowSelectMaps(false);
-                setShowPathfinder(false);
-                setShowPlanningTools(false);
-                setShowAssessmentTools(false);
-              },
-              selectHazardLayers: () => {
-                setSelectedMaps((prev) =>
-                  prev.includes("Hazard Layers")
-                    ? prev
-                    : [...prev, "Hazard Layers"]
-                );
-              },
-              expandHazardLayersDropdown: () => {
-                setExpandedPanels((prev) => ({
-                  ...prev,
-                  "map-Hazard Layers": true,
-                }));
-              },
-              expandTrafficDropdown: () => setTrafficExpanded(true),
+              getSelectedEarthquakeSources: () => selectedEarthquakeSources,
+              getSelectedWeatherSources: () => selectedWeatherSources,
             }}
           />
           {/* Aspect Ratio Selector - Hide when expanded */}

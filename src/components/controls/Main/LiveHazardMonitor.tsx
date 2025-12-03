@@ -19,6 +19,8 @@ interface LiveHazardMonitorProps {
   onWeatherToggle: (enabled: boolean) => void;
   onEarthquakeSourcesChange?: (sources: string[]) => void;
   onWeatherSourcesChange?: (sources: string[]) => void;
+  initialSelectedEarthquakes?: string[];
+  initialSelectedWeather?: string[];
 }
 
 export default function LiveHazardMonitor({
@@ -29,11 +31,17 @@ export default function LiveHazardMonitor({
   onWeatherToggle,
   onEarthquakeSourcesChange,
   onWeatherSourcesChange,
+  initialSelectedEarthquakes = [],
+  initialSelectedWeather = [],
 }: LiveHazardMonitorProps) {
   const [earthquakeExpanded, setEarthquakeExpanded] = useState(false);
   const [weatherExpanded, setWeatherExpanded] = useState(false);
-  const [selectedEarthquakes, setSelectedEarthquakes] = useState<string[]>([]);
-  const [selectedWeather, setSelectedWeather] = useState<string[]>([]);
+  const [selectedEarthquakes, setSelectedEarthquakes] = useState<string[]>(
+    initialSelectedEarthquakes
+  );
+  const [selectedWeather, setSelectedWeather] = useState<string[]>(
+    initialSelectedWeather
+  );
   const [earthquakeSortAsc, setEarthquakeSortAsc] = useState(true);
   const [weatherSortAsc, setWeatherSortAsc] = useState(true);
   const [earthquakeSearch, setEarthquakeSearch] = useState("");
@@ -70,6 +78,15 @@ export default function LiveHazardMonitor({
         : b.name.localeCompare(a.name)
     );
   }, [weatherSortAsc, weatherSearch]);
+
+  // Sync with parent-controlled state
+  useEffect(() => {
+    setSelectedEarthquakes(initialSelectedEarthquakes);
+  }, [initialSelectedEarthquakes]);
+
+  useEffect(() => {
+    setSelectedWeather(initialSelectedWeather);
+  }, [initialSelectedWeather]);
 
   // Notify parent when earthquake sources change
   useEffect(() => {
