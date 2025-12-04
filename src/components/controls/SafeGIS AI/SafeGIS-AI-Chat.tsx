@@ -141,7 +141,7 @@ const convertToWav = async (audioBlob: Blob): Promise<Blob> => {
 function ThinkingLoader() {
   return (
     <div className="flex flex-col items-center justify-center py-4">
-      <div className="relative w-20 h-20">
+      <div className="relative w-20 h-20 mt-5">
         {/* Centered spinning circles */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 z-10">
           {/* Outer solid spinner */}
