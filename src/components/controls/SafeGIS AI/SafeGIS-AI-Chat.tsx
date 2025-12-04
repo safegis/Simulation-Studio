@@ -389,13 +389,11 @@ export default function SafeGISAIChat({
             // Location search - fly to location on map
             if (mapRef?.current) {
               try {
-                // Use Geoapify for geocoding
+                // Use backend geocoding endpoint
                 const geocodeResponse = await fetch(
-                  `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(
+                  `http://localhost:8000/geocode/search?query=${encodeURIComponent(
                     query
-                  )}&limit=1&format=json&apiKey=${
-                    process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY
-                  }`
+                  )}`
                 );
                 const geocodeData = await geocodeResponse.json();
 
