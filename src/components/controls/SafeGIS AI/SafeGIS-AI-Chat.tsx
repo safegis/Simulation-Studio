@@ -389,6 +389,7 @@ export default function SafeGISAIChat({
             // Location search - fly to location on map
             if (mapRef?.current) {
               try {
+                console.log(`Searching for location: ${query}`);
                 // Use backend geocoding endpoint
                 const geocodeResponse = await fetch(
                   `http://localhost:8000/geocode/search?query=${encodeURIComponent(
@@ -396,24 +397,38 @@ export default function SafeGISAIChat({
                   )}`
                 );
                 const geocodeData = await geocodeResponse.json();
+                console.log("Geocode response:", geocodeData);
 
                 if (geocodeData.results && geocodeData.results.length > 0) {
                   const result = geocodeData.results[0];
                   const lngLat: [number, number] = [result.lon, result.lat];
+                  console.log(`Flying to: ${result.name} at [${lngLat}]`);
 
                   // Fly to location
                   if (mapRef.current.flyTo) {
-                    mapRef.current.flyTo({ center: lngLat, zoom: 12 });
+                    mapRef.current.flyTo({
+                      center: lngLat,
+                      zoom: 15,
+                      essential: true, // This animation is considered essential
+                    });
+                    console.log("FlyTo executed");
+                  } else {
+                    console.warn("mapRef.current.flyTo not available");
                   }
 
                   // Add marker if available
                   if (mapRef.current.addLocationMarker) {
                     mapRef.current.addLocationMarker(result.lon, result.lat);
+                    console.log("Marker added");
                   }
+                } else {
+                  console.warn("No geocoding results found");
                 }
               } catch (error) {
                 console.error("Location search error:", error);
               }
+            } else {
+              console.warn("mapRef not available");
             }
           },
           changeMapStyle: (style: string) => {
