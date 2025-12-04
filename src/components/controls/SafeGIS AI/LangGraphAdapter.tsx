@@ -120,7 +120,8 @@ export async function processLangGraphResponse(
   if (requires_frontend && data.multiple_actions) {
     try {
       const actions = data.multiple_actions as any[];
-      for (const action of actions) {
+      for (let i = 0; i < actions.length; i++) {
+        const action = actions[i];
         await processLangGraphResponse(
           {
             response: action,
@@ -131,6 +132,15 @@ export async function processLangGraphResponse(
           callbacks,
           addMessage
         );
+
+        // Add delay after map style change or view mode switch to allow map to reinitialize
+        if (
+          (action.tool === "change_map_style" ||
+            action.tool === "switch_view_mode") &&
+          i < actions.length - 1
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
       }
       // Show info message if present
       if (data.info_message) {
@@ -188,15 +198,17 @@ export async function processLangGraphResponse(
                 ? "Philippine (PHIVOLCS)"
                 : "Global (USGS)";
 
-            // Check if we need to enable a second source
+            // Check if we need to enable/disable a second source
             if (data.also_enable) {
               callbacks.controlEarthquake(
                 data.also_enable.action as "enable" | "disable",
                 data.also_enable.source as "philippine" | "global"
               );
+              const actionText =
+                data.action === "enable" ? "Enabled" : "Disabled";
               addMessage(
                 "assistant",
-                `✅ **Enabled both Philippine (PHIVOLCS) and Global (USGS) earthquake data**\n\nEarthquake monitoring has been updated.`
+                `✅ **${actionText} both Philippine (PHIVOLCS) and Global (USGS) earthquake data**\n\nEarthquake monitoring has been updated.`
               );
             } else {
               addMessage(
