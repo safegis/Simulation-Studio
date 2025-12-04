@@ -2186,6 +2186,15 @@ export default function MainUILayout() {
                                                                 {level.measure}{" "}
                                                                 {level.unit}
                                                               </div>
+                                                              {level.percentage !==
+                                                                undefined && (
+                                                                <div className="text-gray-300 text-[8px] font-semibold mb-0.5">
+                                                                  {
+                                                                    level.percentage
+                                                                  }
+                                                                  %
+                                                                </div>
+                                                              )}
                                                               <div className="text-white text-[9px] text-center font-medium">
                                                                 {
                                                                   level.hazardLevel

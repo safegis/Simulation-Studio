@@ -409,7 +409,7 @@ const ExposureAssessmentControls: React.FC<Props> = ({
       }
 
       const backendUrl =
-        process.env.NEXT_PUBLIC_ASSESSMENT_ENDPOINT || "http://localhost:8001";
+        process.env.NEXT_PUBLIC_BACKEND_ENDPOINT || "http://localhost:8000";
 
       let analysisCount = 0;
       const totalAnalyses = hazardsToProcess.length * elementsToProcess.length;
