@@ -44,6 +44,24 @@ type Props = {
     getSelectedEarthquakeSources: () => string[];
     getSelectedWeatherSources: () => string[];
   };
+  // Exposure Assessment control callbacks
+  exposureAssessmentCallbacks?: {
+    openExposureAssessment: () => void;
+    selectHazardSource: (source: "existing" | "imported") => void;
+    selectHazardData: (
+      data: string[],
+      source?: "existing" | "imported"
+    ) => void;
+    selectElementSource: (source: "existing" | "imported") => void;
+    selectElementData: (
+      data: string[],
+      source?: "existing" | "imported"
+    ) => void;
+    runAnalysis: () => void;
+    clearSteps: () => void;
+  };
+  // Uploaded files for exposure assessment
+  uploadedFiles?: string[];
 };
 
 type Message = {
@@ -272,6 +290,8 @@ export default function SafeGISAIChat({
   selectedMapStyle = "Default (Custom Mapbox Standard)",
   handleMapStyleChange,
   liveHazardMonitorCallbacks,
+  exposureAssessmentCallbacks,
+  uploadedFiles = [],
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -467,7 +487,8 @@ export default function SafeGISAIChat({
           currentMapStyle: selectedMapStyle,
           viewMode: viewMode,
         },
-        webSearchEnabled
+        webSearchEnabled,
+        uploadedFiles
       );
 
       // Process response and execute actions
@@ -617,6 +638,81 @@ export default function SafeGISAIChat({
                     liveHazardMonitorCallbacks.selectWeatherSource(sourceName);
                   }
                 });
+              }
+            }
+          },
+          controlExposureAssessment: (
+            action: "run" | "clear" | "select_hazard" | "select_element",
+            params?: {
+              hazard_source?: "existing" | "imported";
+              hazard_data?: string[];
+              element_source?: "existing" | "imported";
+              element_data?: string[];
+            }
+          ) => {
+            if (exposureAssessmentCallbacks) {
+              exposureAssessmentCallbacks.openExposureAssessment();
+
+              if (action === "run") {
+                // Set sources first
+                if (params?.hazard_source) {
+                  exposureAssessmentCallbacks.selectHazardSource(
+                    params.hazard_source
+                  );
+                }
+                if (params?.element_source) {
+                  exposureAssessmentCallbacks.selectElementSource(
+                    params.element_source
+                  );
+                }
+
+                // Then set data with source parameter
+                if (params?.hazard_data) {
+                  exposureAssessmentCallbacks.selectHazardData(
+                    params.hazard_data,
+                    params.hazard_source
+                  );
+                }
+                if (params?.element_data) {
+                  exposureAssessmentCallbacks.selectElementData(
+                    params.element_data,
+                    params.element_source
+                  );
+                }
+
+                // Finally run the analysis
+                setTimeout(() => {
+                  exposureAssessmentCallbacks.runAnalysis();
+                }, 100);
+              } else if (action === "clear") {
+                // Clear all steps
+                exposureAssessmentCallbacks.clearSteps();
+              } else if (action === "select_hazard" && params) {
+                // Select hazard data
+                if (params.hazard_source) {
+                  exposureAssessmentCallbacks.selectHazardSource(
+                    params.hazard_source
+                  );
+                }
+                if (params.hazard_data) {
+                  exposureAssessmentCallbacks.selectHazardData(
+                    params.hazard_data,
+                    params.hazard_source
+                  );
+                }
+              } else if (action === "select_element" && params) {
+                // Select exposure elements
+                if (params.element_source) {
+                  exposureAssessmentCallbacks.selectElementSource(
+                    params.element_source
+                  );
+                }
+                if (params.element_data) {
+                  exposureAssessmentCallbacks.selectElementData(
+                    params.element_data,
+                    params.element_source
+                  );
+                }
               }
             }
           },

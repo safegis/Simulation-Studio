@@ -7,7 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import CriticalFacilityMapControls from "./Maps/Critical Facility Layers/CriticalFacilityLayersControls";
 import ResourcePlannerControls from "./Planning Suite/Resource Planner/ResourcePlannerControls";
 import HazardMapControls from "./Maps/Hazard Layers/HazardLayersControls";
-import ExposureAssessmentControls from "./Assessment Tools/Exposure Assessment/ExposureAssessmentControls";
+import ExposureAssessmentControls, {
+  ExposureAssessmentControlsRef,
+} from "./Assessment Tools/Exposure Assessment/ExposureAssessmentControls";
 import VulnerabilityAssessmentControls from "./Assessment Tools/Vulnerability Assessment/VulnerabilityAssessmentControls";
 
 interface Props {
@@ -45,6 +47,7 @@ interface Props {
     data: any,
     affectedAreas?: GeoJSON.FeatureCollection
   ) => void;
+  exposureAssessmentRef?: React.RefObject<ExposureAssessmentControlsRef | null>;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -106,6 +109,7 @@ export default function ToolPanel({
   setTrafficExpanded,
   onStartExposureAnalysis,
   onRunExposureAnalysis,
+  exposureAssessmentRef,
 }: Props) {
   const [hydroExpanded, setHydroExpanded] = useState(false);
   const [hydroCheckedItems, setHydroCheckedItems] = useState<string[]>([]);
@@ -1251,6 +1255,7 @@ export default function ToolPanel({
                 {/* Exposure Assessment Controls */}
                 {label === "Exposure Assessment" && (
                   <ExposureAssessmentControls
+                    ref={exposureAssessmentRef}
                     PanelToggle={PanelToggle}
                     mapRef={mapRef}
                     uploadedFiles={uploadedFiles}

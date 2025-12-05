@@ -38,6 +38,11 @@ export interface LangGraphResponse {
       author?: string;
       published_date?: string;
     }>;
+    // Exposure assessment fields
+    hazard_source?: "existing" | "imported";
+    hazard_data?: string[];
+    element_source?: "existing" | "imported";
+    element_data?: string[];
   };
   requires_frontend: boolean;
   requires_clarification: boolean;
@@ -65,6 +70,17 @@ export interface MapCallbacks {
     action: "enable" | "disable",
     scope: string,
     province?: string
+  ) => void;
+
+  // Exposure assessment control
+  controlExposureAssessment: (
+    action: "run" | "clear" | "select_hazard" | "select_element",
+    params?: {
+      hazard_source?: "existing" | "imported";
+      hazard_data?: string[];
+      element_source?: "existing" | "imported";
+      element_data?: string[];
+    }
   ) => void;
 }
 
@@ -259,6 +275,39 @@ export async function processLangGraphResponse(
           }
           break;
 
+        case "control_exposure_assessment":
+        case "run_exposure_analysis":
+          if (data.action) {
+            callbacks.controlExposureAssessment(
+              data.action as
+                | "run"
+                | "clear"
+                | "select_hazard"
+                | "select_element",
+              {
+                hazard_source: data.hazard_source as "existing" | "imported",
+                hazard_data: data.hazard_data as string[],
+                element_source: data.element_source as "existing" | "imported",
+                element_data: data.element_data as string[],
+              }
+            );
+
+            let message = "";
+            if (data.action === "run") {
+              message =
+                "✅ **Running exposure assessment analysis**\n\nThe analysis is being processed...";
+            } else if (data.action === "clear") {
+              message =
+                "✅ **Cleared exposure assessment steps**\n\nYou can start a new assessment.";
+            } else if (data.action === "select_hazard") {
+              message = `✅ **Selected hazard data**\n\nHazard data has been configured for the assessment.`;
+            } else if (data.action === "select_element") {
+              message = `✅ **Selected exposure elements**\n\nExposure elements have been configured for the assessment.`;
+            }
+            addMessage("assistant", message);
+          }
+          break;
+
         default:
           addMessage(
             "assistant",
@@ -288,7 +337,8 @@ export async function sendToLangGraph(
   message: string,
   conversationHistory: LangGraphMessage[] = [],
   mapState: Record<string, any> = {},
-  webSearchEnabled: boolean = false
+  webSearchEnabled: boolean = false,
+  uploadedFiles: string[] = []
 ): Promise<LangGraphResponse> {
   const endpoint = process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
     "/generate",
@@ -309,6 +359,7 @@ export async function sendToLangGraph(
       conversation_history: conversationHistory,
       map_state: mapState,
       web_search_enabled: webSearchEnabled,
+      uploaded_files: uploadedFiles,
     }),
   });
 

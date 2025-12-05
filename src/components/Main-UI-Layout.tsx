@@ -163,6 +163,10 @@ export default function MainUILayout() {
 
   const mapStyleRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const exposureAssessmentRef =
+    useRef<
+      import("./controls/Features/Assessment Tools/Exposure Assessment/ExposureAssessmentControls").ExposureAssessmentControlsRef
+    >(null);
 
   // Track temporary box coordinates
   const boxCoordsRef = useRef<{
@@ -1383,6 +1387,7 @@ export default function MainUILayout() {
                 }}
                 onStartExposureAnalysis={handleStartExposureAnalysis}
                 onRunExposureAnalysis={handleRunExposureAnalysis}
+                exposureAssessmentRef={exposureAssessmentRef}
               />
             </div>
           )}
@@ -1425,6 +1430,7 @@ export default function MainUILayout() {
             setViewMode={setViewMode}
             selectedMapStyle={selectedMapStyle}
             handleMapStyleChange={handleMapStyleChange}
+            uploadedFiles={uploadedFiles.map((f) => f.name)}
             liveHazardMonitorCallbacks={{
               openLiveHazardMonitor: () => setShowLiveHazardMonitor(true),
               expandEarthquakeSection: () => {
@@ -1449,6 +1455,185 @@ export default function MainUILayout() {
               },
               getSelectedEarthquakeSources: () => selectedEarthquakeSources,
               getSelectedWeatherSources: () => selectedWeatherSources,
+            }}
+            exposureAssessmentCallbacks={{
+              openExposureAssessment: () => {
+                console.log("🔵 Opening Exposure Assessment panel");
+                // Select Exposure Assessment and open the tool panel
+                setSelectedAssessmentTools(["Exposure Assessment"]);
+                setShowToolPanel(true);
+                // Hide the selection screen to show the actual tool panel
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+                // CRITICAL: Expand the panel so the component actually renders!
+                setExpandedPanels((prev) => ({
+                  ...prev,
+                  "assessment-Exposure Assessment": true,
+                }));
+                console.log(
+                  "🔵 Panel expanded: assessment-Exposure Assessment"
+                );
+              },
+              selectHazardSource: (source: "existing" | "imported") => {
+                console.log(
+                  "🔵 CALLBACK: selectHazardSource called with:",
+                  source
+                );
+                // Poll until ref is available (component mounted)
+                const pollRef = (attempts = 0) => {
+                  if (exposureAssessmentRef.current) {
+                    console.log("🔵 CALLBACK: Calling ref.selectHazardSource");
+                    exposureAssessmentRef.current.selectHazardSource(source);
+                    console.log(
+                      "🔵 CALLBACK: ref.selectHazardSource called successfully"
+                    );
+                  } else if (attempts < 20) {
+                    // Retry up to 20 times (2 seconds total)
+                    console.log(
+                      `🔵 CALLBACK: Ref not ready, retrying... (attempt ${
+                        attempts + 1
+                      }/20)`
+                    );
+                    setTimeout(() => pollRef(attempts + 1), 100);
+                  } else {
+                    console.error(
+                      "🔵 CALLBACK: exposureAssessmentRef.current is NULL after 2 seconds!"
+                    );
+                  }
+                };
+                setTimeout(() => pollRef(), 100);
+              },
+              selectHazardData: (
+                data: string[],
+                source?: "existing" | "imported"
+              ) => {
+                console.log(
+                  "🔵 CALLBACK: selectHazardData called with:",
+                  data,
+                  "source:",
+                  source
+                );
+                // Poll until ref is available
+                const pollRef = (attempts = 0) => {
+                  if (exposureAssessmentRef.current) {
+                    console.log("🔵 CALLBACK: Calling ref.selectHazardData");
+                    exposureAssessmentRef.current.selectHazardData(
+                      data,
+                      source
+                    );
+                    console.log(
+                      "🔵 CALLBACK: ref.selectHazardData called successfully"
+                    );
+                  } else if (attempts < 20) {
+                    console.log(
+                      `🔵 CALLBACK: Ref not ready, retrying... (attempt ${
+                        attempts + 1
+                      }/20)`
+                    );
+                    setTimeout(() => pollRef(attempts + 1), 100);
+                  } else {
+                    console.error(
+                      "🔵 CALLBACK: exposureAssessmentRef.current is NULL after 2 seconds!"
+                    );
+                  }
+                };
+                setTimeout(() => pollRef(), 200);
+              },
+              selectElementSource: (source: "existing" | "imported") => {
+                console.log(
+                  "🔵 CALLBACK: selectElementSource called with:",
+                  source
+                );
+                // Poll until ref is available
+                const pollRef = (attempts = 0) => {
+                  if (exposureAssessmentRef.current) {
+                    console.log("🔵 CALLBACK: Calling ref.selectElementSource");
+                    exposureAssessmentRef.current.selectElementSource(source);
+                    console.log(
+                      "🔵 CALLBACK: ref.selectElementSource called successfully"
+                    );
+                  } else if (attempts < 20) {
+                    console.log(
+                      `🔵 CALLBACK: Ref not ready, retrying... (attempt ${
+                        attempts + 1
+                      }/20)`
+                    );
+                    setTimeout(() => pollRef(attempts + 1), 100);
+                  } else {
+                    console.error(
+                      "🔵 CALLBACK: exposureAssessmentRef.current is NULL after 2 seconds!"
+                    );
+                  }
+                };
+                setTimeout(() => pollRef(), 100);
+              },
+              selectElementData: (
+                data: string[],
+                source?: "existing" | "imported"
+              ) => {
+                console.log(
+                  "🔵 CALLBACK: selectElementData called with:",
+                  data,
+                  "source:",
+                  source
+                );
+                // Poll until ref is available
+                const pollRef = (attempts = 0) => {
+                  if (exposureAssessmentRef.current) {
+                    console.log("🔵 CALLBACK: Calling ref.selectElementData");
+                    exposureAssessmentRef.current.selectElementData(
+                      data,
+                      source
+                    );
+                    console.log(
+                      "🔵 CALLBACK: ref.selectElementData called successfully"
+                    );
+                  } else if (attempts < 20) {
+                    console.log(
+                      `🔵 CALLBACK: Ref not ready, retrying... (attempt ${
+                        attempts + 1
+                      }/20)`
+                    );
+                    setTimeout(() => pollRef(attempts + 1), 100);
+                  } else {
+                    console.error(
+                      "🔵 CALLBACK: exposureAssessmentRef.current is NULL after 2 seconds!"
+                    );
+                  }
+                };
+                setTimeout(() => pollRef(), 200);
+              },
+              runAnalysis: () => {
+                console.log("🔵 CALLBACK: runAnalysis called");
+                // Poll until ref is available
+                const pollRef = (attempts = 0) => {
+                  if (exposureAssessmentRef.current) {
+                    console.log("🔵 CALLBACK: Calling ref.runAnalysis");
+                    exposureAssessmentRef.current.runAnalysis();
+                    console.log(
+                      "🔵 CALLBACK: ref.runAnalysis called successfully"
+                    );
+                  } else if (attempts < 20) {
+                    console.log(
+                      `🔵 CALLBACK: Ref not ready, retrying... (attempt ${
+                        attempts + 1
+                      }/20)`
+                    );
+                    setTimeout(() => pollRef(attempts + 1), 100);
+                  } else {
+                    console.error(
+                      "🔵 CALLBACK: exposureAssessmentRef.current is NULL after 2 seconds!"
+                    );
+                  }
+                };
+                setTimeout(() => pollRef(), 300);
+              },
+              clearSteps: () => {
+                console.log("🔵 CALLBACK: clearSteps called");
+                exposureAssessmentRef.current?.clearSteps();
+              },
             }}
           />
           {/* Aspect Ratio Selector - Hide when expanded */}
