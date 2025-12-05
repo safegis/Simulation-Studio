@@ -13,6 +13,9 @@ import {
   Globe,
   CircleStop,
   AtSign,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import LangGraphAdapter, { LangGraphMessage } from "./LangGraphAdapter";
@@ -46,17 +49,108 @@ type Props = {
 type Message = {
   role: "user" | "assistant";
   content: string;
+  citations?: Array<{
+    number: number;
+    title: string;
+    url: string;
+    author?: string;
+    published_date?: string;
+  }>;
 };
 
-type ConversationContext = {
-  type:
-    | "map_style_suggestion"
-    | "location_clarification"
-    | "view_mode_suggestion"
-    | null;
-  data?: any;
-  timestamp: number;
-};
+// Citation Card Component
+function CitationCard({
+  citation,
+}: {
+  citation: {
+    number: number;
+    title: string;
+    url: string;
+    author?: string;
+    published_date?: string;
+  };
+}) {
+  // Extract domain from URL for display
+  const getDomain = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.replace("www.", "");
+    } catch {
+      return url;
+    }
+  };
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-md p-2 hover:bg-white/10 transition-colors">
+      <div className="flex items-start gap-2">
+        <div className="flex-shrink-0 w-5 h-5 bg-[#5A5C99]/50 rounded-full flex items-center justify-center text-[9px] text-white font-semibold mt-0.5">
+          {citation.number}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-white text-[10px] font-medium leading-tight mb-1 line-clamp-2">
+            {citation.title}
+          </h4>
+          {citation.author && (
+            <p className="text-[#C7C7C7] text-[9px] mb-1">{citation.author}</p>
+          )}
+          <a
+            href={citation.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 text-[9px] flex items-center gap-1 group"
+          >
+            <span className="truncate">{getDomain(citation.url)}</span>
+            <ExternalLink
+              size={9}
+              className="flex-shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
+            />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Citations Section Component
+function CitationsSection({
+  citations,
+}: {
+  citations: Array<{
+    number: number;
+    title: string;
+    url: string;
+    author?: string;
+    published_date?: string;
+  }>;
+}) {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  if (!citations || citations.length === 0) return null;
+
+  return (
+    <div className="mt-3 border-t border-white/10 pt-2">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center justify-between w-full text-white hover:text-gray-200 transition-colors mb-2"
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold">Citations</span>
+          <span className="text-[9px] text-[#C7C7C7] bg-white/10 px-1.5 py-0.5 rounded-full">
+            {citations.length}
+          </span>
+        </div>
+        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+      {isExpanded && (
+        <div className="space-y-2">
+          {citations.map((citation) => (
+            <CitationCard key={citation.number} citation={citation} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Utility function to convert AudioBuffer to WAV format
 const audioBufferToWav = (buffer: AudioBuffer): ArrayBuffer => {
@@ -180,7 +274,6 @@ export default function SafeGISAIChat({
   liveHazardMonitorCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
-  const [isHiding, setIsHiding] = useState(false);
   const [inputText, setInputText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -202,7 +295,6 @@ export default function SafeGISAIChat({
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
     null
   );
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
 
   useEffect(() => {
     if (chatEndRef.current)
@@ -212,12 +304,9 @@ export default function SafeGISAIChat({
   useEffect(() => {
     if (isVisible) {
       setAnimateVisible(true);
-      setIsHiding(false);
     } else {
-      setIsHiding(true);
       const timeout = setTimeout(() => {
         setAnimateVisible(false);
-        setIsHiding(false);
       }, 150);
       return () => clearTimeout(timeout);
     }
@@ -286,7 +375,6 @@ export default function SafeGISAIChat({
       };
 
       setMediaRecorder(recorder);
-      setAudioChunks(chunks);
       recorder.start();
       setIsRecording(true);
     } catch (error) {
@@ -378,7 +466,8 @@ export default function SafeGISAIChat({
         {
           currentMapStyle: selectedMapStyle,
           viewMode: viewMode,
-        }
+        },
+        webSearchEnabled
       );
 
       // Process response and execute actions
@@ -532,8 +621,8 @@ export default function SafeGISAIChat({
             }
           },
         },
-        (role: "user" | "assistant", content: string) => {
-          setMessages((prev) => [...prev, { role, content }]);
+        (role: "user" | "assistant", content: string, citations?: any[]) => {
+          setMessages((prev) => [...prev, { role, content, citations }]);
         }
       );
 
@@ -630,10 +719,22 @@ export default function SafeGISAIChat({
                       li: ({ node, ...props }) => (
                         <li className="ml-3 list-disc text-[10px]" {...props} />
                       ),
+                      a: ({ node, ...props }) => (
+                        <a
+                          className="text-blue-400 hover:text-blue-300 underline cursor-pointer text-[10px]"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          {...props}
+                        />
+                      ),
                     }}
                   >
                     {msg.content}
                   </ReactMarkdown>
+                  {/* Display citations in collapsible section */}
+                  {msg.citations && msg.citations.length > 0 && (
+                    <CitationsSection citations={msg.citations} />
+                  )}
                 </div>
               </div>
             ))}

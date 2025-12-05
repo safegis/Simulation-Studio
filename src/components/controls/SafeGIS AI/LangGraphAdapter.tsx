@@ -30,6 +30,14 @@ export interface LangGraphResponse {
       source?: string;
       scope?: string;
     };
+    has_citations?: boolean;
+    search_results?: Array<{
+      number: number;
+      title: string;
+      url: string;
+      author?: string;
+      published_date?: string;
+    }>;
   };
   requires_frontend: boolean;
   requires_clarification: boolean;
@@ -79,7 +87,11 @@ const STYLE_MAP: Record<string, string> = {
 export async function processLangGraphResponse(
   response: LangGraphResponse,
   callbacks: MapCallbacks,
-  addMessage: (role: "user" | "assistant", content: string) => void
+  addMessage: (
+    role: "user" | "assistant",
+    content: string,
+    citations?: any[]
+  ) => void
 ): Promise<boolean> {
   const {
     response: data,
@@ -112,7 +124,7 @@ export async function processLangGraphResponse(
 
   // Handle text responses (Q&A)
   if (data.text && !requires_frontend) {
-    addMessage("assistant", data.text);
+    addMessage("assistant", data.text, data.search_results);
     return true;
   }
 
@@ -275,7 +287,8 @@ export async function processLangGraphResponse(
 export async function sendToLangGraph(
   message: string,
   conversationHistory: LangGraphMessage[] = [],
-  mapState: Record<string, any> = {}
+  mapState: Record<string, any> = {},
+  webSearchEnabled: boolean = false
 ): Promise<LangGraphResponse> {
   const endpoint = process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
     "/generate",
@@ -295,6 +308,7 @@ export async function sendToLangGraph(
       message,
       conversation_history: conversationHistory,
       map_state: mapState,
+      web_search_enabled: webSearchEnabled,
     }),
   });
 
