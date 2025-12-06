@@ -1737,7 +1737,27 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         console.log(`Fetching geoBoundaries metadata from: ${apiUrl}`);
 
         const metaResponse = await fetchWithProxy(apiUrl);
-        const metadata = await metaResponse.json();
+
+        // Read response as text first, then parse as JSON
+        const metaText = await metaResponse.text();
+        let metadata;
+        try {
+          metadata = JSON.parse(metaText);
+        } catch (jsonError) {
+          console.error(
+            "Received non-JSON response:",
+            metaText.substring(0, 200)
+          );
+          // Check if it's a 404 error
+          if (metaText.includes("404") || metaText.includes("Not Found")) {
+            throw new Error(
+              `Boundary data not available for this country at ${gbAdminLevel}. Try a different admin level.`
+            );
+          }
+          throw new Error(
+            "API returned non-JSON response. The boundary data may not be available."
+          );
+        }
 
         if (!metadata || !metadata.simplifiedGeometryGeoJSON) {
           throw new Error("No boundary data available for this country/level");
@@ -1750,7 +1770,19 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
         // Step 2: Download the actual GeoJSON file
         const geojsonResponse = await fetchWithProxy(geojsonUrl);
-        const geojson: GeoJSON.FeatureCollection = await geojsonResponse.json();
+
+        // Read response as text first, then parse as JSON
+        const geojsonText = await geojsonResponse.text();
+        let geojson: GeoJSON.FeatureCollection;
+        try {
+          geojson = JSON.parse(geojsonText);
+        } catch (jsonError) {
+          console.error(
+            "Failed to parse GeoJSON response:",
+            geojsonText.substring(0, 200)
+          );
+          throw new Error("GeoJSON download returned invalid JSON.");
+        }
 
         if (!geojson || !geojson.features || geojson.features.length === 0) {
           throw new Error("Empty GeoJSON data");
@@ -1758,8 +1790,19 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
 
         console.log(`Loaded ${geojson.features.length} boundary features`);
 
-        // Add the GeoJSON source
-        map.addSource(sourceId, { type: "geojson", data: geojson });
+        // Generate unique IDs for features if they don't have them
+        geojson.features.forEach((feature, index) => {
+          if (!feature.id) {
+            feature.id = index;
+          }
+        });
+
+        // Add the GeoJSON source with generateId option as fallback
+        map.addSource(sourceId, {
+          type: "geojson",
+          data: geojson,
+          generateId: true,
+        });
 
         // Add fill layer
         map.addLayer({
@@ -1777,6 +1820,83 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           paint: { "line-color": "#9699FF", "line-width": 2 },
         });
 
+        // Add hover highlight layer (also shows for selected features)
+        map.addLayer({
+          id: `${fillLayerId}-hover`,
+          type: "fill",
+          source: sourceId,
+          paint: {
+            "fill-color": "#9699FF",
+            "fill-opacity": [
+              "case",
+              [
+                "any",
+                ["boolean", ["feature-state", "hover"], false],
+                ["boolean", ["feature-state", "selected"], false],
+              ],
+              0.5,
+              0,
+            ],
+          },
+        });
+
+        // Add click highlight layer
+        map.addLayer({
+          id: `${fillLayerId}-selected`,
+          type: "line",
+          source: sourceId,
+          paint: {
+            "line-color": "#FFD700",
+            "line-width": [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              3,
+              0,
+            ],
+          },
+        });
+
+        // Track hover and selected states
+        let hoveredFeatureId: string | number | null = null;
+        let selectedFeatureId: string | number | null = null;
+
+        // Add hover effect
+        map.on("mousemove", fillLayerId, (e) => {
+          if (e.features && e.features.length > 0) {
+            // Change cursor to pointer
+            map.getCanvas().style.cursor = "pointer";
+
+            const feature = e.features[0];
+            if (feature.id !== hoveredFeatureId) {
+              // Remove hover from previous feature
+              if (hoveredFeatureId !== null) {
+                map.setFeatureState(
+                  { source: sourceId, id: hoveredFeatureId },
+                  { hover: false }
+                );
+              }
+              // Add hover to current feature
+              hoveredFeatureId = feature.id as string | number;
+              map.setFeatureState(
+                { source: sourceId, id: hoveredFeatureId },
+                { hover: true }
+              );
+            }
+          }
+        });
+
+        // Remove hover when mouse leaves
+        map.on("mouseleave", fillLayerId, () => {
+          map.getCanvas().style.cursor = "";
+          if (hoveredFeatureId !== null) {
+            map.setFeatureState(
+              { source: sourceId, id: hoveredFeatureId },
+              { hover: false }
+            );
+            hoveredFeatureId = null;
+          }
+        });
+
         // Add click popup for boundary info - use ref to track and clean up
         // (cleanup already done at the start of this function)
         boundaryPopupRef.current = new mapboxgl.Popup({
@@ -1791,6 +1911,19 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           if (!e.features || e.features.length === 0) return;
           const feature = e.features[0];
           const props = feature.properties || {};
+
+          // Update selected state
+          if (selectedFeatureId !== null) {
+            map.setFeatureState(
+              { source: sourceId, id: selectedFeatureId },
+              { selected: false }
+            );
+          }
+          selectedFeatureId = feature.id as string | number;
+          map.setFeatureState(
+            { source: sourceId, id: selectedFeatureId },
+            { selected: true }
+          );
 
           // Get the boundary name - geoBoundaries uses shapeName field
           const boundaryName =
@@ -1940,6 +2073,10 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         console.log(`Added boundary layer for ${iso3} at ${gbAdminLevel}`);
       } catch (error) {
         console.error("Error fetching boundary data:", error);
+        // Show user-friendly error message
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        alert(`Failed to load boundary data: ${errorMessage}`);
       }
     },
 
@@ -1951,6 +2088,8 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       const sourceId = "geoboundaries";
       const fillLayerId = "boundary-fill";
       const lineLayerId = "boundary-line";
+      const hoverLayerId = `${fillLayerId}-hover`;
+      const selectedLayerId = `${fillLayerId}-selected`;
 
       // Remove click handler before removing layers
       if (boundaryClickHandlerRef.current && map.getLayer(fillLayerId)) {
@@ -1962,9 +2101,13 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       boundaryPopupRef.current?.remove();
       boundaryPopupRef.current = null;
 
-      // Remove layers and source
+      // Remove all layers first (must remove layers before removing source)
+      if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId);
+      if (map.getLayer(hoverLayerId)) map.removeLayer(hoverLayerId);
       if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
       if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
+
+      // Now remove the source
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 
       console.log("Removed boundary layer");

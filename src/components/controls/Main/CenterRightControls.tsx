@@ -350,32 +350,38 @@ export default function RightSideControls({
 
         {showBoundariesPanel && (
           <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-[300px] bg-[#2E2E2E] rounded-md shadow-md p-3 z-40 flex flex-col items-center">
-            <h3 className="text-[10px] font-semibold text-white mb-2">
+            <h3 className="text-[11px] font-semibold text-white mb-3">
               Add Boundaries to Map
             </h3>
 
             <div className="flex flex-col gap-1 w-full">
               {/* Source Dropdown */}
-              <span className="text-white text-[10px]">Source:</span>
-              <div className="flex gap-1 w-full mb-1">
-                <div className="relative flex-1">
+              <div
+                className={`flex gap-2 w-full items-center ${
+                  selectedBoundarySource ? "mb-1.5" : ""
+                }`}
+              >
+                <span className="text-white text-[10px] whitespace-nowrap">
+                  Source:
+                </span>
+                <div className="relative flex-1 min-w-0">
                   <button
                     ref={boundarySourceButtonRef}
                     onClick={() =>
                       setShowBoundarySourceDropdown((prev) => !prev)
                     }
-                    className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px]"
+                    className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0"
                   >
                     <span
-                      className={
+                      className={`truncate ${
                         selectedBoundarySource ? "text-white" : "text-gray-400"
-                      }
+                      }`}
                     >
                       {selectedBoundarySource || "Select Source"}
                     </span>
                     <ChevronDown
                       size={12}
-                      className={`ml-1 transition-transform duration-200 ${
+                      className={`ml-1 flex-shrink-0 transition-transform duration-200 ${
                         showBoundarySourceDropdown ? "rotate-180" : ""
                       }`}
                     />
@@ -435,24 +441,30 @@ export default function RightSideControls({
               {/* Country Dropdown - only show when source is selected */}
               {selectedBoundarySource && (
                 <>
-                  <span className="text-white text-[10px]">Country:</span>
-                  <div className="flex gap-1 w-full">
-                    <div className="relative flex-1">
+                  <div
+                    className={`flex gap-2 w-full items-center ${
+                      selectedBoundary ? "mb-1.5" : ""
+                    }`}
+                  >
+                    <span className="text-white text-[10px] whitespace-nowrap">
+                      Country:
+                    </span>
+                    <div className="relative flex-1 min-w-0">
                       <button
                         ref={boundaryButtonRef}
                         onClick={() => setShowBoundaryDropdown((prev) => !prev)}
-                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px]"
+                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0"
                       >
                         <span
-                          className={
+                          className={`truncate ${
                             selectedBoundary ? "text-white" : "text-gray-400"
-                          }
+                          }`}
                         >
                           {selectedBoundary || "Select Country"}
                         </span>
                         <ChevronDown
                           size={12}
-                          className={`ml-1 transition-transform duration-200 ${
+                          className={`ml-1 flex-shrink-0 transition-transform duration-200 ${
                             showBoundaryDropdown ? "rotate-180" : ""
                           }`}
                         />
@@ -539,28 +551,30 @@ export default function RightSideControls({
               {/* Boundary Level dropdown - only show when source and country are selected */}
               {selectedBoundarySource && selectedBoundary && (
                 <>
-                  <span className="text-white text-[10px] mt-1">Boundary:</span>
-                  <div className="flex gap-1 w-full">
-                    <div className="relative flex-1">
+                  <div className="flex gap-2 w-full items-center">
+                    <span className="text-white text-[10px] whitespace-nowrap">
+                      Boundary:
+                    </span>
+                    <div className="relative flex-1 min-w-0">
                       <button
                         ref={boundaryLevelButtonRef}
                         onClick={() =>
                           setShowBoundaryLevelDropdown((prev) => !prev)
                         }
-                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px]"
+                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0"
                       >
                         <span
-                          className={
+                          className={`truncate ${
                             selectedBoundaryLevel
                               ? "text-white"
                               : "text-gray-400"
-                          }
+                          }`}
                         >
                           {selectedBoundaryLevel || "Options"}
                         </span>
                         <ChevronDown
                           size={12}
-                          className={`ml-1 transition-transform duration-200 ${
+                          className={`ml-1 flex-shrink-0 transition-transform duration-200 ${
                             showBoundaryLevelDropdown ? "rotate-180" : ""
                           }`}
                         />

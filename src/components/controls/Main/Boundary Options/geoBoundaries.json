@@ -30,8 +30,7 @@
     "name": "American Samoa",
     "code": "AS",
     "levels": [
-      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" }
     ]
   },
   "Andorra (AD)": {
@@ -114,7 +113,10 @@
     "code": "AT",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By state/bundesland (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By state/bundesland (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By district/bezirk (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -207,7 +209,10 @@
     "code": "BT",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By district/dzongkhag (Admin Level 1)", "adminLevel": "admin1" }
+      {
+        "label": "By district/dzongkhag (Admin Level 1)",
+        "adminLevel": "admin1"
+      }
     ]
   },
   "Bolivia (BO)": {
@@ -225,7 +230,10 @@
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
       { "label": "By entity (Admin Level 1)", "adminLevel": "admin1" },
-      { "label": "By canton/municipality (Admin Level 2)", "adminLevel": "admin2" }
+      {
+        "label": "By canton/municipality (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
     ]
   },
   "Botswana (BW)": {
@@ -303,7 +311,10 @@
     "code": "CA",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By province/territory (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By province/territory (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By census division (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -407,7 +418,10 @@
     "code": "HR",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By county/Å¾upanija (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By county/Å¾upanija (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -597,7 +611,10 @@
     "code": "DE",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By state/bundesland (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By state/bundesland (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By district/kreis (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -729,8 +746,14 @@
     "code": "ID",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By province/provinsi (Admin Level 1)", "adminLevel": "admin1" },
-      { "label": "By regency/kabupaten (Admin Level 2)", "adminLevel": "admin2" }
+      {
+        "label": "By province/provinsi (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
+      {
+        "label": "By regency/kabupaten (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
     ]
   },
   "Iran (IR)": {
@@ -739,7 +762,10 @@
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
       { "label": "By province/ostan (Admin Level 1)", "adminLevel": "admin1" },
-      { "label": "By county/shahrestan (Admin Level 2)", "adminLevel": "admin2" }
+      {
+        "label": "By county/shahrestan (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
     ]
   },
   "Iraq (IQ)": {
@@ -852,7 +878,10 @@
     "code": "LA",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By province/khoueng (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By province/khoueng (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By district/muang (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -861,7 +890,10 @@
     "code": "LV",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By municipality/novads (Admin Level 1)", "adminLevel": "admin1" }
+      {
+        "label": "By municipality/novads (Admin Level 1)",
+        "adminLevel": "admin1"
+      }
     ]
   },
   "Lebanon (LB)": {
@@ -911,7 +943,10 @@
     "code": "LT",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By county/apskritis (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By county/apskritis (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -1042,7 +1077,10 @@
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
       { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
-      { "label": "By province/prefecture (Admin Level 2)", "adminLevel": "admin2" }
+      {
+        "label": "By province/prefecture (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
     ]
   },
   "Mozambique (MZ)": {
@@ -1216,7 +1254,10 @@
     "code": "PE",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By region/department (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By region/department (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By province (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -1227,7 +1268,10 @@
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
       { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
       { "label": "By province (Admin Level 2)", "adminLevel": "admin2" },
-      { "label": "By city/municipality (Admin Level 3)", "adminLevel": "admin3" }
+      {
+        "label": "By city/municipality (Admin Level 3)",
+        "adminLevel": "admin3"
+      }
     ]
   },
   "Poland (PL)": {
@@ -1405,7 +1449,10 @@
     "code": "SI",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By statistical region (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By statistical region (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -1500,7 +1547,10 @@
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
       { "label": "By county/lÃ¤n (Admin Level 1)", "adminLevel": "admin1" },
-      { "label": "By municipality/kommun (Admin Level 2)", "adminLevel": "admin2" }
+      {
+        "label": "By municipality/kommun (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
     ]
   },
   "Switzerland (CH)": {
@@ -1527,7 +1577,10 @@
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
       { "label": "By county/city (Admin Level 1)", "adminLevel": "admin1" },
-      { "label": "By district/township (Admin Level 2)", "adminLevel": "admin2" }
+      {
+        "label": "By district/township (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
     ]
   },
   "Tajikistan (TJ)": {
@@ -1553,7 +1606,10 @@
     "code": "TH",
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
-      { "label": "By province/changwat (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By province/changwat (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
       { "label": "By district/amphoe (Admin Level 2)", "adminLevel": "admin2" }
     ]
   },
@@ -1649,7 +1705,10 @@
     "levels": [
       { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
       { "label": "By country/region (Admin Level 1)", "adminLevel": "admin1" },
-      { "label": "By county/council area (Admin Level 2)", "adminLevel": "admin2" }
+      {
+        "label": "By county/council area (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
     ]
   },
   "United States (US)": {
