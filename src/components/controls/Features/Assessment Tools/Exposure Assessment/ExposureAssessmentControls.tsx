@@ -6,7 +6,9 @@ import React, {
   useEffect,
   useImperativeHandle,
   forwardRef,
+  useRef,
 } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { floodHazardMaps } from "../../Maps/Hazard Layers/Flood/NOAAFloodHazardConfig";
@@ -90,6 +92,20 @@ const ExposureAssessmentControls = forwardRef<
     ] = useState(false);
     const [elementFileSearchTerm, setElementFileSearchTerm] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+    // Refs for dropdown positioning
+    const hazardFileButtonRef = useRef<HTMLButtonElement>(null);
+    const elementFileButtonRef = useRef<HTMLButtonElement>(null);
+    const [hazardDropdownPosition, setHazardDropdownPosition] = useState({
+      top: 0,
+      left: 0,
+      width: 0,
+    });
+    const [elementDropdownPosition, setElementDropdownPosition] = useState({
+      top: 0,
+      left: 0,
+      width: 0,
+    });
 
     const hazardDataOptions = ["Use existing data", "Use imported data"];
     const elementDataOptions = ["Use existing data", "Use imported data"];
@@ -839,14 +855,24 @@ const ExposureAssessmentControls = forwardRef<
 
           {/* Show imported file dropdown when "Use imported data" is selected */}
           {hazardDataSource === "Use imported data" && (
-            <div className="mt-2">
+            <div className="mt-2 relative" style={{ overflow: "visible" }}>
               <label className="block text-white text-[10px] font-medium mb-1.5">
                 Select Imported Data
               </label>
               <button
-                onClick={() =>
-                  setImportedHazardFileDropdownOpen((prev) => !prev)
-                }
+                ref={hazardFileButtonRef}
+                onClick={() => {
+                  if (hazardFileButtonRef.current) {
+                    const rect =
+                      hazardFileButtonRef.current.getBoundingClientRect();
+                    setHazardDropdownPosition({
+                      top: rect.bottom + window.scrollY,
+                      left: rect.left + window.scrollX,
+                      width: rect.width,
+                    });
+                  }
+                  setImportedHazardFileDropdownOpen((prev) => !prev);
+                }}
                 className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-2.5 py-2 rounded shadow-md hover:bg-[#454545] transition"
               >
                 <span className="text-[10px] truncate">
@@ -862,88 +888,99 @@ const ExposureAssessmentControls = forwardRef<
                 />
               </button>
 
-              {importedHazardFileDropdownOpen && (
-                <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded shadow-lg overflow-hidden">
-                  {uploadedFiles.length === 0 ? (
-                    <div className="px-2.5 py-2 text-[10px] text-gray-400">
-                      No file/s detected! Upload first.
-                    </div>
-                  ) : (
-                    <>
-                      {/* Search Box */}
-                      <div className="p-1.5 pb-1">
-                        <input
-                          type="text"
-                          placeholder="Search files..."
-                          value={hazardFileSearchTerm}
-                          onChange={(e) =>
-                            setHazardFileSearchTerm(e.target.value)
-                          }
-                          className="w-full p-1.5 bg-transparent rounded text-white text-[10px] outline-none focus:ring-0 focus:outline-none hover:outline-none"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+              {importedHazardFileDropdownOpen &&
+                createPortal(
+                  <div
+                    className="fixed z-[9999] bg-[#3a3a3a] rounded shadow-lg overflow-hidden"
+                    style={{
+                      top: `${hazardDropdownPosition.top + 4}px`,
+                      left: `${hazardDropdownPosition.left}px`,
+                      width: `${hazardDropdownPosition.width}px`,
+                    }}
+                  >
+                    {uploadedFiles.length === 0 ? (
+                      <div className="px-2.5 py-2 text-[10px] text-gray-400">
+                        No file/s detected! Upload first.
                       </div>
+                    ) : (
+                      <>
+                        {/* Search Box */}
+                        <div className="p-1.5 pb-1">
+                          <input
+                            type="text"
+                            placeholder="Search files..."
+                            value={hazardFileSearchTerm}
+                            onChange={(e) =>
+                              setHazardFileSearchTerm(e.target.value)
+                            }
+                            className="w-full p-1.5 bg-transparent rounded text-white text-[10px] outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
 
-                      {/* Filtered file list with checkboxes */}
-                      <div
-                        className="overflow-y-auto max-h-32 p-1.5"
-                        style={{
-                          scrollbarWidth: "thin",
-                          scrollbarColor: "#5a5a5a transparent",
-                        }}
-                      >
-                        {uploadedFiles
-                          .filter((file) =>
+                        {/* Filtered file list with checkboxes */}
+                        <div
+                          className="overflow-y-auto max-h-32 p-1.5"
+                          style={{
+                            scrollbarWidth: "thin",
+                            scrollbarColor: "#5a5a5a transparent",
+                          }}
+                        >
+                          {uploadedFiles
+                            .filter((file) =>
+                              file.name
+                                .toLowerCase()
+                                .includes(hazardFileSearchTerm.toLowerCase())
+                            )
+                            .map((file, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center py-2 px-2.5 hover:bg-[#454545] rounded cursor-pointer"
+                                onClick={() => {
+                                  setSelectedImportedHazardFiles((prev) =>
+                                    prev.includes(file.name)
+                                      ? prev.filter(
+                                          (name) => name !== file.name
+                                        )
+                                      : [...prev, file.name]
+                                  );
+                                }}
+                              >
+                                <Checkbox
+                                  className="mr-2.5 pointer-events-none"
+                                  style={{
+                                    width: "14px",
+                                    height: "14px",
+                                    minWidth: "14px",
+                                    minHeight: "14px",
+                                  }}
+                                  checked={selectedImportedHazardFiles.includes(
+                                    file.name
+                                  )}
+                                />
+                                <span
+                                  className="text-[10px] text-white truncate"
+                                  title={file.name}
+                                >
+                                  {file.name}
+                                </span>
+                              </div>
+                            ))}
+                          {uploadedFiles.filter((file) =>
                             file.name
                               .toLowerCase()
                               .includes(hazardFileSearchTerm.toLowerCase())
-                          )
-                          .map((file, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center py-2 px-2.5 hover:bg-[#454545] rounded cursor-pointer"
-                              onClick={() => {
-                                setSelectedImportedHazardFiles((prev) =>
-                                  prev.includes(file.name)
-                                    ? prev.filter((name) => name !== file.name)
-                                    : [...prev, file.name]
-                                );
-                              }}
-                            >
-                              <Checkbox
-                                className="mr-2.5 pointer-events-none"
-                                style={{
-                                  width: "14px",
-                                  height: "14px",
-                                  minWidth: "14px",
-                                  minHeight: "14px",
-                                }}
-                                checked={selectedImportedHazardFiles.includes(
-                                  file.name
-                                )}
-                              />
-                              <span
-                                className="text-[10px] text-white truncate"
-                                title={file.name}
-                              >
-                                {file.name}
-                              </span>
+                          ).length === 0 && (
+                            <div className="px-2.5 py-2 text-[10px] text-gray-400 text-center">
+                              No files found
                             </div>
-                          ))}
-                        {uploadedFiles.filter((file) =>
-                          file.name
-                            .toLowerCase()
-                            .includes(hazardFileSearchTerm.toLowerCase())
-                        ).length === 0 && (
-                          <div className="px-2.5 py-2 text-[10px] text-gray-400 text-center">
-                            No files found
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>,
+                  document.body
+                )}
             </div>
           )}
         </div>
@@ -1059,14 +1096,24 @@ const ExposureAssessmentControls = forwardRef<
 
           {/* Show imported file dropdown when "Use imported data" is selected */}
           {elementDataSource === "Use imported data" && (
-            <div className="mt-2">
+            <div className="mt-2 relative" style={{ overflow: "visible" }}>
               <label className="block text-white text-[10px] font-medium mb-1.5">
                 Select Imported Data
               </label>
               <button
-                onClick={() =>
-                  setImportedElementFileDropdownOpen((prev) => !prev)
-                }
+                ref={elementFileButtonRef}
+                onClick={() => {
+                  if (elementFileButtonRef.current) {
+                    const rect =
+                      elementFileButtonRef.current.getBoundingClientRect();
+                    setElementDropdownPosition({
+                      top: rect.bottom + window.scrollY,
+                      left: rect.left + window.scrollX,
+                      width: rect.width,
+                    });
+                  }
+                  setImportedElementFileDropdownOpen((prev) => !prev);
+                }}
                 className="flex justify-between items-center w-full bg-[#3a3a3a] text-white px-2.5 py-2 rounded shadow-md hover:bg-[#454545] transition"
               >
                 <span className="text-[10px] truncate">
@@ -1082,88 +1129,99 @@ const ExposureAssessmentControls = forwardRef<
                 />
               </button>
 
-              {importedElementFileDropdownOpen && (
-                <div className="absolute z-50 mt-1 w-full bg-[#3a3a3a] rounded shadow-lg overflow-hidden">
-                  {uploadedFiles.length === 0 ? (
-                    <div className="px-2.5 py-2 text-[10px] text-gray-400">
-                      No file/s detected! Upload first.
-                    </div>
-                  ) : (
-                    <>
-                      {/* Search Box */}
-                      <div className="p-1.5 pb-1">
-                        <input
-                          type="text"
-                          placeholder="Search files..."
-                          value={elementFileSearchTerm}
-                          onChange={(e) =>
-                            setElementFileSearchTerm(e.target.value)
-                          }
-                          className="w-full p-1.5 bg-transparent rounded text-white text-[10px] outline-none focus:ring-0 focus:outline-none hover:outline-none"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+              {importedElementFileDropdownOpen &&
+                createPortal(
+                  <div
+                    className="fixed z-[9999] bg-[#3a3a3a] rounded shadow-lg overflow-hidden"
+                    style={{
+                      top: `${elementDropdownPosition.top + 4}px`,
+                      left: `${elementDropdownPosition.left}px`,
+                      width: `${elementDropdownPosition.width}px`,
+                    }}
+                  >
+                    {uploadedFiles.length === 0 ? (
+                      <div className="px-2.5 py-2 text-[10px] text-gray-400">
+                        No file/s detected! Upload first.
                       </div>
+                    ) : (
+                      <>
+                        {/* Search Box */}
+                        <div className="p-1.5 pb-1">
+                          <input
+                            type="text"
+                            placeholder="Search files..."
+                            value={elementFileSearchTerm}
+                            onChange={(e) =>
+                              setElementFileSearchTerm(e.target.value)
+                            }
+                            className="w-full p-1.5 bg-transparent rounded text-white text-[10px] outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
 
-                      {/* Filtered file list with checkboxes */}
-                      <div
-                        className="overflow-y-auto max-h-32 p-1.5"
-                        style={{
-                          scrollbarWidth: "thin",
-                          scrollbarColor: "#5a5a5a transparent",
-                        }}
-                      >
-                        {uploadedFiles
-                          .filter((file) =>
+                        {/* Filtered file list with checkboxes */}
+                        <div
+                          className="overflow-y-auto max-h-32 p-1.5"
+                          style={{
+                            scrollbarWidth: "thin",
+                            scrollbarColor: "#5a5a5a transparent",
+                          }}
+                        >
+                          {uploadedFiles
+                            .filter((file) =>
+                              file.name
+                                .toLowerCase()
+                                .includes(elementFileSearchTerm.toLowerCase())
+                            )
+                            .map((file, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center py-2 px-2.5 hover:bg-[#454545] rounded cursor-pointer"
+                                onClick={() => {
+                                  setSelectedImportedElementFiles((prev) =>
+                                    prev.includes(file.name)
+                                      ? prev.filter(
+                                          (name) => name !== file.name
+                                        )
+                                      : [...prev, file.name]
+                                  );
+                                }}
+                              >
+                                <Checkbox
+                                  className="mr-2.5 pointer-events-none"
+                                  style={{
+                                    width: "14px",
+                                    height: "14px",
+                                    minWidth: "14px",
+                                    minHeight: "14px",
+                                  }}
+                                  checked={selectedImportedElementFiles.includes(
+                                    file.name
+                                  )}
+                                />
+                                <span
+                                  className="text-[10px] text-white truncate"
+                                  title={file.name}
+                                >
+                                  {file.name}
+                                </span>
+                              </div>
+                            ))}
+                          {uploadedFiles.filter((file) =>
                             file.name
                               .toLowerCase()
                               .includes(elementFileSearchTerm.toLowerCase())
-                          )
-                          .map((file, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center py-2 px-2.5 hover:bg-[#454545] rounded cursor-pointer"
-                              onClick={() => {
-                                setSelectedImportedElementFiles((prev) =>
-                                  prev.includes(file.name)
-                                    ? prev.filter((name) => name !== file.name)
-                                    : [...prev, file.name]
-                                );
-                              }}
-                            >
-                              <Checkbox
-                                className="mr-2.5 pointer-events-none"
-                                style={{
-                                  width: "14px",
-                                  height: "14px",
-                                  minWidth: "14px",
-                                  minHeight: "14px",
-                                }}
-                                checked={selectedImportedElementFiles.includes(
-                                  file.name
-                                )}
-                              />
-                              <span
-                                className="text-[10px] text-white truncate"
-                                title={file.name}
-                              >
-                                {file.name}
-                              </span>
+                          ).length === 0 && (
+                            <div className="px-2.5 py-2 text-[10px] text-gray-400 text-center">
+                              No files found
                             </div>
-                          ))}
-                        {uploadedFiles.filter((file) =>
-                          file.name
-                            .toLowerCase()
-                            .includes(elementFileSearchTerm.toLowerCase())
-                        ).length === 0 && (
-                          <div className="px-2.5 py-2 text-[10px] text-gray-400 text-center">
-                            No files found
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>,
+                  document.body
+                )}
             </div>
           )}
         </div>

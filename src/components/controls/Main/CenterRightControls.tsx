@@ -2,10 +2,31 @@
 "use client";
 
 import { ZoomIn, ZoomOut, Layers2, X, ChevronDown, Upload } from "lucide-react";
-import { RefObject, useRef, useState } from "react";
+import { RefObject, useRef, useState, useEffect } from "react";
 import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 import { createPortal } from "react-dom";
-import { boundaryOptions, countryBoundaries } from "./BoundaryOptions";
+import geoBoundariesData from "./Boundary Options/geoBoundaries.json";
+
+// Type for boundary data
+interface BoundaryLevel {
+  label: string;
+  adminLevel: string;
+}
+
+interface CountryBoundary {
+  name: string;
+  code: string;
+  levels: BoundaryLevel[];
+}
+
+type CountryBoundaries = Record<string, CountryBoundary>;
+
+// Cast the imported JSON to the correct type
+const countryBoundaries: CountryBoundaries =
+  geoBoundariesData as CountryBoundaries;
+
+// Derive boundary options from countryBoundaries keys (sorted alphabetically)
+const boundaryOptions = Object.keys(countryBoundaries).sort();
 
 interface RightSideControlsProps {
   show3DControls: boolean;
@@ -47,6 +68,15 @@ export default function RightSideControls({
     string | null
   >(null);
   const boundaryLevelButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Boundary source dropdown state
+  const [selectedBoundarySource, setSelectedBoundarySource] = useState<
+    string | null
+  >(null);
+  const [showBoundarySourceDropdown, setShowBoundarySourceDropdown] =
+    useState(false);
+  const boundarySourceButtonRef = useRef<HTMLButtonElement>(null);
+  const boundarySourceOptions = ["geoBoundaries"];
 
   // ✅ File handling inside component
   const handleFiles = async (files: FileList) => {
@@ -139,6 +169,34 @@ export default function RightSideControls({
     if (!selectedCountry) return [];
     return countryBoundaries[selectedCountry]?.levels || [];
   };
+
+  // Effect to render boundary on map when selection changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // If no boundary level selected, remove any existing boundary layer
+    if (!selectedBoundary || !selectedBoundaryLevel) {
+      mapRef.current.removeBoundaryLayer?.();
+      return;
+    }
+
+    // Get the country code and admin level
+    const countryData = countryBoundaries[selectedBoundary];
+    if (!countryData) return;
+
+    const countryCode = countryData.code;
+    const levelData = countryData.levels.find(
+      (l) => l.label === selectedBoundaryLevel
+    );
+    if (!levelData) return;
+
+    // Add the boundary layer with the label for popup display
+    mapRef.current.addBoundaryLayer?.(
+      countryCode,
+      levelData.adminLevel,
+      levelData.label
+    );
+  }, [selectedBoundary, selectedBoundaryLevel, mapRef]);
 
   return (
     <div className="absolute right-[15px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2">
@@ -297,100 +355,75 @@ export default function RightSideControls({
             </h3>
 
             <div className="flex flex-col gap-1 w-full">
-              <div className="flex gap-1 w-full">
-                {/* Added flex container */}
+              {/* Source Dropdown */}
+              <span className="text-white text-[10px]">Source:</span>
+              <div className="flex gap-1 w-full mb-1">
                 <div className="relative flex-1">
-                  {" "}
-                  {/* Added flex-1 to make dropdown take remaining space */}
                   <button
-                    ref={boundaryButtonRef}
-                    onClick={() => setShowBoundaryDropdown((prev) => !prev)}
+                    ref={boundarySourceButtonRef}
+                    onClick={() =>
+                      setShowBoundarySourceDropdown((prev) => !prev)
+                    }
                     className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px]"
                   >
                     <span
                       className={
-                        selectedBoundary ? "text-white" : "text-gray-400"
+                        selectedBoundarySource ? "text-white" : "text-gray-400"
                       }
                     >
-                      {selectedBoundary || "Select Country"}{" "}
-                      {/* Changed "Options" to "Select Country" */}
+                      {selectedBoundarySource || "Select Source"}
                     </span>
                     <ChevronDown
                       size={12}
                       className={`ml-1 transition-transform duration-200 ${
-                        showBoundaryDropdown ? "rotate-180" : ""
+                        showBoundarySourceDropdown ? "rotate-180" : ""
                       }`}
                     />
                   </button>
-                  {showBoundaryDropdown &&
-                    boundaryButtonRef.current &&
+                  {showBoundarySourceDropdown &&
+                    boundarySourceButtonRef.current &&
                     createPortal(
                       <div
                         className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
                         style={{
                           top:
-                            boundaryButtonRef.current.getBoundingClientRect()
+                            boundarySourceButtonRef.current.getBoundingClientRect()
                               .bottom + 4,
-                          left: boundaryButtonRef.current.getBoundingClientRect()
+                          left: boundarySourceButtonRef.current.getBoundingClientRect()
                             .left,
                           width:
-                            boundaryButtonRef.current.getBoundingClientRect()
+                            boundarySourceButtonRef.current.getBoundingClientRect()
                               .width,
                         }}
                       >
-                        {/* Search Box */}
-                        <div className="p-2">
-                          <input
-                            type="text"
-                            placeholder="Search coverage..."
-                            value={boundarySearchTerm}
-                            onChange={(e) =>
-                              setBoundarySearchTerm(e.target.value)
-                            }
-                            className="w-full p-2 rounded-md text-white outline-none focus:ring-0 focus:outline-none hover:outline-none"
-                          />
-                        </div>
-
-                        {/* Filtered options list */}
                         <div
                           className="overflow-y-auto"
-                          style={{
-                            maxHeight: "120px", // Changed from 200px to 150px
-                            scrollbarWidth: "thin",
-                            scrollbarColor: "#5a5a5a transparent",
-                          }}
-                          onScroll={(e) => e.stopPropagation()}
+                          style={{ maxHeight: "120px" }}
                         >
-                          {boundaryOptions
-                            .filter((option) =>
-                              option
-                                .toLowerCase()
-                                .includes(boundarySearchTerm.toLowerCase())
-                            )
-                            .map((option, index) => (
-                              <div
-                                key={index}
-                                onClick={() => {
-                                  setSelectedBoundary(option);
-                                  setShowBoundaryDropdown(false);
-                                  setBoundarySearchTerm("");
-                                  setSelectedBoundaryLevel(null); // Add this line to reset boundary level
-                                }}
-                                className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px]"
-                              >
-                                {option}
-                              </div>
-                            ))}
+                          {boundarySourceOptions.map((option, index) => (
+                            <div
+                              key={index}
+                              onClick={() => {
+                                setSelectedBoundarySource(option);
+                                setShowBoundarySourceDropdown(false);
+                                // Reset country and boundary level when source changes
+                                setSelectedBoundary(null);
+                                setSelectedBoundaryLevel(null);
+                              }}
+                              className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px]"
+                            >
+                              {option}
+                            </div>
+                          ))}
                         </div>
                       </div>,
                       document.body
                     )}
                 </div>
-                {/* New Clear button */}
                 <button
                   onClick={() => {
+                    setSelectedBoundarySource(null);
                     setSelectedBoundary(null);
-                    setBoundarySearchTerm("");
                     setSelectedBoundaryLevel(null);
                   }}
                   className="px-2 py-1.5 rounded-sm shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-[10px]"
@@ -399,8 +432,112 @@ export default function RightSideControls({
                 </button>
               </div>
 
-              {/* New conditional second dropdown */}
-              {selectedBoundary && (
+              {/* Country Dropdown - only show when source is selected */}
+              {selectedBoundarySource && (
+                <>
+                  <span className="text-white text-[10px]">Country:</span>
+                  <div className="flex gap-1 w-full">
+                    <div className="relative flex-1">
+                      <button
+                        ref={boundaryButtonRef}
+                        onClick={() => setShowBoundaryDropdown((prev) => !prev)}
+                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px]"
+                      >
+                        <span
+                          className={
+                            selectedBoundary ? "text-white" : "text-gray-400"
+                          }
+                        >
+                          {selectedBoundary || "Select Country"}
+                        </span>
+                        <ChevronDown
+                          size={12}
+                          className={`ml-1 transition-transform duration-200 ${
+                            showBoundaryDropdown ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                      {showBoundaryDropdown &&
+                        boundaryButtonRef.current &&
+                        createPortal(
+                          <div
+                            className="fixed bg-[#3a3a3a] rounded-md shadow-lg z-[9999] text-[10px] text-white overflow-hidden"
+                            style={{
+                              top:
+                                boundaryButtonRef.current.getBoundingClientRect()
+                                  .bottom + 4,
+                              left: boundaryButtonRef.current.getBoundingClientRect()
+                                .left,
+                              width:
+                                boundaryButtonRef.current.getBoundingClientRect()
+                                  .width,
+                            }}
+                          >
+                            {/* Search Box */}
+                            <div className="p-2">
+                              <input
+                                type="text"
+                                placeholder="Search coverage..."
+                                value={boundarySearchTerm}
+                                onChange={(e) =>
+                                  setBoundarySearchTerm(e.target.value)
+                                }
+                                className="w-full p-2 rounded-md text-white outline-none focus:ring-0 focus:outline-none hover:outline-none"
+                              />
+                            </div>
+
+                            {/* Filtered options list */}
+                            <div
+                              className="overflow-y-auto"
+                              style={{
+                                maxHeight: "120px", // Changed from 200px to 150px
+                                scrollbarWidth: "thin",
+                                scrollbarColor: "#5a5a5a transparent",
+                              }}
+                              onScroll={(e) => e.stopPropagation()}
+                            >
+                              {boundaryOptions
+                                .filter((option) =>
+                                  option
+                                    .toLowerCase()
+                                    .includes(boundarySearchTerm.toLowerCase())
+                                )
+                                .map((option, index) => (
+                                  <div
+                                    key={index}
+                                    onClick={() => {
+                                      setSelectedBoundary(option);
+                                      setShowBoundaryDropdown(false);
+                                      setBoundarySearchTerm("");
+                                      setSelectedBoundaryLevel(null); // Add this line to reset boundary level
+                                    }}
+                                    className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px]"
+                                  >
+                                    {option}
+                                  </div>
+                                ))}
+                            </div>
+                          </div>,
+                          document.body
+                        )}
+                    </div>
+                    {/* New Clear button */}
+                    <button
+                      onClick={() => {
+                        setSelectedBoundary(null);
+                        setBoundarySearchTerm("");
+                        setSelectedBoundaryLevel(null);
+                      }}
+                      className="px-2 py-1.5 rounded-sm shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-[10px]"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Boundary Level dropdown - only show when source and country are selected */}
+              {selectedBoundarySource && selectedBoundary && (
                 <>
                   <span className="text-white text-[10px] mt-1">Boundary:</span>
                   <div className="flex gap-1 w-full">

@@ -1,0 +1,1741 @@
+﻿{
+  "Afghanistan (AF)": {
+    "name": "Afghanistan",
+    "code": "AF",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Albania (AL)": {
+    "name": "Albania",
+    "code": "AL",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/qark (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Algeria (DZ)": {
+    "name": "Algeria",
+    "code": "DZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By wilaya/province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By commune (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "American Samoa (AS)": {
+    "name": "American Samoa",
+    "code": "AS",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Andorra (AD)": {
+    "name": "Andorra",
+    "code": "AD",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Angola (AO)": {
+    "name": "Angola",
+    "code": "AO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Anguilla (AI)": {
+    "name": "Anguilla",
+    "code": "AI",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" }
+    ]
+  },
+  "Antarctica (AQ)": {
+    "name": "Antarctica",
+    "code": "AQ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" }
+    ]
+  },
+  "Antigua and Barbuda (AG)": {
+    "name": "Antigua and Barbuda",
+    "code": "AG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Argentina (AR)": {
+    "name": "Argentina",
+    "code": "AR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By department (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Armenia (AM)": {
+    "name": "Armenia",
+    "code": "AM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/marz (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Aruba (AW)": {
+    "name": "Aruba",
+    "code": "AW",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" }
+    ]
+  },
+  "Australia (AU)": {
+    "name": "Australia",
+    "code": "AU",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state/territory (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By local government area (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
+    ]
+  },
+  "Austria (AT)": {
+    "name": "Austria",
+    "code": "AT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state/bundesland (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/bezirk (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Azerbaijan (AZ)": {
+    "name": "Azerbaijan",
+    "code": "AZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district/rayon (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Bahamas (BS)": {
+    "name": "Bahamas",
+    "code": "BS",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Bahrain (BH)": {
+    "name": "Bahrain",
+    "code": "BH",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Bangladesh (BD)": {
+    "name": "Bangladesh",
+    "code": "BD",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By division (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Barbados (BB)": {
+    "name": "Barbados",
+    "code": "BB",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Belarus (BY)": {
+    "name": "Belarus",
+    "code": "BY",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/voblast (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/raion (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Belgium (BE)": {
+    "name": "Belgium",
+    "code": "BE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By province (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Belize (BZ)": {
+    "name": "Belize",
+    "code": "BZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Benin (BJ)": {
+    "name": "Benin",
+    "code": "BJ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By commune (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Bermuda (BM)": {
+    "name": "Bermuda",
+    "code": "BM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Bhutan (BT)": {
+    "name": "Bhutan",
+    "code": "BT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district/dzongkhag (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Bolivia (BO)": {
+    "name": "Bolivia",
+    "code": "BO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By province (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Bosnia and Herzegovina (BA)": {
+    "name": "Bosnia and Herzegovina",
+    "code": "BA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By entity (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By canton/municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Botswana (BW)": {
+    "name": "Botswana",
+    "code": "BW",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Brazil (BR)": {
+    "name": "Brazil",
+    "code": "BR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Brunei (BN)": {
+    "name": "Brunei",
+    "code": "BN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Bulgaria (BG)": {
+    "name": "Bulgaria",
+    "code": "BG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/oblast (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Burkina Faso (BF)": {
+    "name": "Burkina Faso",
+    "code": "BF",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By province (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Burundi (BI)": {
+    "name": "Burundi",
+    "code": "BI",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By commune (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Cambodia (KH)": {
+    "name": "Cambodia",
+    "code": "KH",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/khaet (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/srok (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Cameroon (CM)": {
+    "name": "Cameroon",
+    "code": "CM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By department (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Canada (CA)": {
+    "name": "Canada",
+    "code": "CA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/territory (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By census division (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Cape Verde (CV)": {
+    "name": "Cape Verde",
+    "code": "CV",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Central African Republic (CF)": {
+    "name": "Central African Republic",
+    "code": "CF",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By prefecture (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Chad (TD)": {
+    "name": "Chad",
+    "code": "TD",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By department (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Chile (CL)": {
+    "name": "Chile",
+    "code": "CL",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By province (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "China (CN)": {
+    "name": "China",
+    "code": "CN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By prefecture/city (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Colombia (CO)": {
+    "name": "Colombia",
+    "code": "CO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Comoros (KM)": {
+    "name": "Comoros",
+    "code": "KM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By island (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Congo (CG)": {
+    "name": "Congo",
+    "code": "CG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Congo DRC (CD)": {
+    "name": "Congo DRC",
+    "code": "CD",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By territory (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Costa Rica (CR)": {
+    "name": "Costa Rica",
+    "code": "CR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By canton (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "CÃ´te d'Ivoire (CI)": {
+    "name": "CÃ´te d'Ivoire",
+    "code": "CI",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By region (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Croatia (HR)": {
+    "name": "Croatia",
+    "code": "HR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/Å¾upanija (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Cuba (CU)": {
+    "name": "Cuba",
+    "code": "CU",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Cyprus (CY)": {
+    "name": "Cyprus",
+    "code": "CY",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Czech Republic (CZ)": {
+    "name": "Czech Republic",
+    "code": "CZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/kraj (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/okres (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Denmark (DK)": {
+    "name": "Denmark",
+    "code": "DK",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Djibouti (DJ)": {
+    "name": "Djibouti",
+    "code": "DJ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Dominica (DM)": {
+    "name": "Dominica",
+    "code": "DM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Dominican Republic (DO)": {
+    "name": "Dominican Republic",
+    "code": "DO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Ecuador (EC)": {
+    "name": "Ecuador",
+    "code": "EC",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By canton (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Egypt (EG)": {
+    "name": "Egypt",
+    "code": "EG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/markaz (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "El Salvador (SV)": {
+    "name": "El Salvador",
+    "code": "SV",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Equatorial Guinea (GQ)": {
+    "name": "Equatorial Guinea",
+    "code": "GQ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Eritrea (ER)": {
+    "name": "Eritrea",
+    "code": "ER",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/zoba (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Estonia (EE)": {
+    "name": "Estonia",
+    "code": "EE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/maakond (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Eswatini (SZ)": {
+    "name": "Eswatini",
+    "code": "SZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Ethiopia (ET)": {
+    "name": "Ethiopia",
+    "code": "ET",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By zone (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Fiji (FJ)": {
+    "name": "Fiji",
+    "code": "FJ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By division (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Finland (FI)": {
+    "name": "Finland",
+    "code": "FI",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "France (FR)": {
+    "name": "France",
+    "code": "FR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By department (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Gabon (GA)": {
+    "name": "Gabon",
+    "code": "GA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By department (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Gambia (GM)": {
+    "name": "Gambia",
+    "code": "GM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By division (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Georgia (GE)": {
+    "name": "Georgia",
+    "code": "GE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Germany (DE)": {
+    "name": "Germany",
+    "code": "DE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state/bundesland (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/kreis (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Ghana (GH)": {
+    "name": "Ghana",
+    "code": "GH",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Greece (GR)": {
+    "name": "Greece",
+    "code": "GR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By regional unit (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Greenland (GL)": {
+    "name": "Greenland",
+    "code": "GL",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Grenada (GD)": {
+    "name": "Grenada",
+    "code": "GD",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Guatemala (GT)": {
+    "name": "Guatemala",
+    "code": "GT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Guinea (GN)": {
+    "name": "Guinea",
+    "code": "GN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By prefecture (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Guinea-Bissau (GW)": {
+    "name": "Guinea-Bissau",
+    "code": "GW",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Guyana (GY)": {
+    "name": "Guyana",
+    "code": "GY",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Haiti (HT)": {
+    "name": "Haiti",
+    "code": "HT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By arrondissement (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Honduras (HN)": {
+    "name": "Honduras",
+    "code": "HN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Hong Kong (HK)": {
+    "name": "Hong Kong",
+    "code": "HK",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Hungary (HU)": {
+    "name": "Hungary",
+    "code": "HU",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/megye (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/jÃ¡rÃ¡s (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Iceland (IS)": {
+    "name": "Iceland",
+    "code": "IS",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "India (IN)": {
+    "name": "India",
+    "code": "IN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      {
+        "label": "By state/union territory (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Indonesia (ID)": {
+    "name": "Indonesia",
+    "code": "ID",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/provinsi (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By regency/kabupaten (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Iran (IR)": {
+    "name": "Iran",
+    "code": "IR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/ostan (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By county/shahrestan (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Iraq (IQ)": {
+    "name": "Iraq",
+    "code": "IQ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Ireland (IE)": {
+    "name": "Ireland",
+    "code": "IE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By county (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Israel (IL)": {
+    "name": "Israel",
+    "code": "IL",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By sub-district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Italy (IT)": {
+    "name": "Italy",
+    "code": "IT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By province (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Jamaica (JM)": {
+    "name": "Jamaica",
+    "code": "JM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Japan (JP)": {
+    "name": "Japan",
+    "code": "JP",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By prefecture (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Jordan (JO)": {
+    "name": "Jordan",
+    "code": "JO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Kazakhstan (KZ)": {
+    "name": "Kazakhstan",
+    "code": "KZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/oblys (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/audany (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Kenya (KE)": {
+    "name": "Kenya",
+    "code": "KE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By sub-county (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Kosovo (XK)": {
+    "name": "Kosovo",
+    "code": "XK",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Kuwait (KW)": {
+    "name": "Kuwait",
+    "code": "KW",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Kyrgyzstan (KG)": {
+    "name": "Kyrgyzstan",
+    "code": "KG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/oblast (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/raion (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Laos (LA)": {
+    "name": "Laos",
+    "code": "LA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/khoueng (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/muang (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Latvia (LV)": {
+    "name": "Latvia",
+    "code": "LV",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality/novads (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Lebanon (LB)": {
+    "name": "Lebanon",
+    "code": "LB",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Lesotho (LS)": {
+    "name": "Lesotho",
+    "code": "LS",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Liberia (LR)": {
+    "name": "Liberia",
+    "code": "LR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Libya (LY)": {
+    "name": "Libya",
+    "code": "LY",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district/shabiya (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Liechtenstein (LI)": {
+    "name": "Liechtenstein",
+    "code": "LI",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Lithuania (LT)": {
+    "name": "Lithuania",
+    "code": "LT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/apskritis (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Luxembourg (LU)": {
+    "name": "Luxembourg",
+    "code": "LU",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By canton (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Madagascar (MG)": {
+    "name": "Madagascar",
+    "code": "MG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Malawi (MW)": {
+    "name": "Malawi",
+    "code": "MW",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Malaysia (MY)": {
+    "name": "Malaysia",
+    "code": "MY",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Maldives (MV)": {
+    "name": "Maldives",
+    "code": "MV",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By atoll (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Mali (ML)": {
+    "name": "Mali",
+    "code": "ML",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By cercle (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Malta (MT)": {
+    "name": "Malta",
+    "code": "MT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Mauritania (MR)": {
+    "name": "Mauritania",
+    "code": "MR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/wilaya (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By department/moughataa (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
+    ]
+  },
+  "Mauritius (MU)": {
+    "name": "Mauritius",
+    "code": "MU",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Mexico (MX)": {
+    "name": "Mexico",
+    "code": "MX",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Moldova (MD)": {
+    "name": "Moldova",
+    "code": "MD",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district/raion (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Monaco (MC)": {
+    "name": "Monaco",
+    "code": "MC",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" }
+    ]
+  },
+  "Mongolia (MN)": {
+    "name": "Mongolia",
+    "code": "MN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/aimag (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/sum (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Montenegro (ME)": {
+    "name": "Montenegro",
+    "code": "ME",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Morocco (MA)": {
+    "name": "Morocco",
+    "code": "MA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By province/prefecture (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Mozambique (MZ)": {
+    "name": "Mozambique",
+    "code": "MZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Myanmar (MM)": {
+    "name": "Myanmar",
+    "code": "MM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state/region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Namibia (NA)": {
+    "name": "Namibia",
+    "code": "NA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Nepal (NP)": {
+    "name": "Nepal",
+    "code": "NP",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Netherlands (NL)": {
+    "name": "Netherlands",
+    "code": "NL",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "New Zealand (NZ)": {
+    "name": "New Zealand",
+    "code": "NZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By territorial authority (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
+    ]
+  },
+  "Nicaragua (NI)": {
+    "name": "Nicaragua",
+    "code": "NI",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Niger (NE)": {
+    "name": "Niger",
+    "code": "NE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By department (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Nigeria (NG)": {
+    "name": "Nigeria",
+    "code": "NG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By local government area (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
+    ]
+  },
+  "North Korea (KP)": {
+    "name": "North Korea",
+    "code": "KP",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "North Macedonia (MK)": {
+    "name": "North Macedonia",
+    "code": "MK",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Norway (NO)": {
+    "name": "Norway",
+    "code": "NO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/fylke (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By municipality/kommune (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
+    ]
+  },
+  "Oman (OM)": {
+    "name": "Oman",
+    "code": "OM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Pakistan (PK)": {
+    "name": "Pakistan",
+    "code": "PK",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Palestine (PS)": {
+    "name": "Palestine",
+    "code": "PS",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Panama (PA)": {
+    "name": "Panama",
+    "code": "PA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Papua New Guinea (PG)": {
+    "name": "Papua New Guinea",
+    "code": "PG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Paraguay (PY)": {
+    "name": "Paraguay",
+    "code": "PY",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Peru (PE)": {
+    "name": "Peru",
+    "code": "PE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/department (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By province (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Philippines (PH)": {
+    "name": "Philippines",
+    "code": "PH",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By province (Admin Level 2)", "adminLevel": "admin2" },
+      { "label": "By city/municipality (Admin Level 3)", "adminLevel": "admin3" }
+    ]
+  },
+  "Poland (PL)": {
+    "name": "Poland",
+    "code": "PL",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By voivodeship (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By county/powiat (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Portugal (PT)": {
+    "name": "Portugal",
+    "code": "PT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Puerto Rico (PR)": {
+    "name": "Puerto Rico",
+    "code": "PR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Qatar (QA)": {
+    "name": "Qatar",
+    "code": "QA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Romania (RO)": {
+    "name": "Romania",
+    "code": "RO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/judet (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Russia (RU)": {
+    "name": "Russia",
+    "code": "RU",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By federal subject (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/raion (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Rwanda (RW)": {
+    "name": "Rwanda",
+    "code": "RW",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Saint Kitts and Nevis (KN)": {
+    "name": "Saint Kitts and Nevis",
+    "code": "KN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Saint Lucia (LC)": {
+    "name": "Saint Lucia",
+    "code": "LC",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Saint Vincent and the Grenadines (VC)": {
+    "name": "Saint Vincent and the Grenadines",
+    "code": "VC",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By parish (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Samoa (WS)": {
+    "name": "Samoa",
+    "code": "WS",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "San Marino (SM)": {
+    "name": "San Marino",
+    "code": "SM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "SÃ£o TomÃ© and PrÃ­ncipe (ST)": {
+    "name": "SÃ£o TomÃ© and PrÃ­ncipe",
+    "code": "ST",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Saudi Arabia (SA)": {
+    "name": "Saudi Arabia",
+    "code": "SA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/mintaqah (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By governorate (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Senegal (SN)": {
+    "name": "Senegal",
+    "code": "SN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By department (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Serbia (RS)": {
+    "name": "Serbia",
+    "code": "RS",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district/okrug (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Seychelles (SC)": {
+    "name": "Seychelles",
+    "code": "SC",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Sierra Leone (SL)": {
+    "name": "Sierra Leone",
+    "code": "SL",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Singapore (SG)": {
+    "name": "Singapore",
+    "code": "SG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Slovakia (SK)": {
+    "name": "Slovakia",
+    "code": "SK",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/kraj (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/okres (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Slovenia (SI)": {
+    "name": "Slovenia",
+    "code": "SI",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By statistical region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Solomon Islands (SB)": {
+    "name": "Solomon Islands",
+    "code": "SB",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Somalia (SO)": {
+    "name": "Somalia",
+    "code": "SO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By region (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "South Africa (ZA)": {
+    "name": "South Africa",
+    "code": "ZA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      {
+        "label": "By district municipality (Admin Level 2)",
+        "adminLevel": "admin2"
+      }
+    ]
+  },
+  "South Korea (KR)": {
+    "name": "South Korea",
+    "code": "KR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/city (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/gun (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "South Sudan (SS)": {
+    "name": "South Sudan",
+    "code": "SS",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By county (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Spain (ES)": {
+    "name": "Spain",
+    "code": "ES",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      {
+        "label": "By autonomous community (Admin Level 1)",
+        "adminLevel": "admin1"
+      },
+      { "label": "By province (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Sri Lanka (LK)": {
+    "name": "Sri Lanka",
+    "code": "LK",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Sudan (SD)": {
+    "name": "Sudan",
+    "code": "SD",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By locality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Suriname (SR)": {
+    "name": "Suriname",
+    "code": "SR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By district (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Sweden (SE)": {
+    "name": "Sweden",
+    "code": "SE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/lÃ¤n (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality/kommun (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Switzerland (CH)": {
+    "name": "Switzerland",
+    "code": "CH",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By canton (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Syria (SY)": {
+    "name": "Syria",
+    "code": "SY",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Taiwan (TW)": {
+    "name": "Taiwan",
+    "code": "TW",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By county/city (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/township (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Tajikistan (TJ)": {
+    "name": "Tajikistan",
+    "code": "TJ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/viloyat (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/nohiya (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Tanzania (TZ)": {
+    "name": "Tanzania",
+    "code": "TZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Thailand (TH)": {
+    "name": "Thailand",
+    "code": "TH",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/changwat (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/amphoe (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Timor-Leste (TL)": {
+    "name": "Timor-Leste",
+    "code": "TL",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By municipality (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Togo (TG)": {
+    "name": "Togo",
+    "code": "TG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By prefecture (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Tonga (TO)": {
+    "name": "Tonga",
+    "code": "TO",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By division (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Trinidad and Tobago (TT)": {
+    "name": "Trinidad and Tobago",
+    "code": "TT",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/borough (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Tunisia (TN)": {
+    "name": "Tunisia",
+    "code": "TN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By delegation (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Turkey (TR)": {
+    "name": "Turkey",
+    "code": "TR",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/il (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/ilÃ§e (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Turkmenistan (TM)": {
+    "name": "Turkmenistan",
+    "code": "TM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/welayat (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/etrap (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Uganda (UG)": {
+    "name": "Uganda",
+    "code": "UG",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Ukraine (UA)": {
+    "name": "Ukraine",
+    "code": "UA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By oblast (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By raion (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "United Arab Emirates (AE)": {
+    "name": "United Arab Emirates",
+    "code": "AE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By emirate (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "United Kingdom (GB)": {
+    "name": "United Kingdom",
+    "code": "GB",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By country/region (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By county/council area (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "United States (US)": {
+    "name": "United States",
+    "code": "US",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By county (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Uruguay (UY)": {
+    "name": "Uruguay",
+    "code": "UY",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By department (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Uzbekistan (UZ)": {
+    "name": "Uzbekistan",
+    "code": "UZ",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By region/viloyat (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district/tuman (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Vanuatu (VU)": {
+    "name": "Vanuatu",
+    "code": "VU",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" }
+    ]
+  },
+  "Vatican City (VA)": {
+    "name": "Vatican City",
+    "code": "VA",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" }
+    ]
+  },
+  "Venezuela (VE)": {
+    "name": "Venezuela",
+    "code": "VE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By state (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By municipality (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Vietnam (VN)": {
+    "name": "Vietnam",
+    "code": "VN",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province/city (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Yemen (YE)": {
+    "name": "Yemen",
+    "code": "YE",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By governorate (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Zambia (ZM)": {
+    "name": "Zambia",
+    "code": "ZM",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  },
+  "Zimbabwe (ZW)": {
+    "name": "Zimbabwe",
+    "code": "ZW",
+    "levels": [
+      { "label": "Country/Territory (Admin Level 0)", "adminLevel": "admin0" },
+      { "label": "By province (Admin Level 1)", "adminLevel": "admin1" },
+      { "label": "By district (Admin Level 2)", "adminLevel": "admin2" }
+    ]
+  }
+}

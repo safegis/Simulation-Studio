@@ -41,7 +41,7 @@ export default function SelectAssessment({
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2 z-10">
         <span className="text-[10px] font-medium text-[#C7C7C7]">
-          Select tools to include:
+          Select tools to use:
         </span>
         <button
           onClick={

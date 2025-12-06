@@ -41,7 +41,7 @@ export default function SelectPlanningTools({
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2 z-10">
         <span className="text-[10px] font-medium text-[#C7C7C7]">
-          Select planners to include:
+          Select planners to use:
         </span>
         <button
           onClick={
@@ -61,25 +61,48 @@ export default function SelectPlanningTools({
 
       {/* Scrollable Tool List */}
       <div className="scrollbar-rounded overflow-y-auto px-3 pb-3 flex-1 space-y-2">
-        {toolOptions.map((label, i) => (
-          <div
-            key={i}
-            className="bg-[#3a3a3a] h-[110px] px-3 py-2 rounded-md hover:bg-[#4a4a4a] transition flex items-center"
-          >
-            <Checkbox
-              checked={selectedPlanningTools.includes(label)}
-              onCheckedChange={() => handleToggle(label)}
-              className="mr-3"
-              style={{
-                width: "14px",
-                height: "14px",
-                minWidth: "14px",
-                minHeight: "14px",
-              }}
-            />
-            <div className="text-[12px] font-medium">{label}</div>
-          </div>
-        ))}
+        {toolOptions.map((label, i) => {
+          const isComingSoon =
+            label === "Evacuation Planner" || label === "Recovery Planner";
+
+          return (
+            <div
+              key={i}
+              className={`bg-[#3a3a3a] h-[110px] px-3 py-2 rounded-md transition flex items-center ${
+                isComingSoon
+                  ? "opacity-60 cursor-not-allowed"
+                  : "hover:bg-[#4a4a4a]"
+              }`}
+            >
+              <Checkbox
+                checked={selectedPlanningTools.includes(label)}
+                onCheckedChange={() => !isComingSoon && handleToggle(label)}
+                disabled={isComingSoon}
+                className="mr-3"
+                style={{
+                  width: "14px",
+                  height: "14px",
+                  minWidth: "14px",
+                  minHeight: "14px",
+                }}
+              />
+              <div className="flex flex-col">
+                <div
+                  className={`text-[12px] font-medium ${
+                    isComingSoon ? "text-gray-400" : ""
+                  }`}
+                >
+                  {label}
+                </div>
+                {isComingSoon && (
+                  <div className="text-[10px] text-[#8183e5] mt-1">
+                    Coming Soon...
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

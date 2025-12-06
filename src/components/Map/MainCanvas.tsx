@@ -89,6 +89,10 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const latestAffectedAreas = useRef<GeoJSON.FeatureCollection | null>(null);
 
   const healthPopupRef = useRef<mapboxgl.Popup | null>(null);
+  const boundaryClickHandlerRef = useRef<
+    ((e: mapboxgl.MapLayerMouseEvent) => void) | null
+  >(null);
+  const boundaryPopupRef = useRef<mapboxgl.Popup | null>(null);
 
   // --- use the custom hook to restore health facility markers after style change ---
   useHealthFacilitiesRestore(mapInstance, mapIsLoaded);
@@ -1451,6 +1455,520 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       );
     },
     getUploadedLayerData,
+
+    // Add boundary layer using geoBoundaries API (free, CC-BY 4.0)
+    addBoundaryLayer: async (
+      countryCode: string,
+      adminLevel: string,
+      boundaryLabel?: string
+    ) => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return;
+
+      const sourceId = "geoboundaries";
+      const fillLayerId = "boundary-fill";
+      const lineLayerId = "boundary-line";
+
+      // Remove existing click handler before removing layers
+      if (boundaryClickHandlerRef.current && map.getLayer(fillLayerId)) {
+        map.off("click", fillLayerId, boundaryClickHandlerRef.current);
+        boundaryClickHandlerRef.current = null;
+      }
+
+      // Remove existing popup
+      boundaryPopupRef.current?.remove();
+      boundaryPopupRef.current = null;
+
+      // Remove existing boundary layers
+      if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
+      if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      // Map admin level to geoBoundaries format (ADM0, ADM1, ADM2, etc.)
+      const gbAdminLevelMap: Record<string, string> = {
+        admin0: "ADM0",
+        admin1: "ADM1",
+        admin2: "ADM2",
+        admin3: "ADM3",
+      };
+
+      const gbAdminLevel = gbAdminLevelMap[adminLevel];
+      if (!gbAdminLevel) {
+        console.warn(`Unknown admin level: ${adminLevel}`);
+        return;
+      }
+
+      // ISO2 to ISO3 mapping for geoBoundaries API
+      // Complete ISO2 to ISO3 mapping for all countries
+      const iso3Map: Record<string, string> = {
+        AD: "AND",
+        AE: "ARE",
+        AF: "AFG",
+        AG: "ATG",
+        AI: "AIA",
+        AL: "ALB",
+        AM: "ARM",
+        AO: "AGO",
+        AQ: "ATA",
+        AR: "ARG",
+        AS: "ASM",
+        AT: "AUT",
+        AU: "AUS",
+        AW: "ABW",
+        AZ: "AZE",
+        BA: "BIH",
+        BB: "BRB",
+        BD: "BGD",
+        BE: "BEL",
+        BF: "BFA",
+        BG: "BGR",
+        BH: "BHR",
+        BI: "BDI",
+        BJ: "BEN",
+        BM: "BMU",
+        BN: "BRN",
+        BO: "BOL",
+        BR: "BRA",
+        BS: "BHS",
+        BT: "BTN",
+        BW: "BWA",
+        BY: "BLR",
+        BZ: "BLZ",
+        CA: "CAN",
+        CD: "COD",
+        CF: "CAF",
+        CG: "COG",
+        CH: "CHE",
+        CI: "CIV",
+        CL: "CHL",
+        CM: "CMR",
+        CN: "CHN",
+        CO: "COL",
+        CR: "CRI",
+        CU: "CUB",
+        CV: "CPV",
+        CY: "CYP",
+        CZ: "CZE",
+        DE: "DEU",
+        DJ: "DJI",
+        DK: "DNK",
+        DM: "DMA",
+        DO: "DOM",
+        DZ: "DZA",
+        EC: "ECU",
+        EE: "EST",
+        EG: "EGY",
+        ER: "ERI",
+        ES: "ESP",
+        ET: "ETH",
+        FI: "FIN",
+        FJ: "FJI",
+        FR: "FRA",
+        GA: "GAB",
+        GB: "GBR",
+        GD: "GRD",
+        GE: "GEO",
+        GH: "GHA",
+        GL: "GRL",
+        GM: "GMB",
+        GN: "GIN",
+        GQ: "GNQ",
+        GR: "GRC",
+        GT: "GTM",
+        GW: "GNB",
+        GY: "GUY",
+        HK: "HKG",
+        HN: "HND",
+        HR: "HRV",
+        HT: "HTI",
+        HU: "HUN",
+        ID: "IDN",
+        IE: "IRL",
+        IL: "ISR",
+        IN: "IND",
+        IQ: "IRQ",
+        IR: "IRN",
+        IS: "ISL",
+        IT: "ITA",
+        JM: "JAM",
+        JO: "JOR",
+        JP: "JPN",
+        KE: "KEN",
+        KG: "KGZ",
+        KH: "KHM",
+        KM: "COM",
+        KN: "KNA",
+        KP: "PRK",
+        KR: "KOR",
+        KW: "KWT",
+        KZ: "KAZ",
+        LA: "LAO",
+        LB: "LBN",
+        LC: "LCA",
+        LI: "LIE",
+        LK: "LKA",
+        LR: "LBR",
+        LS: "LSO",
+        LT: "LTU",
+        LU: "LUX",
+        LV: "LVA",
+        LY: "LBY",
+        MA: "MAR",
+        MC: "MCO",
+        MD: "MDA",
+        ME: "MNE",
+        MG: "MDG",
+        MK: "MKD",
+        ML: "MLI",
+        MM: "MMR",
+        MN: "MNG",
+        MR: "MRT",
+        MT: "MLT",
+        MU: "MUS",
+        MV: "MDV",
+        MW: "MWI",
+        MX: "MEX",
+        MY: "MYS",
+        MZ: "MOZ",
+        NA: "NAM",
+        NE: "NER",
+        NG: "NGA",
+        NI: "NIC",
+        NL: "NLD",
+        NO: "NOR",
+        NP: "NPL",
+        NZ: "NZL",
+        OM: "OMN",
+        PA: "PAN",
+        PE: "PER",
+        PG: "PNG",
+        PH: "PHL",
+        PK: "PAK",
+        PL: "POL",
+        PR: "PRI",
+        PS: "PSE",
+        PT: "PRT",
+        PY: "PRY",
+        QA: "QAT",
+        RO: "ROU",
+        RS: "SRB",
+        RU: "RUS",
+        RW: "RWA",
+        SA: "SAU",
+        SB: "SLB",
+        SC: "SYC",
+        SD: "SDN",
+        SE: "SWE",
+        SG: "SGP",
+        SI: "SVN",
+        SK: "SVK",
+        SL: "SLE",
+        SM: "SMR",
+        SN: "SEN",
+        SO: "SOM",
+        SR: "SUR",
+        SS: "SSD",
+        ST: "STP",
+        SV: "SLV",
+        SY: "SYR",
+        SZ: "SWZ",
+        TD: "TCD",
+        TG: "TGO",
+        TH: "THA",
+        TJ: "TJK",
+        TL: "TLS",
+        TM: "TKM",
+        TN: "TUN",
+        TO: "TON",
+        TR: "TUR",
+        TT: "TTO",
+        TW: "TWN",
+        TZ: "TZA",
+        UA: "UKR",
+        UG: "UGA",
+        US: "USA",
+        UY: "URY",
+        UZ: "UZB",
+        VA: "VAT",
+        VC: "VCT",
+        VE: "VEN",
+        VN: "VNM",
+        VU: "VUT",
+        WS: "WSM",
+        XK: "XKX",
+        YE: "YEM",
+        ZA: "ZAF",
+        ZM: "ZMB",
+        ZW: "ZWE",
+      };
+
+      const iso3 = iso3Map[countryCode];
+      if (!iso3) {
+        console.warn(`Unknown country code: ${countryCode}`);
+        return;
+      }
+
+      try {
+        console.log(`Fetching boundary for ${iso3} at ${gbAdminLevel}...`);
+
+        // Helper function to try fetching with multiple CORS proxies
+        const fetchWithProxy = async (url: string): Promise<Response> => {
+          const proxies = [
+            "https://corsproxy.io/?",
+            "https://api.allorigins.win/raw?url=",
+          ];
+
+          for (const proxy of proxies) {
+            try {
+              const response = await fetch(proxy + encodeURIComponent(url));
+              if (response.ok) {
+                return response;
+              }
+            } catch (e) {
+              console.warn(`Proxy ${proxy} failed, trying next...`);
+            }
+          }
+          throw new Error("All CORS proxies failed");
+        };
+
+        // Step 1: Get the geoBoundaries API metadata
+        const apiUrl = `https://www.geoboundaries.org/api/current/gbOpen/${iso3}/${gbAdminLevel}/`;
+
+        console.log(`Fetching geoBoundaries metadata from: ${apiUrl}`);
+
+        const metaResponse = await fetchWithProxy(apiUrl);
+        const metadata = await metaResponse.json();
+
+        if (!metadata || !metadata.simplifiedGeometryGeoJSON) {
+          throw new Error("No boundary data available for this country/level");
+        }
+
+        // Use simplified geometry for faster loading (smaller file size)
+        const geojsonUrl =
+          metadata.simplifiedGeometryGeoJSON || metadata.gjDownloadURL;
+        console.log(`Downloading GeoJSON from: ${geojsonUrl}`);
+
+        // Step 2: Download the actual GeoJSON file
+        const geojsonResponse = await fetchWithProxy(geojsonUrl);
+        const geojson: GeoJSON.FeatureCollection = await geojsonResponse.json();
+
+        if (!geojson || !geojson.features || geojson.features.length === 0) {
+          throw new Error("Empty GeoJSON data");
+        }
+
+        console.log(`Loaded ${geojson.features.length} boundary features`);
+
+        // Add the GeoJSON source
+        map.addSource(sourceId, { type: "geojson", data: geojson });
+
+        // Add fill layer
+        map.addLayer({
+          id: fillLayerId,
+          type: "fill",
+          source: sourceId,
+          paint: { "fill-color": "#9699FF", "fill-opacity": 0.2 },
+        });
+
+        // Add line layer
+        map.addLayer({
+          id: lineLayerId,
+          type: "line",
+          source: sourceId,
+          paint: { "line-color": "#9699FF", "line-width": 2 },
+        });
+
+        // Add click popup for boundary info - use ref to track and clean up
+        // (cleanup already done at the start of this function)
+        boundaryPopupRef.current = new mapboxgl.Popup({
+          closeButton: true,
+          closeOnClick: true,
+          maxWidth: "none",
+          className: "custom-earthquake-popup",
+        });
+
+        // Create click handler and store reference for cleanup
+        const clickHandler = (e: mapboxgl.MapLayerMouseEvent) => {
+          if (!e.features || e.features.length === 0) return;
+          const feature = e.features[0];
+          const props = feature.properties || {};
+
+          // Get the boundary name - geoBoundaries uses shapeName field
+          const boundaryName =
+            props.shapeName || props.name || props.NAME || "Unknown";
+
+          // Extract the specific boundary type from the label (e.g., "By province (Admin Level 1)" -> "Province")
+          let typeLabel = "Boundary";
+          if (boundaryLabel) {
+            // Parse "By province (Admin Level 1)" to get "Province"
+            const match = boundaryLabel.match(/^By\s+(.+?)\s*\(/i);
+            if (match) {
+              typeLabel =
+                match[1].charAt(0).toUpperCase() +
+                match[1].slice(1).toLowerCase();
+            } else if (boundaryLabel.includes("Country")) {
+              typeLabel = "Country";
+            }
+          }
+
+          // Get admin level display (e.g., "Admin Level 1")
+          const adminLevelDisplay = gbAdminLevel.replace("ADM", "Admin Level ");
+
+          // Get country code from shapeGroup (ISO3 code)
+          const isoCode = props.shapeGroup || "";
+
+          const html = `
+            <div style="
+              background: #2E2E2E;
+              border-radius: 6px;
+              padding: 8px;
+              min-width: 180px;
+              max-width: 260px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+              border: 1px solid #3a3a3a;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            ">
+              <div style="
+                background: #2a2a2a;
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                padding: 6px;
+                margin-bottom: 6px;
+              ">
+                <div style="
+                  color: #9699FF;
+                  font-size: 8px;
+                  font-weight: 500;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+                  margin-bottom: 2px;
+                ">
+                  ${typeLabel}
+                </div>
+                <div style="
+                  color: white;
+                  font-size: 13px;
+                  font-weight: 600;
+                  word-break: break-word;
+                ">
+                  ${boundaryName}
+                </div>
+              </div>
+              <div style="
+                background: #2a2a2a;
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                padding: 6px;
+                margin-bottom: 6px;
+              ">
+                <div style="
+                  color: #9699FF;
+                  font-size: 8px;
+                  font-weight: 500;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+                  margin-bottom: 2px;
+                ">
+                  Administrative Level
+                </div>
+                <div style="
+                  color: #C7C7C7;
+                  font-size: 11px;
+                  font-weight: 600;
+                ">
+                  ${adminLevelDisplay}
+                </div>
+              </div>
+              ${
+                isoCode
+                  ? `
+              <div style="
+                background: #2a2a2a;
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                padding: 6px;
+              ">
+                <div style="
+                  color: #9699FF;
+                  font-size: 8px;
+                  font-weight: 500;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+                  margin-bottom: 2px;
+                ">
+                  Country Code
+                </div>
+                <div style="
+                  color: #C7C7C7;
+                  font-size: 11px;
+                  font-weight: 600;
+                ">
+                  ${isoCode}
+                </div>
+              </div>
+              `
+                  : ""
+              }
+            </div>
+          `;
+
+          boundaryPopupRef.current
+            ?.setLngLat(e.lngLat)
+            .setHTML(html)
+            .addTo(map);
+        };
+
+        // Store the handler reference for cleanup
+        boundaryClickHandlerRef.current = clickHandler;
+        map.on("click", fillLayerId, clickHandler);
+
+        // Cursor change on hover
+        map.on("mouseenter", fillLayerId, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", fillLayerId, () => {
+          map.getCanvas().style.cursor = "";
+        });
+
+        // Fit map to boundary bounds
+        const turf = await import("@turf/turf");
+        const bbox = turf.bbox(geojson);
+        map.fitBounds(bbox as [number, number, number, number], {
+          padding: 50,
+          duration: 1000,
+        });
+
+        console.log(`Added boundary layer for ${iso3} at ${gbAdminLevel}`);
+      } catch (error) {
+        console.error("Error fetching boundary data:", error);
+      }
+    },
+
+    // Remove boundary layer
+    removeBoundaryLayer: () => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return;
+
+      const sourceId = "geoboundaries";
+      const fillLayerId = "boundary-fill";
+      const lineLayerId = "boundary-line";
+
+      // Remove click handler before removing layers
+      if (boundaryClickHandlerRef.current && map.getLayer(fillLayerId)) {
+        map.off("click", fillLayerId, boundaryClickHandlerRef.current);
+        boundaryClickHandlerRef.current = null;
+      }
+
+      // Remove popup
+      boundaryPopupRef.current?.remove();
+      boundaryPopupRef.current = null;
+
+      // Remove layers and source
+      if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
+      if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      console.log("Removed boundary layer");
+    },
   }));
   return (
     <>

@@ -39,7 +39,7 @@ export default function SelectMaps({
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2 z-10">
         <span className="text-[10px] font-medium text-[#C7C7C7]">
-          Select layers to include:
+          Select layers to display:
         </span>
         <button
           onClick={selectedMaps.length === 0 ? undefined : onGoToToolPanel}
