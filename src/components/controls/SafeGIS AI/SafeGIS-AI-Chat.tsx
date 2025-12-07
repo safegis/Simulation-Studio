@@ -154,7 +154,7 @@ function CitationsSection({
         className="flex items-center justify-between w-full text-white hover:text-gray-200 transition-colors mb-2"
       >
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold">Citations</span>
+          <span className="text-[10px] font-semibold">References</span>
           <span className="text-[9px] text-[#C7C7C7] bg-white/10 px-1.5 py-0.5 rounded-full">
             {citations.length}
           </span>
@@ -251,30 +251,51 @@ const convertToWav = async (audioBlob: Blob): Promise<Blob> => {
   });
 };
 
-// Loader
-function ThinkingLoader() {
+// Loader with operation steps
+function ThinkingLoader({ operations }: { operations: string[] }) {
   return (
-    <div className="flex flex-col items-center justify-center py-4">
-      <div className="relative w-20 h-20 mt-5">
-        {/* Centered spinning circles */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 z-10">
-          {/* Outer solid spinner */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full border-3 border-t-transparent border-[#9699FF] animate-spin-slow"></div>
-          {/* Inner smaller dashed spinner */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-2 border-dashed border-[#C7C7C7] animate-spin-reverse"></div>
+    <div className="flex flex-col py-4">
+      {/* Centered loading animation and text */}
+      <div className="flex flex-col items-center justify-center">
+        <div className="relative w-20 h-20 mt-5">
+          {/* Centered spinning circles */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 z-10">
+            {/* Outer solid spinner */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full border-3 border-t-transparent border-[#9699FF] animate-spin-slow"></div>
+            {/* Inner smaller dashed spinner */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-2 border-dashed border-[#C7C7C7] animate-spin-reverse"></div>
+          </div>
+          {/* Orbiting dots with breathing effect */}
+          <div className="absolute top-1/2 left-1/2 w-16 h-16">
+            <div className="absolute w-2.5 h-2.5 bg-[#9699FF] rounded-full animate-orbit-breath-0 -translate-x-1/2 -translate-y-1/2"></div>
+            <div className="absolute w-2.5 h-2.5 bg-[#C7C7C7] rounded-full animate-orbit-breath-90 -translate-x-1/2 -translate-y-1/2"></div>
+            <div className="absolute w-2.5 h-2.5 bg-[#5A5C99] rounded-full animate-orbit-breath-180 -translate-x-1/2 -translate-y-1/2"></div>
+            <div className="absolute w-2.5 h-2.5 bg-[#ffffff] rounded-full animate-orbit-breath-270 -translate-x-1/2 -translate-y-1/2"></div>
+          </div>
         </div>
-        {/* Orbiting dots with breathing effect */}
-        <div className="absolute top-1/2 left-1/2 w-16 h-16">
-          <div className="absolute w-2.5 h-2.5 bg-[#9699FF] rounded-full animate-orbit-breath-0 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-2.5 h-2.5 bg-[#C7C7C7] rounded-full animate-orbit-breath-90 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-2.5 h-2.5 bg-[#5A5C99] rounded-full animate-orbit-breath-180 -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute w-2.5 h-2.5 bg-[#ffffff] rounded-full animate-orbit-breath-270 -translate-x-1/2 -translate-y-1/2"></div>
-        </div>
+        {/* Loading text */}
+        <p className="mt-8 mb-2 text-[#C7C7C7] text-[10px] animate-pulse text-center">
+          Atlas is mapping your query...
+        </p>
       </div>
-      {/* Loading text */}
-      <p className="mt-8 mb-6 text-[#C7C7C7] text-[10px] animate-pulse text-center">
-        Atlas is mapping your query...
-      </p>
+
+      {/* Operation steps - centered with wider containers */}
+      {operations.length > 0 && (
+        <div className="mt-4 mb-4 space-y-1.5 w-full flex flex-col items-center px-2">
+          {operations.map((operation, index) => (
+            <div
+              key={index}
+              className="bg-white/5 rounded-md px-3 py-2 flex items-start gap-2 text-[9px] text-[#C7C7C7]/90 animate-fade-in border border-white/5 w-full max-w-[calc(100%-8px)]"
+              style={{
+                animationDelay: `${index * 100}ms`,
+              }}
+            >
+              <span className="text-[#9699FF] mt-0.5 flex-shrink-0">•</span>
+              <span className="flex-1">{operation}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -304,6 +325,7 @@ export default function SafeGISAIChat({
   const [conversationHistory, setConversationHistory] = useState<
     LangGraphMessage[]
   >([]);
+  const [operationSteps, setOperationSteps] = useState<string[]>([]);
 
   // Sync internal state with prop
   useEffect(() => {
@@ -322,7 +344,7 @@ export default function SafeGISAIChat({
   useEffect(() => {
     if (chatEndRef.current)
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, loading, operationSteps]);
 
   useEffect(() => {
     if (isVisible) {
@@ -480,8 +502,21 @@ export default function SafeGISAIChat({
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setInputText("");
     setLoading(true);
+    setOperationSteps([]);
 
     try {
+      // Add initial operation step
+      setOperationSteps(["Understanding your request..."]);
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setOperationSteps((prev) => [...prev, "Routing to appropriate agent..."]);
+
+      // If web search is enabled, add web search messages
+      if (webSearchEnabled) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setOperationSteps((prev) => [...prev, "Searching the web..."]);
+      }
+
       // Send to LangGraph backend
       const response = await LangGraphAdapter.sendToLangGraph(
         userText,
@@ -494,12 +529,78 @@ export default function SafeGISAIChat({
         uploadedFiles
       );
 
+      // Add more web search steps if search results were found
+      if (
+        webSearchEnabled &&
+        response.response.search_results &&
+        Array.isArray(response.response.search_results) &&
+        response.response.search_results.length > 0
+      ) {
+        const searchResultsCount = response.response.search_results.length;
+        setOperationSteps((prev) => [
+          ...prev,
+          `Found ${searchResultsCount} sources`,
+        ]);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setOperationSteps((prev) => [...prev, "Analyzing information..."]);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setOperationSteps((prev) => [...prev, "Generating response..."]);
+      }
+
+      // Add operation based on response type
+      const hasSearchResults =
+        response.response.search_results &&
+        Array.isArray(response.response.search_results) &&
+        response.response.search_results.length > 0;
+
+      console.log("Response type check:", {
+        tool: response.response.tool,
+        hasText: !!response.response.text,
+        hasSearchResults,
+        multipleActions: !!response.response.multiple_actions,
+      });
+
+      if (response.response.tool === "search_location") {
+        setOperationSteps((prev) => [...prev, "Searching for location..."]);
+      } else if (response.response.tool === "change_map_style") {
+        setOperationSteps((prev) => [...prev, "Changing map style..."]);
+      } else if (response.response.tool === "switch_view_mode") {
+        setOperationSteps((prev) => [...prev, "Switching view mode..."]);
+      } else if (response.response.tool === "control_time_of_day") {
+        setOperationSteps((prev) => [...prev, "Adjusting time of day..."]);
+      } else if (response.response.tool === "control_zoom") {
+        setOperationSteps((prev) => [...prev, "Adjusting zoom level..."]);
+      } else if (response.response.tool === "control_earthquake_data") {
+        setOperationSteps((prev) => [
+          ...prev,
+          "Configuring earthquake monitoring...",
+        ]);
+      } else if (response.response.tool === "control_weather_data") {
+        setOperationSteps((prev) => [
+          ...prev,
+          "Configuring weather monitoring...",
+        ]);
+      } else if (response.response.multiple_actions) {
+        setOperationSteps((prev) => [
+          ...prev,
+          "Processing multiple actions...",
+        ]);
+      } else {
+        // For Q&A responses - if no tool and no search results were already handled
+        console.log("Entering else block for Q&A");
+        if (!hasSearchResults) {
+          console.log("Adding 'Generating response...' message");
+          setOperationSteps((prev) => [...prev, "Generating response..."]);
+        }
+      }
+
       // Process response and execute actions
       await LangGraphAdapter.processLangGraphResponse(
         response,
         {
           searchLocation: async (query: string) => {
             // Location search - fly to location on map
+            setOperationSteps((prev) => [...prev, `Looking up "${query}"...`]);
             if (mapRef?.current) {
               try {
                 console.log(`Searching for location: ${query}`);
@@ -516,6 +617,15 @@ export default function SafeGISAIChat({
                   const result = geocodeData.results[0];
                   const lngLat: [number, number] = [result.lon, result.lat];
                   console.log(`Flying to: ${result.name} at [${lngLat}]`);
+
+                  setOperationSteps((prev) => [
+                    ...prev,
+                    `Found location: ${result.name}`,
+                  ]);
+                  setOperationSteps((prev) => [
+                    ...prev,
+                    "Flying to location...",
+                  ]);
 
                   // Fly to location
                   if (mapRef.current.flyTo) {
@@ -785,7 +895,10 @@ export default function SafeGISAIChat({
         },
       ]);
     } finally {
+      // Add a small delay so users can see the final operation message
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setLoading(false);
+      setOperationSteps([]);
     }
   };
 
@@ -793,6 +906,7 @@ export default function SafeGISAIChat({
     setMessages([]);
     setInputText("");
     setLoading(false);
+    setOperationSteps([]);
   };
 
   return (
@@ -886,7 +1000,7 @@ export default function SafeGISAIChat({
               </div>
             ))}
 
-            {loading && <ThinkingLoader />}
+            {loading && <ThinkingLoader operations={operationSteps} />}
             <div ref={chatEndRef} />
           </div>
 
