@@ -34,6 +34,8 @@ type Props = {
   // props for map style switching
   selectedMapStyle?: string;
   handleMapStyleChange?: (style: string) => void;
+  // props for time of day control
+  handleTimeOfDayChange?: (preset: string) => void;
   // Live Hazard Monitor control callbacks
   liveHazardMonitorCallbacks?: {
     openLiveHazardMonitor: () => void;
@@ -289,6 +291,7 @@ export default function SafeGISAIChat({
   setViewMode,
   selectedMapStyle = "Default (Custom Mapbox Standard)",
   handleMapStyleChange,
+  handleTimeOfDayChange,
   liveHazardMonitorCallbacks,
   exposureAssessmentCallbacks,
   uploadedFiles = [],
@@ -546,13 +549,39 @@ export default function SafeGISAIChat({
               handleMapStyleChange(style);
             }
           },
-          switchViewMode: (mode: "2d" | "3d") => {
+          switchViewMode: (mode: "2d" | "3d", style?: string) => {
             if (mode === "2d" && switchTo2D) {
               switchTo2D();
               if (setViewMode) setViewMode("2d");
-            } else if (mode === "3d" && switchTo3D) {
-              switchTo3D();
+            } else if (mode === "3d") {
+              // Use the provided style or fall back to current
+              const styleToUse =
+                style || selectedMapStyle || "Default (Custom Mapbox Standard)";
+              console.log("AI switchViewMode to 3D with style:", styleToUse);
+
+              // Update the state first
+              if (style && handleMapStyleChange) {
+                handleMapStyleChange(style);
+              }
+
+              // Call switchTo3D through mapRef directly with the correct style
+              if (mapRef?.current?.switchTo3D) {
+                mapRef.current.switchTo3D(styleToUse);
+              }
+
               if (setViewMode) setViewMode("3d");
+
+              // Set time of day to Auto when switching to 3D
+              if (handleTimeOfDayChange) {
+                handleTimeOfDayChange("Auto");
+              }
+            }
+          },
+          getCurrentMapStyle: () =>
+            selectedMapStyle || "Default (Custom Mapbox Standard)",
+          controlTimeOfDay: (preset: string) => {
+            if (handleTimeOfDayChange) {
+              handleTimeOfDayChange(preset);
             }
           },
           controlEarthquake: (

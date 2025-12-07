@@ -13,6 +13,7 @@ export interface LangGraphResponse {
     query?: string;
     style?: string;
     mode?: string;
+    preset?: string;
     source?: string;
     scope?: string;
     province?: string;
@@ -57,7 +58,13 @@ export interface MapCallbacks {
   changeMapStyle: (style: string) => void;
 
   // View mode
-  switchViewMode: (mode: "2d" | "3d") => void;
+  switchViewMode: (mode: "2d" | "3d", style?: string) => void;
+
+  // Time of day control
+  controlTimeOfDay: (preset: string) => void;
+
+  // Get current map style (for passing to view mode switches)
+  getCurrentMapStyle: () => string;
 
   // Earthquake control
   controlEarthquake: (
@@ -148,8 +155,21 @@ export async function processLangGraphResponse(
   if (requires_frontend && data.multiple_actions) {
     try {
       const actions = data.multiple_actions as any[];
+      let lastStyleChange: string | null = null;
+
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
+
+        // Track style changes for subsequent view mode switches
+        if (action.tool === "change_map_style" && action.style) {
+          lastStyleChange = STYLE_MAP[action.style] || action.style;
+        }
+
+        // If switching view mode after a style change, pass the new style
+        if (action.tool === "switch_view_mode" && lastStyleChange) {
+          action._pendingStyle = lastStyleChange;
+        }
+
         await processLangGraphResponse(
           {
             response: action,
@@ -167,7 +187,9 @@ export async function processLangGraphResponse(
             action.tool === "switch_view_mode") &&
           i < actions.length - 1
         ) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          // Longer delay for style changes to ensure state updates and style loads
+          const delay = action.tool === "change_map_style" ? 1000 : 500;
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
       // Show info message if present
@@ -206,12 +228,27 @@ export async function processLangGraphResponse(
 
         case "switch_view_mode":
           if (data.mode) {
-            callbacks.switchViewMode(data.mode as "2d" | "3d");
+            // If there's a pending style from a previous action, use it
+            const styleToUse =
+              (data as any)._pendingStyle || callbacks.getCurrentMapStyle();
+            callbacks.switchViewMode(data.mode as "2d" | "3d", styleToUse);
             let message = `✅ **Map switched to ${data.mode.toUpperCase()} mode**\n\nThe view mode has been updated.`;
             if (data.info_message) {
               message += `\n\nℹ️ ${data.info_message}`;
             }
             addMessage("assistant", message);
+          }
+          break;
+
+        case "control_time_of_day":
+          if (data.preset) {
+            const presetCapitalized =
+              data.preset.charAt(0).toUpperCase() + data.preset.slice(1);
+            callbacks.controlTimeOfDay(presetCapitalized);
+            addMessage(
+              "assistant",
+              `✅ **Time of day set to ${presetCapitalized}**\n\nThe lighting has been updated.`
+            );
           }
           break;
 

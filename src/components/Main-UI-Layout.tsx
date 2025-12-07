@@ -437,6 +437,7 @@ export default function MainUILayout() {
   const switchTo3D = () => {
     setViewMode("3d");
     handleTimeOfDayChange("Auto");
+    // Use selectedMapStyle state - it should be updated by now if style was changed first
     mapRef.current?.switchTo3D?.(selectedMapStyle);
 
     // Restore aspect ratio shape after view switch
@@ -1444,6 +1445,7 @@ export default function MainUILayout() {
             setViewMode={setViewMode}
             selectedMapStyle={selectedMapStyle}
             handleMapStyleChange={handleMapStyleChange}
+            handleTimeOfDayChange={handleTimeOfDayChange}
             uploadedFiles={uploadedFiles.map((f) => f.name)}
             liveHazardMonitorCallbacks={{
               openLiveHazardMonitor: () => setShowLiveHazardMonitor(true),
