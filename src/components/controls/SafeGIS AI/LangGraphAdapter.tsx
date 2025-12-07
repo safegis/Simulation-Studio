@@ -14,6 +14,9 @@ export interface LangGraphResponse {
     style?: string;
     mode?: string;
     preset?: string;
+    direction?: string;
+    amount?: number;
+    is_max?: boolean;
     source?: string;
     scope?: string;
     province?: string;
@@ -62,6 +65,13 @@ export interface MapCallbacks {
 
   // Time of day control
   controlTimeOfDay: (preset: string) => void;
+
+  // Zoom control
+  controlZoom: (
+    direction: "in" | "out",
+    amount: number,
+    isMax: boolean
+  ) => void;
 
   // Get current map style (for passing to view mode switches)
   getCurrentMapStyle: () => string;
@@ -249,6 +259,35 @@ export async function processLangGraphResponse(
               "assistant",
               `✅ **Time of day set to ${presetCapitalized}**\n\nThe lighting has been updated.`
             );
+          }
+          break;
+
+        case "control_zoom":
+          if (data.direction) {
+            const isMax = data.is_max || false;
+            const amount = data.amount || 1.0;
+            callbacks.controlZoom(
+              data.direction as "in" | "out",
+              amount,
+              isMax
+            );
+
+            if (isMax) {
+              addMessage(
+                "assistant",
+                `✅ **Zoomed ${
+                  data.direction
+                } to maximum**\n\nThe map has been zoomed to the ${
+                  data.direction === "in" ? "closest" : "farthest"
+                } level.`
+              );
+            } else {
+              const percentage = Math.round(amount * 100);
+              addMessage(
+                "assistant",
+                `✅ **Zoomed ${data.direction} by ${percentage}%**\n\nThe map zoom has been adjusted.`
+              );
+            }
           }
           break;
 

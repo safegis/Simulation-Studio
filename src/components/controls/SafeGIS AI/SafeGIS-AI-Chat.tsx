@@ -584,6 +584,28 @@ export default function SafeGISAIChat({
               handleTimeOfDayChange(preset);
             }
           },
+          controlZoom: (
+            direction: "in" | "out",
+            amount: number,
+            isMax: boolean
+          ) => {
+            if (mapRef?.current) {
+              let newZoom: number;
+
+              if (isMax) {
+                // Zoom to max: 22 for zoom in (closest), 0 for zoom out (farthest)
+                newZoom = direction === "in" ? 22 : 0;
+              } else {
+                const currentZoom = mapRef.current.getZoom?.() || 10;
+                const zoomChange = direction === "in" ? amount : -amount;
+                newZoom = currentZoom + zoomChange;
+                // Clamp between 0 and 22
+                newZoom = Math.max(0, Math.min(22, newZoom));
+              }
+
+              mapRef.current.flyTo?.({ zoom: newZoom, duration: 500 });
+            }
+          },
           controlEarthquake: (
             action: "enable" | "disable",
             source: "philippine" | "global"
