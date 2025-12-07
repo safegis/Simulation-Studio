@@ -1212,6 +1212,17 @@ export default function MainUILayout() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden flex m-0 p-0">
+      {/* Blocking overlay when loading */}
+      {(isBoundaryLoading || isFileLoading) && (
+        <div
+          className="absolute inset-0 z-[9999]"
+          style={{
+            cursor: "not-allowed",
+            pointerEvents: "auto",
+          }}
+        />
+      )}
+
       {!isDesktop ? (
         <div className="flex items-center justify-center w-screen h-screen bg-[#1a1a1a] text-white text-center px-4">
           <div className="max-w-sm text-lg">
