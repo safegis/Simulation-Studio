@@ -46,6 +46,8 @@ import {
 import {
   drawRoutes as drawRoutesHelper,
   highlightRouteByFeatureIndex,
+  drawIncidentSegments as drawIncidentSegmentsHelper,
+  clearIncidentSegments as clearIncidentSegmentsHelper,
 } from "./Markers/Pathfinder/RouteLines";
 import { useResources } from "./Markers/Planning Suite/ResourcesMarker";
 import { switchTo2D } from "./Switch View/SwitchTo2DView";
@@ -2113,6 +2115,31 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 
       console.log("Removed boundary layer");
+    },
+
+    // Traffic incident visualization
+    drawIncidentSegments: (
+      routesWithIncidents: Array<{
+        featureIndex: number;
+        trafficData?: {
+          incidents: Array<{
+            geometry: any;
+            severity: number;
+            category_name: string;
+          }>;
+        };
+      }>
+    ) => {
+      drawIncidentSegmentsHelper(
+        mapInstance.current,
+        mapIsLoaded,
+        routesWithIncidents,
+        getTopSymbolLayerId
+      );
+    },
+
+    clearIncidentSegments: () => {
+      clearIncidentSegmentsHelper(mapInstance.current, mapIsLoaded);
     },
   }));
   return (

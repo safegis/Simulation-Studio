@@ -13,6 +13,7 @@ interface LocationSearchBarProps {
   searchContainerRef: React.RefObject<HTMLDivElement | null>;
   inputRef: React.RefObject<HTMLInputElement | null>;
   suggestionsRef: React.RefObject<HTMLUListElement | null>;
+  setSuggestions: (suggestions: any[]) => void;
 }
 
 const LocationSearchBar = forwardRef<HTMLDivElement, LocationSearchBarProps>(
@@ -27,6 +28,7 @@ const LocationSearchBar = forwardRef<HTMLDivElement, LocationSearchBarProps>(
       searchContainerRef,
       inputRef,
       suggestionsRef,
+      setSuggestions,
     },
     ref
   ) => {
@@ -44,6 +46,10 @@ const LocationSearchBar = forwardRef<HTMLDivElement, LocationSearchBarProps>(
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onKeyDown={handleKeyDown}
+            onBlur={() => {
+              // Clear suggestions after a short delay to allow click events to fire
+              setTimeout(() => setSuggestions([]), 200);
+            }}
             className="bg-transparent outline-none text-[11px] leading-[40px] text-[#C7C7C7] placeholder-[#999] w-full"
           />
         </div>

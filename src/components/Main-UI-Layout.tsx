@@ -35,6 +35,9 @@ export default function MainUILayout() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const [isDesktop, setIsDesktop] = useState(true);
+
+  // Track if location was just selected to prevent re-fetching suggestions
+  const locationJustSelectedRef = useRef(false);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [showChat, setShowChat] = useState(false);
   const [isChatExpanded, setIsChatExpanded] = useState(false);
@@ -174,6 +177,10 @@ export default function MainUILayout() {
   const exposureAssessmentRef =
     useRef<
       import("./controls/Features/Assessment Tools/Exposure Assessment/ExposureAssessmentControls").ExposureAssessmentControlsRef
+    >(null);
+  const pathfinderRef =
+    useRef<
+      import("./controls/Features/Pathfinder/PathfinderControls").PathfinderControlsRef
     >(null);
 
   // Track temporary box coordinates
@@ -341,6 +348,12 @@ export default function MainUILayout() {
       return;
     }
 
+    // Don't fetch if location was just selected
+    if (locationJustSelectedRef.current) {
+      locationJustSelectedRef.current = false;
+      return;
+    }
+
     const delayDebounce = setTimeout(async () => {
       const url = `http://localhost:8000/geocode/autocomplete?text=${encodeURIComponent(
         searchText
@@ -410,6 +423,7 @@ export default function MainUILayout() {
   }, [isChatExpanded]);
 
   const handleSuggestionSelect = (place: any) => {
+    locationJustSelectedRef.current = true;
     setSearchText(place.properties.formatted);
     setSuggestions([]);
     const { lat, lon } = place.properties;
@@ -1282,6 +1296,7 @@ export default function MainUILayout() {
                 searchText={searchText}
                 setSearchText={setSearchText}
                 suggestions={suggestions}
+                setSuggestions={setSuggestions}
                 highlightedIndex={highlightedIndex}
                 handleKeyDown={handleKeyDown}
                 handleSuggestionSelect={handleSuggestionSelect}
@@ -1291,7 +1306,7 @@ export default function MainUILayout() {
               />
             ) : (
               <div className="absolute top-[15px] left-[70px] z-50 w-[280px]">
-                <PathfinderControls mapRef={mapRef} />
+                <PathfinderControls ref={pathfinderRef} mapRef={mapRef} />
               </div>
             ))}
           {/* Panels - Hide when expanded */}
@@ -1660,6 +1675,137 @@ export default function MainUILayout() {
               clearSteps: () => {
                 console.log("🔵 CALLBACK: clearSteps called");
                 exposureAssessmentRef.current?.clearSteps();
+              },
+            }}
+            pathfinderCallbacks={{
+              findRoute: async (
+                start: string,
+                destination: string,
+                mode: string
+              ) => {
+                console.log(
+                  "🔵 CALLBACK: findRoute called with:",
+                  start,
+                  destination,
+                  mode
+                );
+                // Open pathfinder panel
+                setShowPathfinder(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+
+                // Poll until ref is available (component mounted)
+                const pollRef = async (attempts = 0) => {
+                  if (pathfinderRef.current) {
+                    console.log(
+                      "🔵 CALLBACK: Pathfinder ref available, geocoding locations"
+                    );
+                    try {
+                      // Geocode start location
+                      const startRes = await fetch(
+                        `http://localhost:8000/geocode/search?query=${encodeURIComponent(
+                          start
+                        )}`
+                      );
+                      const startData = await startRes.json();
+
+                      // Geocode destination location
+                      const destRes = await fetch(
+                        `http://localhost:8000/geocode/search?query=${encodeURIComponent(
+                          destination
+                        )}`
+                      );
+                      const destData = await destRes.json();
+
+                      if (startData.results?.[0] && destData.results?.[0]) {
+                        const startResult = startData.results[0];
+                        const destResult = destData.results[0];
+
+                        const startCoords = {
+                          lat: startResult.lat,
+                          lon: startResult.lon,
+                        };
+                        const destCoords = {
+                          lat: destResult.lat,
+                          lon: destResult.lon,
+                        };
+
+                        console.log(
+                          "🔵 CALLBACK: Setting locations in pathfinder"
+                        );
+                        // Set locations in pathfinder
+                        pathfinderRef.current.setStartLocation(
+                          startResult.name || start,
+                          startCoords
+                        );
+                        pathfinderRef.current.setDestinationLocation(
+                          destResult.name || destination,
+                          destCoords
+                        );
+
+                        // Set mode if specified
+                        if (mode && mode !== "all") {
+                          pathfinderRef.current.setMode(mode);
+                        }
+
+                        // Fit bounds to show both markers
+                        mapRef.current?.fitBoundsToMarkers();
+
+                        console.log("🔵 CALLBACK: Route finding initiated");
+                      } else {
+                        console.error(
+                          "🔵 CALLBACK: Could not geocode locations"
+                        );
+                      }
+                    } catch (error) {
+                      console.error(
+                        "🔵 CALLBACK: Error geocoding locations:",
+                        error
+                      );
+                    }
+                  } else if (attempts < 20) {
+                    console.log(
+                      `🔵 CALLBACK: Pathfinder ref not ready, retrying... (attempt ${
+                        attempts + 1
+                      }/20)`
+                    );
+                    setTimeout(() => pollRef(attempts + 1), 100);
+                  } else {
+                    console.error(
+                      "🔵 CALLBACK: pathfinderRef.current is NULL after 2 seconds!"
+                    );
+                  }
+                };
+                setTimeout(() => pollRef(), 100);
+              },
+              changeRouteMode: (mode: string) => {
+                console.log("🔵 CALLBACK: changeRouteMode called with:", mode);
+                if (pathfinderRef.current) {
+                  pathfinderRef.current.setMode(mode);
+                }
+              },
+              changeRouteSort: (sortBy: string) => {
+                console.log(
+                  "🔵 CALLBACK: changeRouteSort called with:",
+                  sortBy
+                );
+                if (pathfinderRef.current) {
+                  pathfinderRef.current.setSort(sortBy);
+                }
+              },
+              openPathfinder: () => {
+                console.log("🔵 CALLBACK: openPathfinder called");
+                setShowPathfinder(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+              },
+              closePathfinder: () => {
+                console.log("🔵 CALLBACK: closePathfinder called");
+                setShowPathfinder(false);
               },
             }}
           />

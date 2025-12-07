@@ -47,6 +47,10 @@ export interface LangGraphResponse {
     hazard_data?: string[];
     element_source?: "existing" | "imported";
     element_data?: string[];
+    // Pathfinder fields
+    start?: string;
+    destination?: string;
+    sort_by?: string;
   };
   requires_frontend: boolean;
   requires_clarification: boolean;
@@ -99,6 +103,17 @@ export interface MapCallbacks {
       element_data?: string[];
     }
   ) => void;
+
+  // Pathfinder control
+  findRoute: (
+    start: string,
+    destination: string,
+    mode: string
+  ) => Promise<void>;
+  changeRouteMode: (mode: string) => void;
+  changeRouteSort: (sortBy: string) => void;
+  openPathfinder: () => void;
+  closePathfinder: () => void;
 }
 
 /**
@@ -381,6 +396,51 @@ export async function processLangGraphResponse(
               message = `✅ **Selected exposure elements**\n\nExposure elements have been configured for the assessment.`;
             }
             addMessage("assistant", message);
+          }
+          break;
+
+        case "find_route":
+          if (data.start && data.destination) {
+            await callbacks.findRoute(
+              data.start,
+              data.destination,
+              data.mode || "all"
+            );
+            if (data.text) {
+              addMessage("assistant", data.text);
+            }
+          }
+          break;
+
+        case "change_route_mode":
+          if (data.mode) {
+            callbacks.changeRouteMode(data.mode);
+            if (data.text) {
+              addMessage("assistant", data.text);
+            }
+          }
+          break;
+
+        case "change_route_sort":
+          if (data.sort_by) {
+            callbacks.changeRouteSort(data.sort_by);
+            if (data.text) {
+              addMessage("assistant", data.text);
+            }
+          }
+          break;
+
+        case "open_pathfinder":
+          callbacks.openPathfinder();
+          if (data.text) {
+            addMessage("assistant", data.text);
+          }
+          break;
+
+        case "close_pathfinder":
+          callbacks.closePathfinder();
+          if (data.text) {
+            addMessage("assistant", data.text);
           }
           break;
 

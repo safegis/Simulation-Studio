@@ -64,6 +64,18 @@ type Props = {
   };
   // Uploaded files for exposure assessment
   uploadedFiles?: string[];
+  // Pathfinder control callbacks
+  pathfinderCallbacks?: {
+    findRoute: (
+      start: string,
+      destination: string,
+      mode: string
+    ) => Promise<void>;
+    changeRouteMode: (mode: string) => void;
+    changeRouteSort: (sortBy: string) => void;
+    openPathfinder: () => void;
+    closePathfinder: () => void;
+  };
 };
 
 type Message = {
@@ -316,6 +328,7 @@ export default function SafeGISAIChat({
   liveHazardMonitorCallbacks,
   exposureAssessmentCallbacks,
   uploadedFiles = [],
+  pathfinderCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -875,6 +888,35 @@ export default function SafeGISAIChat({
                   );
                 }
               }
+            }
+          },
+          findRoute: async (
+            start: string,
+            destination: string,
+            mode: string
+          ) => {
+            if (pathfinderCallbacks) {
+              await pathfinderCallbacks.findRoute(start, destination, mode);
+            }
+          },
+          changeRouteMode: (mode: string) => {
+            if (pathfinderCallbacks) {
+              pathfinderCallbacks.changeRouteMode(mode);
+            }
+          },
+          changeRouteSort: (sortBy: string) => {
+            if (pathfinderCallbacks) {
+              pathfinderCallbacks.changeRouteSort(sortBy);
+            }
+          },
+          openPathfinder: () => {
+            if (pathfinderCallbacks) {
+              pathfinderCallbacks.openPathfinder();
+            }
+          },
+          closePathfinder: () => {
+            if (pathfinderCallbacks) {
+              pathfinderCallbacks.closePathfinder();
             }
           },
         },
