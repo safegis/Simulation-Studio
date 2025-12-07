@@ -3,7 +3,17 @@
 
 import React, { useEffect, useState } from "react";
 
-export default function CenterBottomClock() {
+interface CenterBottomClockProps {
+  isBoundaryLoading?: boolean;
+  isFileLoading?: boolean;
+  fileLoadingStage?: string;
+}
+
+export default function CenterBottomClock({
+  isBoundaryLoading = false,
+  isFileLoading = false,
+  fileLoadingStage = "Importing geospatial data...",
+}: CenterBottomClockProps) {
   const [currentTimeFormatted, setCurrentTimeFormatted] = useState("");
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -31,7 +41,53 @@ export default function CenterBottomClock() {
   }, []);
 
   return (
-    <div className="absolute bottom-[15px] left-1/2 transform -translate-x-1/2 z-50">
+    <div className="absolute bottom-[15px] left-1/2 transform -translate-x-1/2 z-50 flex flex-col items-center gap-[15px]">
+      {/* Loading Indicators - Shows above clock when loading */}
+      {isBoundaryLoading && (
+        <div className="bg-[#2E2E2E]/95 rounded-md px-4 py-2 flex items-center justify-center gap-2 shadow-lg">
+          <div className="flex items-center gap-1">
+            <div
+              className="w-2 h-2 bg-[#9699FF] rounded-full animate-bounce"
+              style={{ animationDelay: "0ms" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-[#9699FF] rounded-full animate-bounce"
+              style={{ animationDelay: "150ms" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-[#9699FF] rounded-full animate-bounce"
+              style={{ animationDelay: "300ms" }}
+            ></div>
+          </div>
+          <span className="text-white text-[11px] font-medium leading-none">
+            Loading boundary data...
+          </span>
+        </div>
+      )}
+
+      {isFileLoading && (
+        <div className="bg-[#2E2E2E]/95 rounded-md px-4 py-2 flex items-center justify-center gap-2 shadow-lg">
+          <div className="flex items-center gap-1">
+            <div
+              className="w-2 h-2 bg-[#9699FF] rounded-full animate-bounce"
+              style={{ animationDelay: "0ms" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-[#9699FF] rounded-full animate-bounce"
+              style={{ animationDelay: "150ms" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-[#9699FF] rounded-full animate-bounce"
+              style={{ animationDelay: "300ms" }}
+            ></div>
+          </div>
+          <span className="text-white text-[11px] font-medium leading-none">
+            {fileLoadingStage}
+          </span>
+        </div>
+      )}
+
+      {/* Clock */}
       <div
         className="w-[340px] h-[50px] px-3 py-2 text-[#ffffff] flex flex-col items-center justify-center text-center"
         style={{

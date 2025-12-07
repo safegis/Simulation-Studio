@@ -827,21 +827,35 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       const turf = await import("@turf/turf");
       const normalizedFeatures: GeoJSON.Feature<GeoJSON.Geometry>[] = [];
       geojson.features.forEach((f) => {
-        if (
-          f.geometry.type === "MultiPolygon" ||
-          f.geometry.type === "MultiLineString"
-        ) {
-          const exploded = turf.flatten(f);
-          normalizedFeatures.push(...exploded.features);
-        } else if (f.geometry.type === "MultiPoint") {
-          f.geometry.coordinates.forEach((coord) => {
-            normalizedFeatures.push({
-              type: "Feature",
-              properties: f.properties,
-              geometry: { type: "Point", coordinates: coord },
+        try {
+          if (
+            f.geometry.type === "MultiPolygon" ||
+            f.geometry.type === "MultiLineString"
+          ) {
+            // Check complexity before flattening
+            const coordCount = JSON.stringify(f.geometry.coordinates).length;
+            if (coordCount > 1000000) {
+              console.warn(
+                "Skipping flatten for very complex geometry, using as-is"
+              );
+              normalizedFeatures.push(f);
+            } else {
+              const exploded = turf.flatten(f);
+              normalizedFeatures.push(...exploded.features);
+            }
+          } else if (f.geometry.type === "MultiPoint") {
+            f.geometry.coordinates.forEach((coord) => {
+              normalizedFeatures.push({
+                type: "Feature",
+                properties: f.properties,
+                geometry: { type: "Point", coordinates: coord },
+              });
             });
-          });
-        } else {
+          } else {
+            normalizedFeatures.push(f);
+          }
+        } catch (flattenError) {
+          console.warn("Error flattening geometry, using as-is:", flattenError);
           normalizedFeatures.push(f);
         }
       });
@@ -849,18 +863,35 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         type: "FeatureCollection",
         features: normalizedFeatures,
       };
+
+      console.log("Normalized GeoJSON features:", normalizedFeatures.length);
+      console.log("Adding source:", sourceId);
+
       // Add GeoJSON source
       map.addSource(sourceId, { type: "geojson", data: normalizedGeoJSON });
       const beforeId = getTopSymbolLayerId(map);
+
       // Check which geometry types exist
       const hasPolygons = normalizedGeoJSON.features.some(
-        (f) => f.geometry.type === "Polygon"
+        (f) =>
+          f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon"
       );
       const hasLines = normalizedGeoJSON.features.some(
-        (f) => f.geometry.type === "LineString"
+        (f) =>
+          f.geometry.type === "LineString" ||
+          f.geometry.type === "MultiLineString"
       );
       const hasPoints = normalizedGeoJSON.features.some(
-        (f) => f.geometry.type === "Point"
+        (f) => f.geometry.type === "Point" || f.geometry.type === "MultiPoint"
+      );
+
+      console.log(
+        "Geometry types - Polygons:",
+        hasPolygons,
+        "Lines:",
+        hasLines,
+        "Points:",
+        hasPoints
       );
       // Unified color for all geometries
       const color = "#9699FF";
@@ -998,12 +1029,38 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       // Zoom to feature bounds
       try {
         const bbox = turf.bbox(normalizedGeoJSON);
+        console.log("Fitting bounds to:", bbox);
         map.fitBounds(bbox as [number, number, number, number], {
           padding: 40,
           duration: 1000,
         });
       } catch (err) {
         console.warn("Could not fit bounds:", err);
+        // Try manual bounds calculation as fallback
+        try {
+          const bounds = new mapboxgl.LngLatBounds();
+          normalizedGeoJSON.features.forEach((feature) => {
+            if (feature.geometry.type === "Point") {
+              bounds.extend(feature.geometry.coordinates as [number, number]);
+            } else if (feature.geometry.type === "Polygon") {
+              feature.geometry.coordinates[0].forEach((coord) => {
+                bounds.extend(coord as [number, number]);
+              });
+            } else if (feature.geometry.type === "MultiPolygon") {
+              feature.geometry.coordinates.forEach((polygon) => {
+                polygon[0].forEach((coord) => {
+                  bounds.extend(coord as [number, number]);
+                });
+              });
+            }
+          });
+          if (!bounds.isEmpty()) {
+            console.log("Using manual bounds calculation");
+            map.fitBounds(bounds, { padding: 40, duration: 1000 });
+          }
+        } catch (manualErr) {
+          console.error("Manual bounds calculation also failed:", manualErr);
+        }
       }
     },
     getMap: () => mapInstance.current,
@@ -1479,7 +1536,12 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       boundaryPopupRef.current?.remove();
       boundaryPopupRef.current = null;
 
-      // Remove existing boundary layers
+      // Remove existing boundary layers (must remove ALL layers before removing source)
+      const hoverLayerId = `${fillLayerId}-hover`;
+      const selectedLayerId = `${fillLayerId}-selected`;
+
+      if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId);
+      if (map.getLayer(hoverLayerId)) map.removeLayer(hoverLayerId);
       if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
       if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
@@ -1711,91 +1773,31 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       try {
         console.log(`Fetching boundary for ${iso3} at ${gbAdminLevel}...`);
 
-        // Helper function to try fetching with multiple CORS proxies
-        const fetchWithProxy = async (url: string): Promise<Response> => {
-          const proxies = [
-            "https://corsproxy.io/?",
-            "https://api.allorigins.win/raw?url=",
-          ];
+        // Fetch boundary data from backend
+        const backendEndpoint =
+          process.env.NEXT_PUBLIC_BACKEND_ENDPOINT || "http://localhost:8000";
+        const backendUrl = `${backendEndpoint}/api/boundaries/${iso3}/${gbAdminLevel}`;
+        console.log(`Fetching from backend: ${backendUrl}`);
 
-          for (const proxy of proxies) {
-            try {
-              const response = await fetch(proxy + encodeURIComponent(url));
-              if (response.ok) {
-                return response;
-              }
-            } catch (e) {
-              console.warn(`Proxy ${proxy} failed, trying next...`);
-            }
-          }
-          throw new Error("All CORS proxies failed");
-        };
+        const response = await fetch(backendUrl);
 
-        // Step 1: Get the geoBoundaries API metadata
-        const apiUrl = `https://www.geoboundaries.org/api/current/gbOpen/${iso3}/${gbAdminLevel}/`;
-
-        console.log(`Fetching geoBoundaries metadata from: ${apiUrl}`);
-
-        const metaResponse = await fetchWithProxy(apiUrl);
-
-        // Read response as text first, then parse as JSON
-        const metaText = await metaResponse.text();
-        let metadata;
-        try {
-          metadata = JSON.parse(metaText);
-        } catch (jsonError) {
-          console.error(
-            "Received non-JSON response:",
-            metaText.substring(0, 200)
-          );
-          // Check if it's a 404 error
-          if (metaText.includes("404") || metaText.includes("Not Found")) {
-            throw new Error(
-              `Boundary data not available for this country at ${gbAdminLevel}. Try a different admin level.`
-            );
-          }
+        if (!response.ok) {
+          const errorData = await response
+            .json()
+            .catch(() => ({ detail: "Unknown error" }));
           throw new Error(
-            "API returned non-JSON response. The boundary data may not be available."
+            errorData.detail ||
+              `Failed to fetch boundary data: ${response.statusText}`
           );
         }
 
-        if (!metadata || !metadata.simplifiedGeometryGeoJSON) {
-          throw new Error("No boundary data available for this country/level");
-        }
-
-        // Use simplified geometry for faster loading (smaller file size)
-        const geojsonUrl =
-          metadata.simplifiedGeometryGeoJSON || metadata.gjDownloadURL;
-        console.log(`Downloading GeoJSON from: ${geojsonUrl}`);
-
-        // Step 2: Download the actual GeoJSON file
-        const geojsonResponse = await fetchWithProxy(geojsonUrl);
-
-        // Read response as text first, then parse as JSON
-        const geojsonText = await geojsonResponse.text();
-        let geojson: GeoJSON.FeatureCollection;
-        try {
-          geojson = JSON.parse(geojsonText);
-        } catch (jsonError) {
-          console.error(
-            "Failed to parse GeoJSON response:",
-            geojsonText.substring(0, 200)
-          );
-          throw new Error("GeoJSON download returned invalid JSON.");
-        }
+        const geojson: GeoJSON.FeatureCollection = await response.json();
 
         if (!geojson || !geojson.features || geojson.features.length === 0) {
           throw new Error("Empty GeoJSON data");
         }
 
         console.log(`Loaded ${geojson.features.length} boundary features`);
-
-        // Generate unique IDs for features if they don't have them
-        geojson.features.forEach((feature, index) => {
-          if (!feature.id) {
-            feature.id = index;
-          }
-        });
 
         // Add the GeoJSON source with generateId option as fallback
         map.addSource(sourceId, {

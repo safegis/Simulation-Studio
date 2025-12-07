@@ -95,6 +95,13 @@ export default function MainUILayout() {
     { name: string; layerName: string }[]
   >([]);
 
+  // Boundary loading state
+  const [isBoundaryLoading, setIsBoundaryLoading] = useState(false);
+
+  // File loading state with stage
+  const [isFileLoading, setIsFileLoading] = useState(false);
+  const [fileLoadingStage, setFileLoadingStage] = useState<string>("");
+
   // Aspect ratio selector state
   const [showAspectRatioSelector, setShowAspectRatioSelector] = useState(false);
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<string>("");
@@ -1404,6 +1411,11 @@ export default function MainUILayout() {
               mapRef={mapRef}
               uploadedFiles={uploadedFiles}
               setUploadedFiles={setUploadedFiles}
+              isBoundaryLoading={isBoundaryLoading}
+              setIsBoundaryLoading={setIsBoundaryLoading}
+              isFileLoading={isFileLoading}
+              setIsFileLoading={setIsFileLoading}
+              setFileLoadingStage={setFileLoadingStage}
             />
           )}
           {/* Layers Panel - Show when there are active layers */}
@@ -2533,7 +2545,13 @@ export default function MainUILayout() {
             </div>
           )}
           {/* Center Bottom Clock - Hide when expanded */}
-          {!isChatExpanded && <CenterBottomClock />}
+          {!isChatExpanded && (
+            <CenterBottomClock
+              isBoundaryLoading={isBoundaryLoading}
+              isFileLoading={isFileLoading}
+              fileLoadingStage={fileLoadingStage}
+            />
+          )}
         </>
       )}
     </div>

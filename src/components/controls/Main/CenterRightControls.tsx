@@ -39,6 +39,11 @@ interface RightSideControlsProps {
   setUploadedFiles?: React.Dispatch<
     React.SetStateAction<{ name: string; layerName: string }[]>
   >;
+  isBoundaryLoading?: boolean;
+  setIsBoundaryLoading?: React.Dispatch<React.SetStateAction<boolean>>;
+  isFileLoading?: boolean;
+  setIsFileLoading?: React.Dispatch<React.SetStateAction<boolean>>;
+  setFileLoadingStage?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export default function RightSideControls({
@@ -50,6 +55,11 @@ export default function RightSideControls({
   mapRef,
   uploadedFiles = [],
   setUploadedFiles = () => {},
+  isBoundaryLoading: externalIsBoundaryLoading,
+  setIsBoundaryLoading: externalSetIsBoundaryLoading,
+  isFileLoading: externalIsFileLoading,
+  setIsFileLoading: externalSetIsFileLoading,
+  setFileLoadingStage: externalSetFileLoadingStage,
 }: RightSideControlsProps) {
   const [showGeoJSONPanel, setShowGeoJSONPanel] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -78,51 +88,125 @@ export default function RightSideControls({
   const boundarySourceButtonRef = useRef<HTMLButtonElement>(null);
   const boundarySourceOptions = ["geoBoundaries"];
 
+  // Use external loading state if provided, otherwise use local state
+  const [localIsBoundaryLoading, setLocalIsBoundaryLoading] = useState(false);
+  const isBoundaryLoading = externalIsBoundaryLoading ?? localIsBoundaryLoading;
+  const setIsBoundaryLoading =
+    externalSetIsBoundaryLoading ?? setLocalIsBoundaryLoading;
+
+  // Use external file loading state if provided, otherwise use local state
+  const [localIsFileLoading, setLocalIsFileLoading] = useState(false);
+  const isFileLoading = externalIsFileLoading ?? localIsFileLoading;
+  const setIsFileLoading = externalSetIsFileLoading ?? setLocalIsFileLoading;
+  const setFileLoadingStage = externalSetFileLoadingStage ?? (() => {});
+
   // ✅ File handling inside component
   const handleFiles = async (files: FileList) => {
-    for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      try {
-        let geojson:
-          | FeatureCollection<Geometry, GeoJsonProperties>
-          | FeatureCollection<Geometry, GeoJsonProperties>[]
-          | null = null;
+    setIsFileLoading(true);
+    setFileLoadingStage("Reading file...");
+    try {
+      for (const file of Array.from(files)) {
+        const ext = file.name.split(".").pop()?.toLowerCase();
+        try {
+          let geojson:
+            | FeatureCollection<Geometry, GeoJsonProperties>
+            | FeatureCollection<Geometry, GeoJsonProperties>[]
+            | null = null;
 
-        if (ext === "geojson" || ext === "json") {
-          const text = await file.text();
-          geojson = JSON.parse(text);
-        } else if (ext === "kml") {
-          const text = await file.text();
-          const dom = new DOMParser().parseFromString(text, "text/xml");
-          const toGeoJSON = await import("@mapbox/togeojson");
-          geojson = toGeoJSON.kml(dom) as FeatureCollection<
-            Geometry,
-            GeoJsonProperties
-          >;
-        } else if (ext === "zip" || ext === "shp") {
-          const arrayBuffer = await file.arrayBuffer();
-          const shp = (await import("shpjs")).default;
-          geojson = await shp(arrayBuffer);
-        }
+          if (ext === "geojson" || ext === "json") {
+            setFileLoadingStage("Parsing GeoJSON...");
+            const text = await file.text();
+            geojson = JSON.parse(text);
+          } else if (ext === "kml") {
+            setFileLoadingStage("Parsing KML...");
+            const text = await file.text();
+            const dom = new DOMParser().parseFromString(text, "text/xml");
+            const toGeoJSON = await import("@mapbox/togeojson");
+            geojson = toGeoJSON.kml(dom) as FeatureCollection<
+              Geometry,
+              GeoJsonProperties
+            >;
+          } else if (ext === "zip" || ext === "shp") {
+            try {
+              setFileLoadingStage("Extracting shapefile...");
+              const arrayBuffer = await file.arrayBuffer();
+              const shp = (await import("shpjs")).default;
+              setFileLoadingStage("Parsing shapefile...");
+              let result: any = await shp(arrayBuffer);
 
-        if (geojson) {
-          if (Array.isArray(geojson)) {
-            geojson.forEach((fc, i) => {
-              mapRef.current?.addGeoJSONLayer(fc, `${file.name}-layer${i + 1}`);
-            });
-          } else {
-            mapRef.current?.addGeoJSONLayer(geojson, file.name);
-            if (setUploadedFiles) {
-              setUploadedFiles((prev) => [
-                ...prev,
-                { name: file.name, layerName: file.name },
-              ]);
+              // Convert to JSON and back to remove circular references
+              try {
+                const jsonStr = JSON.stringify(result);
+                result = JSON.parse(jsonStr);
+                console.log("Shapefile parsed and sanitized");
+              } catch (jsonError) {
+                console.error(
+                  "Could not serialize shapefile result, using as-is"
+                );
+              }
+
+              // shpjs typically returns a FeatureCollection directly
+              if (result && result.type === "FeatureCollection") {
+                console.log(
+                  "Direct FeatureCollection, features:",
+                  result.features?.length
+                );
+                geojson = result;
+              } else if (Array.isArray(result)) {
+                console.log("Array of FeatureCollections");
+                geojson = result;
+              } else {
+                console.warn(
+                  "Unexpected shapefile format, attempting to use as-is"
+                );
+                geojson = result;
+              }
+            } catch (shpError) {
+              const errorMsg =
+                shpError instanceof Error ? shpError.message : "Unknown error";
+              console.error("Error parsing shapefile:", errorMsg);
+              throw new Error(`Shapefile parsing failed: ${errorMsg}`);
             }
           }
+
+          if (geojson) {
+            setFileLoadingStage("Processing geometry...");
+            if (Array.isArray(geojson)) {
+              // Handle multiple feature collections
+              for (let i = 0; i < geojson.length; i++) {
+                const fc = geojson[i];
+                if (fc && fc.type === "FeatureCollection") {
+                  setFileLoadingStage(`Rendering layer ${i + 1}...`);
+                  const layerName = `${file.name}-layer${i + 1}`;
+                  await mapRef.current?.addGeoJSONLayer(fc, layerName);
+                  if (setUploadedFiles) {
+                    setUploadedFiles((prev) => [
+                      ...prev,
+                      { name: `${file.name} (Layer ${i + 1})`, layerName },
+                    ]);
+                  }
+                }
+              }
+            } else if (geojson.type === "FeatureCollection") {
+              setFileLoadingStage("Rendering on map...");
+              await mapRef.current?.addGeoJSONLayer(geojson, file.name);
+              if (setUploadedFiles) {
+                setUploadedFiles((prev) => [
+                  ...prev,
+                  { name: file.name, layerName: file.name },
+                ]);
+              }
+            }
+          }
+        } catch (err) {
+          // Avoid logging circular references that cause stack overflow
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          console.error(`Error processing file: "${file.name}"`, errorMessage);
+          alert(`Failed to load ${file.name}: ${errorMessage}`);
         }
-      } catch (err) {
-        console.error("Error processing file:", file.name, err);
       }
+    } finally {
+      setIsFileLoading(false);
     }
   };
 
@@ -177,6 +261,7 @@ export default function RightSideControls({
     // If no boundary level selected, remove any existing boundary layer
     if (!selectedBoundary || !selectedBoundaryLevel) {
       mapRef.current.removeBoundaryLayer?.();
+      setIsBoundaryLoading(false);
       return;
     }
 
@@ -190,12 +275,23 @@ export default function RightSideControls({
     );
     if (!levelData) return;
 
-    // Add the boundary layer with the label for popup display
-    mapRef.current.addBoundaryLayer?.(
-      countryCode,
-      levelData.adminLevel,
-      levelData.label
-    );
+    // Set loading state and add the boundary layer
+    const loadBoundary = async () => {
+      setIsBoundaryLoading(true);
+      try {
+        await mapRef.current.addBoundaryLayer?.(
+          countryCode,
+          levelData.adminLevel,
+          levelData.label
+        );
+      } catch (error) {
+        console.error("Error loading boundary:", error);
+      } finally {
+        setIsBoundaryLoading(false);
+      }
+    };
+
+    loadBoundary();
   }, [selectedBoundary, selectedBoundaryLevel, mapRef]);
 
   return (
@@ -276,6 +372,7 @@ export default function RightSideControls({
             <h3 className="text-[11px] font-semibold text-white mb-2">
               Import Geospatial Data
             </h3>
+
             <div className="flex flex-col gap-1 w-full">
               {uploadedFiles.map((file, idx) => (
                 <div
@@ -293,14 +390,16 @@ export default function RightSideControls({
               ))}
 
               <div
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`px-3 py-2 rounded-sm shadow-md cursor-pointer text-center w-full transition flex flex-col items-center justify-center ${
-                  isDragging
-                    ? "bg-transparent border-2 border-dashed border-[#9699FF] text-[#9699FF]"
-                    : "bg-[#5A5C99] text-white hover:opacity-90"
+                onClick={() => !isFileLoading && fileInputRef.current?.click()}
+                onDragOver={(e) => !isFileLoading && handleDragOver(e)}
+                onDragLeave={() => !isFileLoading && handleDragLeave()}
+                onDrop={(e) => !isFileLoading && handleDrop(e)}
+                className={`px-3 py-2 rounded-sm shadow-md text-center w-full transition flex flex-col items-center justify-center ${
+                  isFileLoading
+                    ? "bg-[#5A5C99] opacity-50 cursor-not-allowed"
+                    : isDragging
+                    ? "bg-transparent border-2 border-dashed border-[#9699FF] text-[#9699FF] cursor-pointer"
+                    : "bg-[#5A5C99] text-white hover:opacity-90 cursor-pointer"
                 }`}
               >
                 <Upload size={20} className="mb-2" />
@@ -317,6 +416,7 @@ export default function RightSideControls({
                 type="file"
                 multiple
                 hidden
+                disabled={isFileLoading}
                 accept=".geojson,.json,.kml,.shp,.zip"
                 onChange={(e) => e.target.files && handleFiles(e.target.files)}
               />
@@ -368,9 +468,13 @@ export default function RightSideControls({
                   <button
                     ref={boundarySourceButtonRef}
                     onClick={() =>
+                      !isBoundaryLoading &&
                       setShowBoundarySourceDropdown((prev) => !prev)
                     }
-                    className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0"
+                    disabled={isBoundaryLoading}
+                    className={`flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0 ${
+                      isBoundaryLoading ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   >
                     <span
                       className={`truncate ${
@@ -428,11 +532,18 @@ export default function RightSideControls({
                 </div>
                 <button
                   onClick={() => {
-                    setSelectedBoundarySource(null);
-                    setSelectedBoundary(null);
-                    setSelectedBoundaryLevel(null);
+                    if (!isBoundaryLoading) {
+                      setSelectedBoundarySource(null);
+                      setSelectedBoundary(null);
+                      setSelectedBoundaryLevel(null);
+                    }
                   }}
-                  className="px-2 py-1.5 rounded-sm shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-[10px]"
+                  disabled={isBoundaryLoading}
+                  className={`px-2 py-1.5 rounded-sm shadow-md text-center bg-[#5A5C99] text-white whitespace-nowrap text-[10px] ${
+                    isBoundaryLoading
+                      ? "opacity-50 cursor-not-allowed"
+                      : "cursor-pointer hover:opacity-90"
+                  }`}
                 >
                   Clear
                 </button>
@@ -452,8 +563,16 @@ export default function RightSideControls({
                     <div className="relative flex-1 min-w-0">
                       <button
                         ref={boundaryButtonRef}
-                        onClick={() => setShowBoundaryDropdown((prev) => !prev)}
-                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0"
+                        onClick={() =>
+                          !isBoundaryLoading &&
+                          setShowBoundaryDropdown((prev) => !prev)
+                        }
+                        disabled={isBoundaryLoading}
+                        className={`flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0 ${
+                          isBoundaryLoading
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
                       >
                         <span
                           className={`truncate ${
@@ -536,11 +655,18 @@ export default function RightSideControls({
                     {/* New Clear button */}
                     <button
                       onClick={() => {
-                        setSelectedBoundary(null);
-                        setBoundarySearchTerm("");
-                        setSelectedBoundaryLevel(null);
+                        if (!isBoundaryLoading) {
+                          setSelectedBoundary(null);
+                          setBoundarySearchTerm("");
+                          setSelectedBoundaryLevel(null);
+                        }
                       }}
-                      className="px-2 py-1.5 rounded-sm shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-[10px]"
+                      disabled={isBoundaryLoading}
+                      className={`px-2 py-1.5 rounded-sm shadow-md text-center bg-[#5A5C99] text-white whitespace-nowrap text-[10px] ${
+                        isBoundaryLoading
+                          ? "opacity-50 cursor-not-allowed"
+                          : "cursor-pointer hover:opacity-90"
+                      }`}
                     >
                       Clear
                     </button>
@@ -559,9 +685,15 @@ export default function RightSideControls({
                       <button
                         ref={boundaryLevelButtonRef}
                         onClick={() =>
+                          !isBoundaryLoading &&
                           setShowBoundaryLevelDropdown((prev) => !prev)
                         }
-                        className="flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0"
+                        disabled={isBoundaryLoading}
+                        className={`flex justify-between items-center w-full bg-[#3a3a3a] text-white p-1.5 px-2 rounded-sm text-[10px] min-w-0 ${
+                          isBoundaryLoading
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
                       >
                         <span
                           className={`truncate ${
@@ -627,9 +759,16 @@ export default function RightSideControls({
 
                     <button
                       onClick={() => {
-                        setSelectedBoundaryLevel(null);
+                        if (!isBoundaryLoading) {
+                          setSelectedBoundaryLevel(null);
+                        }
                       }}
-                      className="px-2 py-1.5 rounded-sm shadow-md cursor-pointer text-center bg-[#5A5C99] text-white hover:opacity-90 whitespace-nowrap text-[10px]"
+                      disabled={isBoundaryLoading}
+                      className={`px-2 py-1.5 rounded-sm shadow-md text-center bg-[#5A5C99] text-white whitespace-nowrap text-[10px] ${
+                        isBoundaryLoading
+                          ? "opacity-50 cursor-not-allowed"
+                          : "cursor-pointer hover:opacity-90"
+                      }`}
                     >
                       Clear
                     </button>
