@@ -41,6 +41,7 @@ interface RightSideControlsProps {
   >;
   isBoundaryLoading?: boolean;
   setIsBoundaryLoading?: React.Dispatch<React.SetStateAction<boolean>>;
+  setBoundaryLoadingStage?: React.Dispatch<React.SetStateAction<string>>;
   isFileLoading?: boolean;
   setIsFileLoading?: React.Dispatch<React.SetStateAction<boolean>>;
   setFileLoadingStage?: React.Dispatch<React.SetStateAction<string>>;
@@ -57,6 +58,7 @@ export default function RightSideControls({
   setUploadedFiles = () => {},
   isBoundaryLoading: externalIsBoundaryLoading,
   setIsBoundaryLoading: externalSetIsBoundaryLoading,
+  setBoundaryLoadingStage: externalSetBoundaryLoadingStage,
   isFileLoading: externalIsFileLoading,
   setIsFileLoading: externalSetIsFileLoading,
   setFileLoadingStage: externalSetFileLoadingStage,
@@ -93,6 +95,7 @@ export default function RightSideControls({
   const isBoundaryLoading = externalIsBoundaryLoading ?? localIsBoundaryLoading;
   const setIsBoundaryLoading =
     externalSetIsBoundaryLoading ?? setLocalIsBoundaryLoading;
+  const setBoundaryLoadingStage = externalSetBoundaryLoadingStage ?? (() => {});
 
   // Use external file loading state if provided, otherwise use local state
   const [localIsFileLoading, setLocalIsFileLoading] = useState(false);
@@ -278,16 +281,20 @@ export default function RightSideControls({
     // Set loading state and add the boundary layer
     const loadBoundary = async () => {
       setIsBoundaryLoading(true);
+      setBoundaryLoadingStage("Fetching boundary metadata...");
       try {
+        setBoundaryLoadingStage("Downloading boundary data...");
         await mapRef.current.addBoundaryLayer?.(
           countryCode,
           levelData.adminLevel,
           levelData.label
         );
+        setBoundaryLoadingStage("Rendering boundary...");
       } catch (error) {
         console.error("Error loading boundary:", error);
       } finally {
         setIsBoundaryLoading(false);
+        setBoundaryLoadingStage("");
       }
     };
 

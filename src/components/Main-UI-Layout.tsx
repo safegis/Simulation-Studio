@@ -95,8 +95,9 @@ export default function MainUILayout() {
     { name: string; layerName: string }[]
   >([]);
 
-  // Boundary loading state
+  // Boundary loading state with stage
   const [isBoundaryLoading, setIsBoundaryLoading] = useState(false);
+  const [boundaryLoadingStage, setBoundaryLoadingStage] = useState<string>("");
 
   // File loading state with stage
   const [isFileLoading, setIsFileLoading] = useState(false);
@@ -1413,6 +1414,7 @@ export default function MainUILayout() {
               setUploadedFiles={setUploadedFiles}
               isBoundaryLoading={isBoundaryLoading}
               setIsBoundaryLoading={setIsBoundaryLoading}
+              setBoundaryLoadingStage={setBoundaryLoadingStage}
               isFileLoading={isFileLoading}
               setIsFileLoading={setIsFileLoading}
               setFileLoadingStage={setFileLoadingStage}
@@ -2548,6 +2550,7 @@ export default function MainUILayout() {
           {!isChatExpanded && (
             <CenterBottomClock
               isBoundaryLoading={isBoundaryLoading}
+              boundaryLoadingStage={boundaryLoadingStage}
               isFileLoading={isFileLoading}
               fileLoadingStage={fileLoadingStage}
             />

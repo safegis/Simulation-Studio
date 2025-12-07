@@ -5,12 +5,14 @@ import React, { useEffect, useState } from "react";
 
 interface CenterBottomClockProps {
   isBoundaryLoading?: boolean;
+  boundaryLoadingStage?: string;
   isFileLoading?: boolean;
   fileLoadingStage?: string;
 }
 
 export default function CenterBottomClock({
   isBoundaryLoading = false,
+  boundaryLoadingStage = "Loading boundary data...",
   isFileLoading = false,
   fileLoadingStage = "Importing geospatial data...",
 }: CenterBottomClockProps) {
@@ -60,7 +62,7 @@ export default function CenterBottomClock({
             ></div>
           </div>
           <span className="text-white text-[11px] font-medium leading-none">
-            Loading boundary data...
+            {boundaryLoadingStage}
           </span>
         </div>
       )}
