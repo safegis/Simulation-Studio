@@ -48,6 +48,9 @@ interface Props {
     affectedAreas?: GeoJSON.FeatureCollection
   ) => void;
   exposureAssessmentRef?: React.RefObject<ExposureAssessmentControlsRef | null>;
+  // Geological section expanded state (for AI control)
+  geologicalExpanded?: boolean;
+  setGeologicalExpanded?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const displayNameMap: Record<string, string> = {
@@ -98,6 +101,8 @@ export default function ToolPanel({
   earthquakeEnabled = false,
   onEarthquakeToggle,
   volcanoListEnabled = false,
+  geologicalExpanded: geologicalExpandedProp,
+  setGeologicalExpanded: setGeologicalExpandedProp,
   onVolcanoListToggle,
   activeFaultsEnabled = false,
   onActiveFaultsToggle,
@@ -113,7 +118,13 @@ export default function ToolPanel({
 }: Props) {
   const [hydroExpanded, setHydroExpanded] = useState(false);
   const [hydroCheckedItems, setHydroCheckedItems] = useState<string[]>([]);
-  const [geologicalExpanded, setGeologicalExpanded] = useState(false);
+  // Use prop if provided, otherwise use internal state
+  const [geologicalExpandedInternal, setGeologicalExpandedInternal] =
+    useState(false);
+  const geologicalExpanded =
+    geologicalExpandedProp ?? geologicalExpandedInternal;
+  const setGeologicalExpanded =
+    setGeologicalExpandedProp ?? setGeologicalExpandedInternal;
   const [geologicalCheckedItems, setGeologicalCheckedItems] = useState<
     string[]
   >(() => {

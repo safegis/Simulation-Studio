@@ -64,6 +64,11 @@ type Props = {
   };
   // Uploaded files for exposure assessment
   uploadedFiles?: string[];
+  // Layers Panel control callbacks
+  layersPanelCallbacks?: {
+    openLayersPanel: (layerType?: "hazard" | "critical_facility") => void;
+    expandGeologicalSection: () => void;
+  };
   // Pathfinder control callbacks
   pathfinderCallbacks?: {
     findRoute: (
@@ -328,6 +333,7 @@ export default function SafeGISAIChat({
   liveHazardMonitorCallbacks,
   exposureAssessmentCallbacks,
   uploadedFiles = [],
+  layersPanelCallbacks,
   pathfinderCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
@@ -729,6 +735,19 @@ export default function SafeGISAIChat({
               mapRef.current.flyTo?.({ zoom: newZoom, duration: 500 });
             }
           },
+          openLiveHazardMonitor: () => {
+            if (liveHazardMonitorCallbacks) {
+              liveHazardMonitorCallbacks.openLiveHazardMonitor();
+            }
+          },
+          openLayersPanel: (layerType?: "hazard" | "critical_facility") => {
+            if (layersPanelCallbacks) {
+              layersPanelCallbacks.openLayersPanel(layerType);
+              if (layerType === "hazard") {
+                layersPanelCallbacks.expandGeologicalSection();
+              }
+            }
+          },
           controlEarthquake: (
             action: "enable" | "disable",
             source: "philippine" | "global"
@@ -813,6 +832,11 @@ export default function SafeGISAIChat({
                   }
                 });
               }
+            }
+          },
+          openExposureAssessment: () => {
+            if (exposureAssessmentCallbacks) {
+              exposureAssessmentCallbacks.openExposureAssessment();
             }
           },
           controlExposureAssessment: (

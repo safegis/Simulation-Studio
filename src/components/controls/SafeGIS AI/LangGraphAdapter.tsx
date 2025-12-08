@@ -93,6 +93,12 @@ export interface MapCallbacks {
     province?: string
   ) => void;
 
+  // Open Live Hazard Monitor panel
+  openLiveHazardMonitor?: () => void;
+
+  // Open Layers Panel with specific layer type
+  openLayersPanel?: (layerType?: "hazard" | "critical_facility") => void;
+
   // Exposure assessment control
   controlExposureAssessment: (
     action: "run" | "clear" | "select_hazard" | "select_element",
@@ -103,6 +109,7 @@ export interface MapCallbacks {
       element_data?: string[];
     }
   ) => void;
+  openExposureAssessment?: () => void;
 
   // Pathfinder control
   findRoute: (
@@ -306,6 +313,31 @@ export async function processLangGraphResponse(
           }
           break;
 
+        case "open_live_hazard_monitor":
+          if (callbacks.openLiveHazardMonitor) {
+            callbacks.openLiveHazardMonitor();
+          }
+          if (data.text) {
+            addMessage("assistant", data.text);
+          }
+          break;
+
+        case "open_layers_panel":
+          if (callbacks.openLayersPanel) {
+            // Determine which layer type to open
+            const layerType =
+              data.action === "show_hazard_layers"
+                ? "hazard"
+                : data.action === "show_critical_facility_layers"
+                ? "critical_facility"
+                : undefined;
+            callbacks.openLayersPanel(layerType);
+          }
+          if (data.text) {
+            addMessage("assistant", data.text);
+          }
+          break;
+
         case "control_earthquake_data":
           if (data.action && data.source) {
             callbacks.controlEarthquake(
@@ -368,7 +400,15 @@ export async function processLangGraphResponse(
 
         case "control_exposure_assessment":
         case "run_exposure_analysis":
-          if (data.action) {
+          if (data.action === "show_panel") {
+            // Open the exposure assessment panel
+            if (callbacks.openExposureAssessment) {
+              callbacks.openExposureAssessment();
+            }
+            if (data.text) {
+              addMessage("assistant", data.text);
+            }
+          } else if (data.action) {
             callbacks.controlExposureAssessment(
               data.action as
                 | "run"

@@ -1391,6 +1391,8 @@ export default function MainUILayout() {
                 setExpandedPanels={setExpandedPanels}
                 trafficExpanded={trafficExpanded}
                 setTrafficExpanded={setTrafficExpanded}
+                geologicalExpanded={geologicalExpanded}
+                setGeologicalExpanded={setGeologicalExpanded}
                 onPlanSelect={(plan) => {
                   // toggle selection
                   setSelectedPlan((prev) =>
@@ -1679,6 +1681,38 @@ export default function MainUILayout() {
               clearSteps: () => {
                 console.log("🔵 CALLBACK: clearSteps called");
                 exposureAssessmentRef.current?.clearSteps();
+              },
+            }}
+            layersPanelCallbacks={{
+              openLayersPanel: (layerType?: "hazard" | "critical_facility") => {
+                const layerName =
+                  layerType === "critical_facility"
+                    ? "Critical Facility Layers"
+                    : "Hazard Layers";
+
+                console.log(`🔵 Opening Layers Panel with ${layerName}`);
+                // Select the appropriate layer
+                setSelectedMaps([layerName]);
+                // Open the tool panel directly
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowLiveHazardMonitor(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+                // Expand the panel
+                setExpandedPanels((prev) => ({
+                  ...prev,
+                  [`map-${layerName}`]: true,
+                }));
+              },
+              expandGeologicalSection: () => {
+                console.log("🔵 Expanding Geological section");
+                // Delay expansion to ensure panel is mounted
+                setTimeout(() => {
+                  setGeologicalExpanded(true);
+                  console.log("🔵 Geological section expanded");
+                }, 100);
               },
             }}
             pathfinderCallbacks={{

@@ -38,7 +38,25 @@ interface HazardMapControlsProps {
   TransparentButton: React.FC<{ label: string; icon?: React.ReactNode }>;
 }
 
-export default function HazardMapControls({}: HazardMapControlsProps) {
+export default function HazardMapControls({
+  hydroExpanded,
+  setHydroExpanded,
+  hydroMeteorologicalCheckboxItems,
+  hydroCheckedItems,
+  toggleHydroItem,
+  geologicalExpanded,
+  setGeologicalExpanded,
+  geologicalCheckboxItems,
+  geologicalCheckedItems,
+  toggleGeologicalItem,
+  trafficExpanded,
+  setTrafficExpanded,
+  trafficCheckboxItems,
+  trafficCheckedItems,
+  toggleTrafficItem,
+  PanelToggle,
+  TransparentButton,
+}: HazardMapControlsProps) {
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
