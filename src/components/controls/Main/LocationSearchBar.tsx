@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef } from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 interface LocationSearchBarProps {
   searchText: string;
@@ -14,6 +14,7 @@ interface LocationSearchBarProps {
   inputRef: React.RefObject<HTMLInputElement | null>;
   suggestionsRef: React.RefObject<HTMLUListElement | null>;
   setSuggestions: (suggestions: any[]) => void;
+  clearSearch?: () => void;
 }
 
 const LocationSearchBar = forwardRef<HTMLDivElement, LocationSearchBarProps>(
@@ -29,6 +30,7 @@ const LocationSearchBar = forwardRef<HTMLDivElement, LocationSearchBarProps>(
       inputRef,
       suggestionsRef,
       setSuggestions,
+      clearSearch,
     },
     ref
   ) => {
@@ -52,6 +54,20 @@ const LocationSearchBar = forwardRef<HTMLDivElement, LocationSearchBarProps>(
             }}
             className="bg-transparent outline-none text-[11px] leading-[40px] text-[#C7C7C7] placeholder-[#999] w-full"
           />
+          {searchText && (
+            <button
+              onClick={() => {
+                setSearchText("");
+                setSuggestions([]);
+                if (clearSearch) {
+                  clearSearch();
+                }
+              }}
+              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+            >
+              <X width={14} height={14} color="#C7C7C7" />
+            </button>
+          )}
         </div>
 
         {suggestions.length > 0 && (

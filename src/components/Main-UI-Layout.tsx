@@ -1303,6 +1303,10 @@ export default function MainUILayout() {
                 searchContainerRef={searchContainerRef}
                 inputRef={inputRef}
                 suggestionsRef={suggestionsRef}
+                clearSearch={() => {
+                  // Clear the location marker from the map
+                  mapRef.current?.clearLocationMarker?.();
+                }}
               />
             ) : (
               <div className="absolute top-[15px] left-[70px] z-50 w-[280px]">

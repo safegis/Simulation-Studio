@@ -733,7 +733,12 @@ const PathfinderControls = forwardRef<
           {/* Inputs */}
           <div className="relative" ref={startContainerRef}>
             <div className="bg-[#5A5A5A] h-[30px] flex items-center gap-1.5 px-2 rounded-md shadow-md">
-              <MapPin width={15} height={15} color="#75F7A9" />
+              <MapPin
+                width={15}
+                height={15}
+                color="#75F7A9"
+                className="flex-shrink-0"
+              />
               <input
                 ref={startRef}
                 type="text"
@@ -761,6 +766,42 @@ const PathfinderControls = forwardRef<
                 }}
                 className="bg-transparent outline-none text-[10px] text-[#C7C7C7] placeholder-[#999] w-full h-full"
               />
+              {startText && (
+                <button
+                  onClick={() => {
+                    setStartText("");
+                    setStartCoords(null);
+                    setStartSuggestions([]);
+                    mapRef.current?.clearStartMarker?.();
+
+                    // Stop loading state if currently fetching
+                    if (isLoadingRoutes) {
+                      setIsLoadingRoutes(false);
+                      setIsFilteringMode(false);
+                    }
+
+                    // Clear routes if they exist
+                    if (routesData.length > 0) {
+                      setRoutesData([]);
+                      setSelectedRouteKey(null);
+                      setSelectedMode("all");
+                      routesCacheRef.current = {};
+
+                      // Stop traffic polling
+                      if (trafficPollingIntervalRef.current) {
+                        clearInterval(trafficPollingIntervalRef.current);
+                        trafficPollingIntervalRef.current = null;
+                      }
+
+                      // Clear routes from map
+                      mapRef.current?.clearRoutes?.();
+                    }
+                  }}
+                  className="flex-shrink-0 hover:opacity-70 transition-opacity"
+                >
+                  <X width={14} height={14} color="#C7C7C7" />
+                </button>
+              )}
             </div>
             {startSuggestions.length > 0 &&
               ReactDOM.createPortal(
@@ -806,7 +847,12 @@ const PathfinderControls = forwardRef<
 
           <div className="relative" ref={destinationContainerRef}>
             <div className="bg-[#5A5A5A] h-[30px] flex items-center gap-1.5 px-2 rounded-md shadow-md">
-              <MapPin width={15} height={15} color="#FF9494" />
+              <MapPin
+                width={15}
+                height={15}
+                color="#FF9494"
+                className="flex-shrink-0"
+              />
               <input
                 ref={destinationRef}
                 type="text"
@@ -839,6 +885,42 @@ const PathfinderControls = forwardRef<
                 }}
                 className="bg-transparent outline-none text-[10px] text-[#C7C7C7] placeholder-[#999] w-full h-full"
               />
+              {destinationText && (
+                <button
+                  onClick={() => {
+                    setDestinationText("");
+                    setDestinationCoords(null);
+                    setDestinationSuggestions([]);
+                    mapRef.current?.clearDestinationMarker?.();
+
+                    // Stop loading state if currently fetching
+                    if (isLoadingRoutes) {
+                      setIsLoadingRoutes(false);
+                      setIsFilteringMode(false);
+                    }
+
+                    // Clear routes if they exist
+                    if (routesData.length > 0) {
+                      setRoutesData([]);
+                      setSelectedRouteKey(null);
+                      setSelectedMode("all");
+                      routesCacheRef.current = {};
+
+                      // Stop traffic polling
+                      if (trafficPollingIntervalRef.current) {
+                        clearInterval(trafficPollingIntervalRef.current);
+                        trafficPollingIntervalRef.current = null;
+                      }
+
+                      // Clear routes from map
+                      mapRef.current?.clearRoutes?.();
+                    }
+                  }}
+                  className="flex-shrink-0 hover:opacity-70 transition-opacity"
+                >
+                  <X width={14} height={14} color="#C7C7C7" />
+                </button>
+              )}
             </div>
             {destinationSuggestions.length > 0 &&
               ReactDOM.createPortal(
@@ -883,6 +965,52 @@ const PathfinderControls = forwardRef<
                 document.body
               )}
           </div>
+
+          {/* Clear Routes Button */}
+          {routesData.length > 0 && (
+            <button
+              onClick={() => {
+                // Clear all text inputs
+                setStartText("");
+                setDestinationText("");
+
+                // Clear coordinates
+                setStartCoords(null);
+                setDestinationCoords(null);
+
+                // Clear routes data
+                setRoutesData([]);
+
+                // Clear selected route
+                setSelectedRouteKey(null);
+
+                // Reset mode to all
+                setSelectedMode("all");
+
+                // Clear cache
+                routesCacheRef.current = {};
+
+                // Stop traffic polling
+                if (trafficPollingIntervalRef.current) {
+                  clearInterval(trafficPollingIntervalRef.current);
+                  trafficPollingIntervalRef.current = null;
+                  console.log("⏹️ Stopped traffic polling");
+                }
+
+                // Clear routes from map
+                mapRef.current?.clearRoutes?.();
+
+                // Clear markers from map
+                mapRef.current?.clearStartMarker?.();
+                mapRef.current?.clearDestinationMarker?.();
+
+                console.log("🗑️ All routes cleared");
+              }}
+              className="px-2 py-1.5 rounded-md shadow-md text-center bg-[#5A5C99] text-white whitespace-nowrap text-[10px] cursor-pointer hover:opacity-90 w-full mt-0.5 mb-3"
+            >
+              Clear Routes
+            </button>
+          )}
 
           {/* Transport Buttons */}
           {routesData.length > 0 && (

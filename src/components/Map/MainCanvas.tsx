@@ -452,6 +452,60 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
         duration: 1000,
       });
     },
+    clearStartMarker: () => {
+      startMarkerRef.current?.remove();
+      startMarkerRef.current = null;
+    },
+    clearDestinationMarker: () => {
+      destinationMarkerRef.current?.remove();
+      destinationMarkerRef.current = null;
+    },
+    clearLocationMarker: () => {
+      locationMarkerRef.current?.remove();
+      locationMarkerRef.current = null;
+    },
+    clearRoutes: () => {
+      if (!mapInstance.current || !mapIsLoaded.current) return;
+
+      // Clear routes GeoJSON data
+      latestRoutesGeoJSON.current = null;
+
+      // Remove all route layers and sources
+      const map = mapInstance.current;
+      const style = map.getStyle();
+
+      if (style && style.layers) {
+        // Remove route layers
+        style.layers.forEach((layer: any) => {
+          if (
+            layer.id.startsWith("route-") ||
+            layer.id.startsWith("route-outline-") ||
+            layer.id.startsWith("incident-segment-")
+          ) {
+            if (map.getLayer(layer.id)) {
+              map.removeLayer(layer.id);
+            }
+          }
+        });
+
+        // Remove route sources
+        if (style.sources) {
+          Object.keys(style.sources).forEach((sourceId: string) => {
+            if (
+              sourceId.startsWith("route-") ||
+              sourceId.startsWith("incident-segment-")
+            ) {
+              if (map.getSource(sourceId)) {
+                map.removeSource(sourceId);
+              }
+            }
+          });
+        }
+      }
+
+      // Reset selected feature index
+      selectedFeatureIndexRef.current = null;
+    },
     getZoom: () => {
       return mapInstance.current?.getZoom?.() ?? 0;
     },
