@@ -99,6 +99,16 @@ export interface MapCallbacks {
   // Open Layers Panel with specific layer type
   openLayersPanel?: (layerType?: "hazard" | "critical_facility") => void;
 
+  // Add boundary to map
+  addBoundary?: (
+    source?: string,
+    country?: string,
+    adminLevel?: number
+  ) => void;
+
+  // Clear boundaries from map
+  clearBoundary?: () => void;
+
   // Exposure assessment control
   controlExposureAssessment: (
     action: "run" | "clear" | "select_hazard" | "select_element",
@@ -332,6 +342,28 @@ export async function processLangGraphResponse(
                 ? "critical_facility"
                 : undefined;
             callbacks.openLayersPanel(layerType);
+          }
+          if (data.text) {
+            addMessage("assistant", data.text);
+          }
+          break;
+
+        case "add_boundary":
+          if (callbacks.addBoundary) {
+            callbacks.addBoundary(
+              (data as any).source,
+              (data as any).country,
+              (data as any).admin_level
+            );
+          }
+          if (data.text) {
+            addMessage("assistant", data.text);
+          }
+          break;
+
+        case "clear_boundary":
+          if (callbacks.clearBoundary) {
+            callbacks.clearBoundary();
           }
           if (data.text) {
             addMessage("assistant", data.text);

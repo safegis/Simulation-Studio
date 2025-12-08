@@ -12,7 +12,9 @@ import PathfinderControls from "./controls/Features/Pathfinder/PathfinderControl
 import LocationSearchBar from "./controls/Main/LocationSearchBar";
 import SelectPlanningTools from "./controls/Features/Planning Suite/SelectPlanningTools";
 import SelectAssessment from "./controls/Features/Assessment Tools/SelectAssessment";
-import RightSideControls from "./controls/Main/CenterRightControls";
+import RightSideControls, {
+  CenterRightControlsRef,
+} from "./controls/Main/CenterRightControls";
 import CenterLeftControls from "./controls/Main/CenterLeftControls";
 
 import UserSettings from "./controls/Main/UserSettings";
@@ -182,6 +184,7 @@ export default function MainUILayout() {
     useRef<
       import("./controls/Features/Pathfinder/PathfinderControls").PathfinderControlsRef
     >(null);
+  const centerRightControlsRef = useRef<CenterRightControlsRef>(null);
 
   // Track temporary box coordinates
   const boxCoordsRef = useRef<{
@@ -1437,6 +1440,7 @@ export default function MainUILayout() {
           {/* Right Side Controls - Hide when expanded */}
           {!isChatExpanded && (
             <RightSideControls
+              ref={centerRightControlsRef}
               show3DControls={show3DControls}
               viewMode={viewMode}
               switchTo2D={switchTo2D}
@@ -1713,6 +1717,34 @@ export default function MainUILayout() {
                   setGeologicalExpanded(true);
                   console.log("🔵 Geological section expanded");
                 }, 100);
+              },
+            }}
+            boundaryCallbacks={{
+              addBoundary: (
+                source?: string,
+                country?: string,
+                adminLevel?: number
+              ) => {
+                console.log("🔵 Adding boundary:", source, country, adminLevel);
+                // Use ref to control CenterRightControls
+                if (centerRightControlsRef.current) {
+                  centerRightControlsRef.current.openBoundariesPanel(
+                    source,
+                    country,
+                    adminLevel
+                  );
+                } else {
+                  console.warn("centerRightControlsRef not available");
+                }
+              },
+              clearBoundary: () => {
+                console.log("🔵 Clearing boundaries");
+                // Use ref to control CenterRightControls
+                if (centerRightControlsRef.current) {
+                  centerRightControlsRef.current.clearBoundaries();
+                } else {
+                  console.warn("centerRightControlsRef not available");
+                }
               },
             }}
             pathfinderCallbacks={{

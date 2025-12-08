@@ -69,6 +69,15 @@ type Props = {
     openLayersPanel: (layerType?: "hazard" | "critical_facility") => void;
     expandGeologicalSection: () => void;
   };
+  // Boundary control callbacks
+  boundaryCallbacks?: {
+    addBoundary: (
+      source?: string,
+      country?: string,
+      adminLevel?: number
+    ) => void;
+    clearBoundary: () => void;
+  };
   // Pathfinder control callbacks
   pathfinderCallbacks?: {
     findRoute: (
@@ -334,6 +343,7 @@ export default function SafeGISAIChat({
   exposureAssessmentCallbacks,
   uploadedFiles = [],
   layersPanelCallbacks,
+  boundaryCallbacks,
   pathfinderCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
@@ -746,6 +756,20 @@ export default function SafeGISAIChat({
               if (layerType === "hazard") {
                 layersPanelCallbacks.expandGeologicalSection();
               }
+            }
+          },
+          addBoundary: (
+            source?: string,
+            country?: string,
+            adminLevel?: number
+          ) => {
+            if (boundaryCallbacks) {
+              boundaryCallbacks.addBoundary(source, country, adminLevel);
+            }
+          },
+          clearBoundary: () => {
+            if (boundaryCallbacks) {
+              boundaryCallbacks.clearBoundary();
             }
           },
           controlEarthquake: (
