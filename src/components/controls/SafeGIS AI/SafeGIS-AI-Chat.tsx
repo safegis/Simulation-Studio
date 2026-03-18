@@ -16,9 +16,10 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  AudioLines,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import LangGraphAdapter, { LangGraphMessage } from "./LangGraphAdapter";
+import LangGraphAdapter, { LangGraphMessage, sendToLangGraph } from "./LangGraphAdapter";
 
 type Props = {
   isVisible: boolean;
@@ -90,6 +91,8 @@ type Props = {
     openPathfinder: () => void;
     closePathfinder: () => void;
   };
+  // Open panels / UI by name (chat_expand, map_style_dropdown, boundary_panel, etc.)
+  openPanel?: (panel: string) => void;
 };
 
 type Message = {
@@ -345,6 +348,7 @@ export default function SafeGISAIChat({
   layersPanelCallbacks,
   boundaryCallbacks,
   pathfinderCallbacks,
+  openPanel,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -363,12 +367,36 @@ export default function SafeGISAIChat({
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
-  // Voice recording state
+  // Voice recording state (ElevenLabs real-time STT via WebSocket)
   const [isRecording, setIsRecording] = useState(false);
-  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
-    null
-  );
+  const [voiceLiveText, setVoiceLiveText] = useState("");
+  const wsRef = useRef<WebSocket | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const committedRef = useRef("");
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
+  // Conversational AI mode (talk to Atlas, interrupt mid-sentence)
+  const [conversationalMode, setConversationalMode] = useState(false);
+  const [conversationLiveText, setConversationLiveText] = useState("");
+  const convWsRef = useRef<WebSocket | null>(null);
+  const convStreamRef = useRef<MediaStream | null>(null);
+  const convCtxRef = useRef<AudioContext | null>(null);
+  const convProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const convSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const convCommittedRef = useRef("");
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const conversationAbortRef = useRef<AbortController | null>(null);
+  const pendingPromptRef = useRef("");
+  const isAtlasSpeakingRef = useRef(false);
+  const conversationHistoryRef = useRef<LangGraphMessage[]>([]);
+  const mapCallbacksRef = useRef<Parameters<typeof LangGraphAdapter.processLangGraphResponse>[1] | null>(null);
+  const ttsErrorShownRef = useRef(false);
+
+  useEffect(() => {
+    conversationHistoryRef.current = conversationHistory;
+  }, [conversationHistory]);
 
   useEffect(() => {
     if (chatEndRef.current)
@@ -389,67 +417,102 @@ export default function SafeGISAIChat({
   // Helper functions
   const getTextareaPlaceholder = () => {
     if (isRecording) {
-      return "🎤 Recording... Speak now";
+      return "🎤 Listening... speak and see words here in real time";
     }
-    if (isProcessingAudio) {
-      return "🔄 Processing your voice input...";
+    if (conversationalMode) {
+      return "Conversation mode — speak to Atlas, interrupt anytime";
     }
     return "Ask a question or define a task...";
   };
 
-  const isTextareaDisabled = isRecording || isProcessingAudio || loading;
+  const isTextareaDisabled = isRecording || loading || conversationalMode;
 
-  // Voice recording functions
+  // ElevenLabs real-time speech-to-text: WebSocket + PCM stream
   const startRecording = async () => {
+    const baseUrl = (process.env.NEXT_PUBLIC_MODEL_ENDPOINT || "")
+      .replace("/generate", "")
+      .replace(/^http/, "ws");
+    const wsUrl = `${baseUrl}/transcribe-ws`;
+    if (!baseUrl || !wsUrl.startsWith("ws")) {
+      alert("NEXT_PUBLIC_MODEL_ENDPOINT not set or invalid (e.g. http://localhost:8002/generate)");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: 16000, // Standard rate for speech recognition
-          channelCount: 1, // Mono audio
+          channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
         },
       });
+      streamRef.current = stream;
 
-      // Use explicit MIME type for better compatibility
-      const options = {
-        mimeType: "audio/webm;codecs=opus",
+      const AudioContextClass =
+        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioContextClass({ sampleRate: 48000 });
+      audioContextRef.current = ctx;
+
+      const source = ctx.createMediaStreamSource(stream);
+      sourceRef.current = source;
+      // ScriptProcessorNode: bufferSize 4096, inputChannels 1, outputChannels 1
+      const processor = ctx.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      committedRef.current = "";
+      setVoiceLiveText("");
+
+      ws.onopen = () => {
+        source.connect(processor);
+        processor.connect(ctx.destination);
       };
 
-      // Fallback if webm is not supported
-      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        options.mimeType = "audio/mp4";
-      }
-
-      const recorder = new MediaRecorder(stream, options);
-      const chunks: Blob[] = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        setIsProcessingAudio(true);
+      ws.onmessage = (event) => {
         try {
-          const audioBlob = new Blob(chunks, { type: recorder.mimeType });
-
-          // Convert to WAV format before sending
-          const wavBlob = await convertToWav(audioBlob);
-          await transcribeAudio(wavBlob);
-        } catch (error) {
-          console.error("Error processing audio:", error);
-          alert("Failed to process audio. Please try again.");
-        } finally {
-          // Stop all tracks to release microphone
-          stream.getTracks().forEach((track) => track.stop());
-          setIsProcessingAudio(false);
+          const msg = JSON.parse(event.data);
+          const mt = msg.message_type;
+          if (mt === "partial_transcript") {
+            setVoiceLiveText(committedRef.current + (msg.text || ""));
+          } else if (mt === "committed_transcript" && msg.text) {
+            committedRef.current = committedRef.current + msg.text;
+            setVoiceLiveText(committedRef.current);
+          } else if (mt === "error" || mt === "auth_error") {
+            console.error("STT error:", msg.error);
+            setVoiceLiveText((t) => t + ` [Error: ${msg.error}]`);
+          }
+        } catch (e) {
+          console.error("STT message parse error:", e);
         }
       };
 
-      setMediaRecorder(recorder);
-      recorder.start();
+      ws.onerror = () => {
+        setVoiceLiveText((t) => t + " [Connection error]");
+      };
+
+      processor.onaudioprocess = (e: AudioProcessingEvent) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        const input = e.inputBuffer.getChannelData(0);
+        const int16 = new Int16Array(input.length);
+        for (let i = 0; i < input.length; i++) {
+          const s = Math.max(-1, Math.min(1, input[i]));
+          int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        const bytes = new Uint8Array(int16.buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const b64 = btoa(binary);
+        ws.send(
+          JSON.stringify({
+            message_type: "input_audio_chunk",
+            audio_base_64: b64,
+            commit: false,
+            sample_rate: 48000,
+          })
+        );
+      };
+
       setIsRecording(true);
     } catch (error) {
       console.error("Error starting recording:", error);
@@ -458,40 +521,41 @@ export default function SafeGISAIChat({
   };
 
   const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const transcribeAudio = async (audioBlob: Blob) => {
-    try {
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "recording.wav");
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
-          "/generate",
-          "/transcribe"
-        )}`,
-        {
-          method: "POST",
-          body: formData,
-        }
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          message_type: "input_audio_chunk",
+          audio_base_64: "",
+          commit: true,
+          sample_rate: 48000,
+        })
       );
-
-      const data = await response.json();
-
-      if (data.success && data.transcription) {
-        setInputText(data.transcription);
-      } else {
-        console.error("Transcription failed:", data.error);
-        alert(`Transcription failed: ${data.error || "Unknown error"}`);
-      }
-    } catch (error) {
-      console.error("Error transcribing audio:", error);
-      alert("Failed to transcribe audio. Please try again.");
+      ws.close();
     }
+    wsRef.current = null;
+
+    if (processorRef.current && sourceRef.current) {
+      try {
+        processorRef.current.disconnect();
+        sourceRef.current.disconnect();
+      } catch (_) {}
+    }
+    processorRef.current = null;
+    sourceRef.current = null;
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+
+    setInputText(voiceLiveText);
+    setVoiceLiveText("");
+    committedRef.current = "";
+    setIsRecording(false);
   };
 
   const handleVoiceButtonClick = () => {
@@ -499,6 +563,341 @@ export default function SafeGISAIChat({
       stopRecording();
     } else {
       startRecording();
+    }
+  };
+
+  // Strip markdown for TTS (simple pass)
+  const stripMarkdownForTTS = (text: string): string => {
+    if (!text || !text.trim()) return "";
+    return text
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/\*(.+?)\*/g, "$1")
+      .replace(/_(.+?)_/g, "$1")
+      .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+      .replace(/^#+\s+/gm, "")
+      .replace(/\n+/g, " ")
+      .trim();
+  };
+
+  // Get text to speak from LangGraph response (response.response.text or last assistant message)
+  const getSpeakableText = (response: { response?: { text?: string }; conversation_history?: LangGraphMessage[] }): string => {
+    const fromResponse = response.response?.text;
+    if (fromResponse && String(fromResponse).trim()) return String(fromResponse).trim();
+    const history = response.conversation_history || [];
+    for (let i = history.length - 1; i >= 0; i--) {
+      const role = history[i].role;
+      const c = history[i].content;
+      if ((role === "assistant" || role === "ai") && c && typeof c === "string" && c.trim()) return c.trim();
+      if (role === "assistant" || role === "ai") break;
+    }
+    return "";
+  };
+
+  const playTTS = async (textToSpeak: string): Promise<void> => {
+    if (!textToSpeak.trim()) return;
+    const ttsUrl = (process.env.NEXT_PUBLIC_MODEL_ENDPOINT || "").replace("/generate", "") + "/tts";
+    try {
+      const ttsRes = await fetch(ttsUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: textToSpeak }),
+      });
+      if (!ttsRes.ok) {
+        console.error("TTS request failed:", ttsRes.status, await ttsRes.text());
+        return;
+      }
+      const blob = await ttsRes.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      ttsAudioRef.current = audio;
+      audio.volume = 1;
+      audio.onended = () => URL.revokeObjectURL(url);
+      audio.onerror = () => URL.revokeObjectURL(url);
+      await audio.play().catch((e) => console.warn("TTS play failed (e.g. autoplay policy):", e));
+    } catch (e) {
+      console.error("TTS error:", e);
+    }
+  };
+
+  /** Play text with ElevenLabs TTS; on 401 (e.g. free tier disabled) fall back to browser speech. */
+  const playTTSOrFallback = (text: string): Promise<void> => {
+    if (!text || !text.trim()) return Promise.resolve();
+    const ttsUrl = (process.env.NEXT_PUBLIC_MODEL_ENDPOINT || "").replace("/generate", "") + "/tts";
+    return fetch(ttsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.trim() }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          return res.blob().then((blob) => {
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            ttsAudioRef.current = audio;
+            audio.volume = 1;
+            return new Promise<void>((resolve) => {
+              audio.onended = () => {
+                URL.revokeObjectURL(url);
+                resolve();
+              };
+              audio.onerror = () => {
+                URL.revokeObjectURL(url);
+                resolve();
+              };
+              audio.play().catch(() => resolve());
+            });
+          });
+        }
+        if (res.status === 401 && typeof window !== "undefined" && window.speechSynthesis) {
+          if (!ttsErrorShownRef.current) {
+            ttsErrorShownRef.current = true;
+            console.info("ElevenLabs TTS unavailable (e.g. free tier). Using browser speech.");
+          }
+          return new Promise<void>((resolve) => {
+            const u = new SpeechSynthesisUtterance(text.trim());
+            u.rate = 0.95;
+            u.onend = () => resolve();
+            u.onerror = () => resolve();
+            window.speechSynthesis.speak(u);
+          });
+        }
+        return Promise.resolve();
+      })
+      .catch(() => {
+        if (typeof window !== "undefined" && window.speechSynthesis) {
+          return new Promise<void>((resolve) => {
+            const u = new SpeechSynthesisUtterance(text.trim());
+            u.rate = 0.95;
+            u.onend = () => resolve();
+            u.onerror = () => resolve();
+            window.speechSynthesis.speak(u);
+          });
+        }
+        return Promise.resolve();
+      });
+  };
+
+  const playGreeting = async () => {
+    const greetingPrompt =
+      "The user just enabled voice conversation. Greet them in one short, friendly sentence and ask how you can help with the map. Use plain text only, no markdown.";
+    setLoading(true);
+    setOperationSteps(["Atlas is saying hello..."]);
+    try {
+      const response = await sendToLangGraph(
+        greetingPrompt,
+        conversationHistoryRef.current,
+        { currentMapStyle: selectedMapStyle, viewMode: viewMode },
+        webSearchEnabled,
+        uploadedFiles
+      );
+      setConversationHistory(response.conversation_history);
+      conversationHistoryRef.current = response.conversation_history;
+      const rawText = getSpeakableText(response);
+      const textToSpeak = rawText ? stripMarkdownForTTS(rawText) : "";
+      if (rawText) {
+        setMessages((prev) => [...prev, { role: "assistant", content: rawText }]);
+      }
+      if (textToSpeak) {
+        isAtlasSpeakingRef.current = true;
+        playTTSOrFallback(textToSpeak).then(() => {
+          isAtlasSpeakingRef.current = false;
+          setLoading(false);
+          setOperationSteps([]);
+        });
+      } else {
+        setLoading(false);
+        setOperationSteps([]);
+      }
+    } catch (e) {
+      console.error("Greeting error:", e);
+      setLoading(false);
+      setOperationSteps([]);
+    }
+  };
+
+  const trySendConversation = async () => {
+    const prompt = pendingPromptRef.current.trim();
+    if (!prompt) {
+      setLoading(false);
+      setOperationSteps([]);
+      return;
+    }
+    if (loading) return;
+    pendingPromptRef.current = "";
+    setLoading(true);
+    setOperationSteps(["Listening...", "Sending to Atlas..."]);
+    conversationAbortRef.current = new AbortController();
+    const signal = conversationAbortRef.current.signal;
+    try {
+      const response = await sendToLangGraph(
+        prompt,
+        conversationHistoryRef.current,
+        { currentMapStyle: selectedMapStyle, viewMode: viewMode },
+        webSearchEnabled,
+        uploadedFiles,
+        signal
+      );
+      setConversationHistory(response.conversation_history);
+      conversationHistoryRef.current = response.conversation_history;
+      setMessages((prev) => [...prev, { role: "user", content: prompt }]);
+      if (mapCallbacksRef.current) {
+        await LangGraphAdapter.processLangGraphResponse(
+          response,
+          mapCallbacksRef.current,
+          (role: "user" | "assistant", content: string, citations?: any[]) => {
+            setMessages((prev) => [...prev, { role, content, citations }]);
+          }
+        );
+      } else {
+        const text = response.response?.text || "";
+        if (text) setMessages((prev) => [...prev, { role: "assistant", content: text }]);
+      }
+      const rawText = getSpeakableText(response);
+      const textToSpeak = rawText ? stripMarkdownForTTS(rawText) : "";
+      if (textToSpeak && !pendingPromptRef.current) {
+        isAtlasSpeakingRef.current = true;
+        playTTSOrFallback(textToSpeak).then(() => {
+          isAtlasSpeakingRef.current = false;
+          setLoading(false);
+          setOperationSteps([]);
+          trySendConversation();
+        });
+      } else {
+        setLoading(false);
+        setOperationSteps([]);
+        trySendConversation();
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setLoading(false);
+        setOperationSteps([]);
+        trySendConversation();
+        return;
+      }
+      setLoading(false);
+      setOperationSteps([]);
+      trySendConversation();
+    } finally {
+      if (!isAtlasSpeakingRef.current) setLoading(false);
+      setOperationSteps([]);
+    }
+  };
+
+  const startConversationMode = async () => {
+    const baseUrl = (process.env.NEXT_PUBLIC_MODEL_ENDPOINT || "").replace("/generate", "").replace(/^http/, "ws");
+    const wsUrl = `${baseUrl}/transcribe-ws`;
+    if (!baseUrl || !wsUrl.startsWith("ws")) {
+      alert("NEXT_PUBLIC_MODEL_ENDPOINT not set for conversational mode.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      });
+      convStreamRef.current = stream;
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioContextClass({ sampleRate: 48000 });
+      convCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      convSourceRef.current = source;
+      const processor = ctx.createScriptProcessor(4096, 1, 1);
+      convProcessorRef.current = processor;
+      const ws = new WebSocket(wsUrl);
+      convWsRef.current = ws;
+      convCommittedRef.current = "";
+      setConversationLiveText("");
+      ws.onopen = () => {
+        source.connect(processor);
+        processor.connect(ctx.destination);
+      };
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          const mt = msg.message_type;
+          if (mt === "partial_transcript") {
+            setConversationLiveText(convCommittedRef.current + (msg.text || ""));
+          } else if (mt === "committed_transcript" && msg.text) {
+            const text = (convCommittedRef.current + msg.text).trim();
+            convCommittedRef.current = "";
+            if (!text) return;
+            if (isAtlasSpeakingRef.current && ttsAudioRef.current) {
+              ttsAudioRef.current.pause();
+              ttsAudioRef.current.currentTime = 0;
+              isAtlasSpeakingRef.current = false;
+            }
+            if (conversationAbortRef.current) {
+              conversationAbortRef.current.abort();
+            }
+            pendingPromptRef.current = text;
+            trySendConversation();
+          } else if (mt === "error" || mt === "auth_error") {
+            console.error("Conversation STT error:", msg.error);
+          }
+        } catch (e) {
+          console.error("Conversation message parse error:", e);
+        }
+      };
+      ws.onerror = () => setConversationLiveText((t) => t + " [Connection error]");
+      processor.onaudioprocess = (e: AudioProcessingEvent) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        const input = e.inputBuffer.getChannelData(0);
+        const int16 = new Int16Array(input.length);
+        for (let i = 0; i < input.length; i++) {
+          const s = Math.max(-1, Math.min(1, input[i]));
+          int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        const bytes = new Uint8Array(int16.buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        ws.send(JSON.stringify({ message_type: "input_audio_chunk", audio_base_64: btoa(binary), commit: false, sample_rate: 48000 }));
+      };
+      setConversationalMode(true);
+      // Atlas greets the user as soon as conversation mode is on
+      setTimeout(() => playGreeting(), 300);
+    } catch (err) {
+      console.error("Error starting conversation mode:", err);
+      alert("Could not access microphone for conversation mode.");
+    }
+  };
+
+  const stopConversationMode = () => {
+    const ws = convWsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+    convWsRef.current = null;
+    if (convProcessorRef.current && convSourceRef.current) {
+      try {
+        convProcessorRef.current.disconnect();
+        convSourceRef.current.disconnect();
+      } catch (_) {}
+    }
+    convProcessorRef.current = null;
+    convSourceRef.current = null;
+    if (convCtxRef.current) {
+      convCtxRef.current.close();
+      convCtxRef.current = null;
+    }
+    if (convStreamRef.current) {
+      convStreamRef.current.getTracks().forEach((t) => t.stop());
+      convStreamRef.current = null;
+    }
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current = null;
+    }
+    if (conversationAbortRef.current) {
+      conversationAbortRef.current.abort();
+    }
+    isAtlasSpeakingRef.current = false;
+    pendingPromptRef.current = "";
+    setConversationLiveText("");
+    setConversationalMode(false);
+  };
+
+  const handleConversationButtonClick = () => {
+    if (conversationalMode) {
+      stopConversationMode();
+    } else {
+      startConversationMode();
     }
   };
 
@@ -623,10 +1022,8 @@ export default function SafeGISAIChat({
         }
       }
 
-      // Process response and execute actions
-      await LangGraphAdapter.processLangGraphResponse(
-        response,
-        {
+      // Process response and execute actions (store callbacks for conversational mode)
+      const mapCallbacks = {
           searchLocation: async (query: string) => {
             // Location search - fly to location on map
             setOperationSteps((prev) => [...prev, `Looking up "${query}"...`]);
@@ -967,7 +1364,14 @@ export default function SafeGISAIChat({
               pathfinderCallbacks.closePathfinder();
             }
           },
-        },
+          openPanel: openPanel
+            ? (panel: string) => openPanel(panel)
+            : undefined,
+        };
+      mapCallbacksRef.current = mapCallbacks;
+      await LangGraphAdapter.processLangGraphResponse(
+        response,
+        mapCallbacks,
         (role: "user" | "assistant", content: string, citations?: any[]) => {
           setMessages((prev) => [...prev, { role, content, citations }]);
         }
@@ -1144,7 +1548,13 @@ export default function SafeGISAIChat({
             {/* Textarea */}
             <div className="flex flex-col w-full h-[70px] backdrop-blur-xl !rounded-[0.375rem] shadow-lg p-1 border-animated">
               <textarea
-                value={inputText}
+                value={
+                  isRecording
+                    ? voiceLiveText
+                    : conversationalMode
+                    ? conversationLiveText
+                    : inputText
+                }
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey && !isTextareaDisabled) {
@@ -1156,9 +1566,7 @@ export default function SafeGISAIChat({
                 disabled={isTextareaDisabled}
                 className={`flex-1 resize-none overflow-y-auto bg-transparent text-[#C7C7C7] placeholder-[#C7C7C7]/70 text-[10px] rounded-md px-1 py-0.5 outline-none border-none custom-scrollbar ${
                   isTextareaDisabled ? "cursor-not-allowed opacity-60" : ""
-                } ${isRecording ? "placeholder-orange-300" : ""} ${
-                  isProcessingAudio ? "placeholder-blue-300" : ""
-                }`}
+                } ${isRecording ? "placeholder-orange-300" : ""} ${conversationalMode ? "placeholder-emerald-300" : ""}`}
               />
 
               <div className="flex justify-between mt-0.5">
@@ -1177,22 +1585,31 @@ export default function SafeGISAIChat({
                   </button>
                 </div>
                 <div className="flex gap-1">
-                  {/* Voice Prompt Button */}
+                  {/* Conversational AI mode (talk to Atlas, interrupt mid-sentence) */}
+                  <button
+                    onClick={handleConversationButtonClick}
+                    disabled={loading || isRecording}
+                    title={conversationalMode ? "Stop conversation mode" : "Start conversation mode"}
+                    className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
+                      conversationalMode
+                        ? "bg-emerald-600 hover:bg-emerald-500"
+                        : "bg-transparent hover:text-gray-200"
+                    }`}
+                  >
+                    <AudioLines size={13} />
+                  </button>
+                  {/* Voice Prompt Button (push-to-talk) */}
                   <button
                     onClick={handleVoiceButtonClick}
-                    disabled={isProcessingAudio}
+                    disabled={loading || conversationalMode}
                     className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
                       isRecording
                         ? "bg-red-500 hover:bg-red-600"
-                        : isProcessingAudio
-                        ? "bg-[#8183c8] cursor-not-allowed opacity-60"
                         : "bg-transparent hover:text-gray-200"
                     }`}
                   >
                     {isRecording ? (
                       <CircleStop size={13} />
-                    ) : isProcessingAudio ? (
-                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
                     ) : (
                       <Mic size={13} />
                     )}
@@ -1203,14 +1620,12 @@ export default function SafeGISAIChat({
                     disabled={
                       loading ||
                       !inputText.trim() ||
-                      isRecording ||
-                      isProcessingAudio
+                      isRecording
                     }
                     className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
                       loading ||
                       !inputText.trim() ||
-                      isRecording ||
-                      isProcessingAudio
+                      isRecording
                         ? "bg-[#676767] opacity-50 cursor-not-allowed"
                         : "bg-[#676767] hover:bg-[#737373]"
                     }`}

@@ -1878,6 +1878,85 @@ export default function MainUILayout() {
                 setShowPathfinder(false);
               },
             }}
+            openPanel={(panel: string) => {
+              const p = panel.toLowerCase().replace(/\s+/g, "_");
+              if (p === "chat_expand" || p === "chat_fullscreen" || p === "expand_chat" || p === "atlas_fullscreen") {
+                setShowChat(true);
+                setIsChatExpanded(true);
+                return;
+              }
+              if (p === "chat_collapse" || p === "minimize_chat" || p === "collapse_chat") {
+                setIsChatExpanded(false);
+                return;
+              }
+              if (p === "map_style_dropdown" || p === "map_style" || p === "style_dropdown") {
+                setShowMapStyleDropdown(true);
+                setShowTimeOfDayDropdown(false);
+                return;
+              }
+              if (p === "time_of_day_dropdown" || p === "time_of_day" || p === "lighting_dropdown") {
+                setShowTimeOfDayDropdown(true);
+                setShowMapStyleDropdown(false);
+                return;
+              }
+              if (p === "boundary_panel" || p === "add_boundary_panel" || p === "boundaries_panel") {
+                centerRightControlsRef.current?.openBoundariesPanel?.();
+                return;
+              }
+              if (p === "pathfinder_panel" || p === "pathfinder" || p === "route_panel") {
+                setShowPathfinder(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+                return;
+              }
+              if (p === "layers_panel" || p === "layer_panel" || p === "hazard_layers" || p === "critical_facility_layers") {
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+                setExpandedPanels((prev) => ({ ...prev, "hazard-Geological Hazards": true }));
+                return;
+              }
+              if (p === "import_files_panel" || p === "import_panel" || p === "upload_panel") {
+                centerRightControlsRef.current?.openImportFilesPanel?.();
+                return;
+              }
+              if (p === "live_hazard_monitor" || p === "hazard_monitor" || p === "live_hazards") {
+                setShowLiveHazardMonitor(true);
+                return;
+              }
+              if (p === "select_maps" || p === "map_selection" || p === "maps_panel") {
+                setShowSelectMaps(true);
+                setShowToolPanel(true);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+                return;
+              }
+              if (p === "planning_tools" || p === "planning_panel" || p === "planning") {
+                setShowPlanningTools(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowAssessmentTools(false);
+                return;
+              }
+              if (p === "assessment_tools" || p === "assessment_panel" || p === "exposure_panel" || p === "vulnerability_panel") {
+                setShowAssessmentTools(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                return;
+              }
+              if (p === "tool_panel" || p === "tools_panel" || p === "left_panel") {
+                setShowToolPanel(true);
+                return;
+              }
+            }}
           />
           {/* Aspect Ratio Selector - Hide when expanded */}
           {!isChatExpanded && showAspectRatioSelector && (

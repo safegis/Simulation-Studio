@@ -9,6 +9,7 @@ export interface LangGraphMessage {
 export interface LangGraphResponse {
   response: {
     tool?: string;
+    panel?: string;
     action?: string;
     query?: string;
     style?: string;
@@ -131,6 +132,9 @@ export interface MapCallbacks {
   changeRouteSort: (sortBy: string) => void;
   openPathfinder: () => void;
   closePathfinder: () => void;
+
+  // Open panels / UI controls by name (e.g. "chat_expand", "map_style_dropdown", "boundary_panel")
+  openPanel?: (panel: string) => void;
 }
 
 /**
@@ -516,6 +520,15 @@ export async function processLangGraphResponse(
           }
           break;
 
+        case "open_panel":
+          if (callbacks.openPanel && data.panel) {
+            callbacks.openPanel(data.panel as string);
+          }
+          if (data.text) {
+            addMessage("assistant", data.text);
+          }
+          break;
+
         default:
           addMessage(
             "assistant",
@@ -546,7 +559,8 @@ export async function sendToLangGraph(
   conversationHistory: LangGraphMessage[] = [],
   mapState: Record<string, any> = {},
   webSearchEnabled: boolean = false,
-  uploadedFiles: string[] = []
+  uploadedFiles: string[] = [],
+  signal?: AbortSignal
 ): Promise<LangGraphResponse> {
   const endpoint = process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
     "/generate",
@@ -569,6 +583,7 @@ export async function sendToLangGraph(
       web_search_enabled: webSearchEnabled,
       uploaded_files: uploadedFiles,
     }),
+    signal,
   });
 
   if (!response.ok) {
