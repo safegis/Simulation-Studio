@@ -1,7 +1,17 @@
 // \SafeGIS\Simulation-Studio\frontend\src\components\controls\Main\CenterRightControls.tsx
 "use client";
 
-import { ZoomIn, ZoomOut, Layers2, X, ChevronDown, Upload } from "lucide-react";
+import {
+  ZoomIn,
+  ZoomOut,
+  Layers2,
+  X,
+  ChevronDown,
+  Upload,
+  Crop,
+  Check,
+  Loader2,
+} from "lucide-react";
 import {
   RefObject,
   useRef,
@@ -90,6 +100,12 @@ const RightSideControls = forwardRef<
     const [showGeoJSONPanel, setShowGeoJSONPanel] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [showBoundariesPanel, setShowBoundariesPanel] = useState(false);
+    const [showSegmentPanel, setShowSegmentPanel] = useState(false);
+    const [textPrompt, setTextPrompt] = useState<string>("");
+    const [isSegmenting, setIsSegmenting] = useState(false);
+    const [sessionId] = useState(
+      () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    );
     const [selectedBoundary, setSelectedBoundary] = useState<string | null>(
       null
     );
@@ -378,6 +394,111 @@ const RightSideControls = forwardRef<
       return countryBoundaries[selectedCountry]?.levels || [];
     };
 
+    // Get current map bounds and zoom
+    const getMapBounds = () => {
+      if (!mapRef.current) return null;
+      const map = mapRef.current.getMap();
+      if (!map) return null;
+
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+
+      return {
+        bounds: [
+          bounds.getWest(),
+          bounds.getSouth(),
+          bounds.getEast(),
+          bounds.getNorth(),
+        ] as [number, number, number, number],
+        zoom: zoom,
+      };
+    };
+
+    // Handle text-prompt-based segmentation
+    const handleTextPromptSegment = async () => {
+      if (!textPrompt.trim()) {
+        alert("Please enter a text prompt (e.g., 'tree', 'house', 'vehicle')");
+        return;
+      }
+
+      if (!mapRef.current) {
+        alert("Map not available");
+        return;
+      }
+
+      const mapInfo = getMapBounds();
+      if (!mapInfo) {
+        alert("Could not get map bounds");
+        return;
+      }
+
+      setIsSegmenting(true);
+
+      try {
+        const backendUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+        const response = await fetch(
+          `${backendUrl}/api/segmentation/text-prompt`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bounds: mapInfo.bounds,
+              zoom: mapInfo.zoom,
+              text_prompt: textPrompt.trim(),
+              box_threshold: 0.24,
+              text_threshold: 0.24,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Backend error: ${response.status}`
+          );
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Add segments to map
+          if (result.segments && result.segments.length > 0) {
+            result.segments.forEach((segment: any, index: number) => {
+              // segment is already a GeoJSON feature
+              if (segment.geometry || segment.type === "Feature") {
+                mapRef.current?.addGeoJSONLayer?.(
+                  {
+                    type: "FeatureCollection",
+                    features: [segment],
+                  },
+                  `segment_${
+                    segment.properties?.object_id || `text_prompt_${index}`
+                  }`
+                );
+              }
+            });
+          }
+          alert(`Successfully segmented ${result.count || 0} ${textPrompt}(s)`);
+          // Clear the text prompt after successful segmentation
+          setTextPrompt("");
+        } else {
+          alert(result.message || "Segmentation failed");
+        }
+      } catch (error) {
+        console.error("Error segmenting with text prompt:", error);
+        alert(
+          error instanceof Error ? error.message : "Failed to segment objects"
+        );
+      } finally {
+        setIsSegmenting(false);
+      }
+    };
+
+    // Note: These functions are no longer needed with text-prompt-based segmentation
+    // Removed toggleObjectSelection and toggleGroupExpansion as they were part of the old classification flow
+
     // Effect to render boundary on map when selection changes
     useEffect(() => {
       if (!mapRef.current) return;
@@ -466,6 +587,92 @@ const RightSideControls = forwardRef<
           >
             <ZoomOut size={18} className="shrink-0" />
           </button>
+        </div>
+
+        {/* Crop button */}
+        <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] h-[40px] flex justify-center items-center">
+          <button
+            onClick={() => {
+              setShowSegmentPanel((prev) => !prev);
+              setShowGeoJSONPanel(false);
+              setShowBoundariesPanel(false);
+            }}
+            onMouseEnter={() => setHoveredButton("crop")}
+            onMouseLeave={() => setHoveredButton(null)}
+            className={`w-[32px] h-[32px] inline-flex items-center justify-center rounded transition ${
+              showSegmentPanel
+                ? "bg-gradient-to-b from-[#9699FF] to-white"
+                : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
+            }`}
+          >
+            <Crop
+              size={18}
+              color={showSegmentPanel ? "#2E2E2E" : "#C7C7C7"}
+              className="shrink-0"
+            />
+          </button>
+          {hoveredButton === "crop" && !showSegmentPanel && (
+            <div className="absolute right-[50px] top-1/2 -translate-y-1/2 bg-white text-black text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-[9999]">
+              Segment Objects
+            </div>
+          )}
+
+          {showSegmentPanel && (
+            <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-80 bg-[#2E2E2E] rounded-md shadow-md p-3 z-40 flex flex-col items-center">
+              <h3 className="text-[11px] font-semibold text-white mb-3">
+                Segment Objects
+              </h3>
+
+              <div className="flex flex-col gap-2 w-full">
+                {/* Text Prompt Input */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-[#C7C7C7]">
+                    Enter object to segment:
+                  </label>
+                  <input
+                    type="text"
+                    value={textPrompt}
+                    onChange={(e) => setTextPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !isSegmenting) {
+                        handleTextPromptSegment();
+                      }
+                    }}
+                    placeholder="e.g., tree, house, vehicle, road"
+                    className="px-2 py-1.5 rounded-sm bg-[#3a3a3a] text-white text-[11px] placeholder-[#666] border border-[#4a4a4a] focus:outline-none focus:ring-1 focus:ring-[#9699FF]"
+                  />
+                  <p className="text-[9px] text-[#888]">
+                    Examples: "tree", "house", "vehicle", "road", "water",
+                    "building"
+                  </p>
+                </div>
+
+                {/* Segment Button */}
+                <button
+                  onClick={handleTextPromptSegment}
+                  disabled={isSegmenting || !textPrompt.trim()}
+                  className={`px-3 py-2 rounded-sm shadow-md text-center w-full transition flex items-center justify-center gap-2 ${
+                    isSegmenting || !textPrompt.trim()
+                      ? "bg-[#5A5C99] opacity-50 cursor-not-allowed"
+                      : "bg-[#9699FF] text-white hover:opacity-90 cursor-pointer"
+                  }`}
+                >
+                  {isSegmenting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span className="font-medium text-[11px]">
+                        Segmenting...
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-medium text-[11px]">
+                      Segment Objects
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* GeoJSON Upload */}
