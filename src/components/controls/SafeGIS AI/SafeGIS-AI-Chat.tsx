@@ -93,6 +93,13 @@ type Props = {
   };
   // Open panels / UI by name (chat_expand, map_style_dropdown, boundary_panel, etc.)
   openPanel?: (panel: string) => void;
+  /** Undo / redo / reset — same as right toolbar (reset opens confirm unless performReset) */
+  mapHistoryCallbacks?: {
+    undo: () => void | Promise<void>;
+    redo: () => void | Promise<void>;
+    openResetConfirm: () => void;
+    performReset: () => void;
+  };
 };
 
 type Message = {
@@ -349,6 +356,7 @@ export default function SafeGISAIChat({
   boundaryCallbacks,
   pathfinderCallbacks,
   openPanel,
+  mapHistoryCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -1008,6 +1016,17 @@ export default function SafeGISAIChat({
           ...prev,
           "Configuring weather monitoring...",
         ]);
+      } else if (response.response.tool === "map_undo") {
+        setOperationSteps((prev) => [...prev, "Undoing last map change..."]);
+      } else if (response.response.tool === "map_redo") {
+        setOperationSteps((prev) => [...prev, "Redoing last undone change..."]);
+      } else if (response.response.tool === "map_reset") {
+        setOperationSteps((prev) => [
+          ...prev,
+          response.response.immediate
+            ? "Resetting map..."
+            : "Opening map reset confirmation...",
+        ]);
       } else if (response.response.multiple_actions) {
         setOperationSteps((prev) => [
           ...prev,
@@ -1366,6 +1385,18 @@ export default function SafeGISAIChat({
           },
           openPanel: openPanel
             ? (panel: string) => openPanel(panel)
+            : undefined,
+          mapUndo: mapHistoryCallbacks
+            ? () => mapHistoryCallbacks.undo()
+            : undefined,
+          mapRedo: mapHistoryCallbacks
+            ? () => mapHistoryCallbacks.redo()
+            : undefined,
+          openMapResetConfirm: mapHistoryCallbacks
+            ? () => mapHistoryCallbacks.openResetConfirm()
+            : undefined,
+          performMapReset: mapHistoryCallbacks
+            ? () => mapHistoryCallbacks.performReset()
             : undefined,
         };
       mapCallbacksRef.current = mapCallbacks;

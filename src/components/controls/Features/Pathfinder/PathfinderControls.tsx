@@ -31,6 +31,51 @@ const getOrdinal = (n: number) => {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
+/** Serializable slice of Pathfinder state for undo/redo with parent map history. */
+export type PathfinderUndoSnapshot = {
+  startText: string;
+  destinationText: string;
+  startCoords: { lat: number; lon: number } | null;
+  destinationCoords: { lat: number; lon: number } | null;
+  startSuggestions: any[];
+  destinationSuggestions: any[];
+  startHighlightedIndex: number;
+  destinationHighlightedIndex: number;
+  selectedMode: string;
+  isLoadingRoutes: boolean;
+  isFilteringMode: boolean;
+  routesData: any[];
+  showStepsMap: Record<string, boolean>;
+  selectedRouteKey: string | null;
+  routeKeyToFeatureIndex: Record<string, number>;
+  routesCache: Record<string, { routesWithTraffic: any[]; geojson: any }>;
+  selectedSort: string;
+  showSortDropdown: boolean;
+  showModal: boolean;
+};
+
+export const EMPTY_PATHFINDER_UNDO_SNAPSHOT: PathfinderUndoSnapshot = {
+  startText: "",
+  destinationText: "",
+  startCoords: null,
+  destinationCoords: null,
+  startSuggestions: [],
+  destinationSuggestions: [],
+  startHighlightedIndex: -1,
+  destinationHighlightedIndex: -1,
+  selectedMode: "all",
+  isLoadingRoutes: false,
+  isFilteringMode: false,
+  routesData: [],
+  showStepsMap: {},
+  selectedRouteKey: null,
+  routeKeyToFeatureIndex: {},
+  routesCache: {},
+  selectedSort: "Best balance",
+  showSortDropdown: false,
+  showModal: false,
+};
+
 export interface PathfinderControlsRef {
   setStartLocation: (
     location: string,
@@ -42,14 +87,20 @@ export interface PathfinderControlsRef {
   ) => void;
   setMode: (mode: string) => void;
   setSort: (sort: string) => void;
+  /** Clear inputs, routes, and polling (parent clears map routes/markers). */
+  resetMapLinkedUi: () => void;
+  getUndoSnapshot: () => PathfinderUndoSnapshot;
+  applyUndoSnapshot: (snap: PathfinderUndoSnapshot) => void;
 }
 
 const PathfinderControls = forwardRef<
   PathfinderControlsRef,
   {
     mapRef: React.RefObject<any>;
+    /** Debounced into parent undo checkpoint (map + UI history). */
+    onStateChangeForUndo?: () => void;
   }
->(({ mapRef }, ref) => {
+>(({ mapRef, onStateChangeForUndo }, ref) => {
   const [startText, setStartText] = useState("");
   const [destinationText, setDestinationText] = useState("");
   const [startCoords, setStartCoords] = useState<{
@@ -114,6 +165,11 @@ const PathfinderControls = forwardRef<
   const startItemRefs = useRef<(HTMLLIElement | null)[]>([]);
   const destinationItemRefs = useRef<(HTMLLIElement | null)[]>([]);
 
+  /** Skip auto fetch when restoring from undo (cache redrawn in applyUndoSnapshot). */
+  const suppressCoordsRouteFetchRef = useRef(false);
+  /** Skip “pick first route” effect while restoring selection from snapshot. */
+  const suppressAutoRouteSelectionRef = useRef(false);
+
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     setStartLocation: (
@@ -145,11 +201,174 @@ const PathfinderControls = forwardRef<
       };
       setSelectedSort(sortMap[sort] || "Best balance");
     },
-  }));
+    resetMapLinkedUi: () => {
+      if (trafficPollingIntervalRef.current) {
+        clearInterval(trafficPollingIntervalRef.current);
+        trafficPollingIntervalRef.current = null;
+      }
+      setStartText("");
+      setDestinationText("");
+      setStartCoords(null);
+      setDestinationCoords(null);
+      setStartSuggestions([]);
+      setDestinationSuggestions([]);
+      setStartHighlightedIndex(-1);
+      setDestinationHighlightedIndex(-1);
+      setRoutesData([]);
+      setSelectedRouteKey(null);
+      setRouteKeyToFeatureIndex({});
+      setShowStepsMap({});
+      routesCacheRef.current = {};
+      setIsLoadingRoutes(false);
+      setIsFilteringMode(false);
+      setSelectedMode("all");
+    },
+    getUndoSnapshot: (): PathfinderUndoSnapshot => ({
+      startText,
+      destinationText,
+      startCoords: startCoords ? { ...startCoords } : null,
+      destinationCoords: destinationCoords ? { ...destinationCoords } : null,
+      startSuggestions: JSON.parse(JSON.stringify(startSuggestions)),
+      destinationSuggestions: JSON.parse(JSON.stringify(destinationSuggestions)),
+      startHighlightedIndex,
+      destinationHighlightedIndex,
+      selectedMode,
+      isLoadingRoutes,
+      isFilteringMode,
+      routesData: JSON.parse(JSON.stringify(routesData)),
+      showStepsMap: { ...showStepsMap },
+      selectedRouteKey,
+      routeKeyToFeatureIndex: { ...routeKeyToFeatureIndex },
+      routesCache: JSON.parse(JSON.stringify(routesCacheRef.current)),
+      selectedSort,
+      showSortDropdown,
+      showModal,
+    }),
+    applyUndoSnapshot: (snap: PathfinderUndoSnapshot) => {
+      if (trafficPollingIntervalRef.current) {
+        clearInterval(trafficPollingIntervalRef.current);
+        trafficPollingIntervalRef.current = null;
+      }
+      suppressCoordsRouteFetchRef.current = true;
+      suppressAutoRouteSelectionRef.current = true;
+      routesCacheRef.current = snap.routesCache
+        ? JSON.parse(JSON.stringify(snap.routesCache))
+        : {};
+      startJustSelectedRef.current = false;
+      destinationJustSelectedRef.current = false;
+
+      setStartText(snap.startText ?? "");
+      setDestinationText(snap.destinationText ?? "");
+      setStartCoords(snap.startCoords ?? null);
+      setDestinationCoords(snap.destinationCoords ?? null);
+      setStartSuggestions(snap.startSuggestions ?? []);
+      setDestinationSuggestions(snap.destinationSuggestions ?? []);
+      setStartHighlightedIndex(snap.startHighlightedIndex ?? -1);
+      setDestinationHighlightedIndex(snap.destinationHighlightedIndex ?? -1);
+      setSelectedMode(snap.selectedMode ?? "all");
+      setIsLoadingRoutes(snap.isLoadingRoutes ?? false);
+      setIsFilteringMode(snap.isFilteringMode ?? false);
+      setRoutesData(snap.routesData ?? []);
+      setShowStepsMap(snap.showStepsMap ?? {});
+      setSelectedRouteKey(snap.selectedRouteKey ?? null);
+      setRouteKeyToFeatureIndex(snap.routeKeyToFeatureIndex ?? {});
+      setSelectedSort(snap.selectedSort ?? "Best balance");
+      setShowSortDropdown(snap.showSortDropdown ?? false);
+      setShowModal(snap.showModal ?? false);
+
+      if (snap.startCoords) {
+        mapRef.current?.addStartMarker?.(
+          snap.startCoords.lon,
+          snap.startCoords.lat
+        );
+      } else {
+        mapRef.current?.clearStartMarker?.();
+      }
+      if (snap.destinationCoords) {
+        mapRef.current?.addDestinationMarker?.(
+          snap.destinationCoords.lon,
+          snap.destinationCoords.lat
+        );
+      } else {
+        mapRef.current?.clearDestinationMarker?.();
+      }
+
+      const mode = (snap.selectedMode ?? "all") as
+        | "all"
+        | "driving"
+        | "walking"
+        | "cycling"
+        | "motorcycle";
+      const sc = snap.startCoords;
+      const dc = snap.destinationCoords;
+
+      window.setTimeout(() => {
+        if (sc && dc && snap.routesData?.length) {
+          const cacheKey = `${sc.lat},${sc.lon}-${dc.lat},${dc.lon}-${mode}`;
+          let cached = routesCacheRef.current[cacheKey];
+          if (!cached && mode !== "all") {
+            const allKey = `${sc.lat},${sc.lon}-${dc.lat},${dc.lon}-all`;
+            cached = routesCacheRef.current[allKey];
+          }
+          if (cached?.geojson?.features?.length) {
+            mapRef.current?.drawRoutes?.(cached.geojson);
+            const rtw = cached.routesWithTraffic || [];
+            mapRef.current?.drawIncidentSegments?.(
+              rtw.map((route: any, index: number) => ({
+                featureIndex: index,
+                trafficData: route.trafficData,
+              }))
+            );
+          }
+          const key = snap.selectedRouteKey;
+          if (key) {
+            const idx = snap.routeKeyToFeatureIndex?.[key];
+            setSelectedRouteKey(key);
+            mapRef.current?.highlightRouteByFeatureIndex?.(
+              typeof idx === "number" ? idx : null
+            );
+          } else {
+            setSelectedRouteKey(null);
+            mapRef.current?.highlightRouteByFeatureIndex?.(null);
+          }
+        } else {
+          mapRef.current?.clearRoutes?.();
+          mapRef.current?.clearIncidentSegments?.();
+          setSelectedRouteKey(null);
+          mapRef.current?.highlightRouteByFeatureIndex?.(null);
+        }
+        suppressAutoRouteSelectionRef.current = false;
+      }, 0);
+    },
+  }), [
+    startText,
+    destinationText,
+    startCoords,
+    destinationCoords,
+    startSuggestions,
+    destinationSuggestions,
+    startHighlightedIndex,
+    destinationHighlightedIndex,
+    selectedMode,
+    isLoadingRoutes,
+    isFilteringMode,
+    routesData,
+    showStepsMap,
+    selectedRouteKey,
+    routeKeyToFeatureIndex,
+    selectedSort,
+    showSortDropdown,
+    showModal,
+    mapRef,
+  ]);
 
   // Auto-fetch routes when both start and destination coords are set
   useEffect(() => {
     if (startCoords && destinationCoords) {
+      if (suppressCoordsRouteFetchRef.current) {
+        suppressCoordsRouteFetchRef.current = false;
+        return;
+      }
       console.log(
         "🔵 Both coords set, fetching routes:",
         startCoords,
@@ -162,6 +381,22 @@ const PathfinderControls = forwardRef<
       );
     }
   }, [startCoords, destinationCoords]);
+
+  // Parent undo stack: debounce checkpoint when pathfinder-driven map content changes
+  useEffect(() => {
+    if (!onStateChangeForUndo) return;
+    const id = window.setTimeout(() => onStateChangeForUndo(), 500);
+    return () => clearTimeout(id);
+  }, [
+    onStateChangeForUndo,
+    startCoords,
+    destinationCoords,
+    routesData,
+    selectedMode,
+    selectedSort,
+    startText,
+    destinationText,
+  ]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -567,6 +802,8 @@ const PathfinderControls = forwardRef<
 
   // ensure the first visible route becomes selected when routesData, mode or sort change
   useEffect(() => {
+    if (suppressAutoRouteSelectionRef.current) return;
+
     if (!routesData || routesData.length === 0) {
       setSelectedRouteKey(null);
       mapRef.current?.highlightRouteByFeatureIndex(null);

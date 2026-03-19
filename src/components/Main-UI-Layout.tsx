@@ -1,14 +1,18 @@
 // \SafeGIS\Simulation-Studio\frontend\src\components\Main-UI-Layout.tsx
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useReducer } from "react";
+import { flushSync } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
 
-import MapComponent from "./Map/MainCanvas";
+import MapComponent, { type MapUndoSnapshot } from "./Map/MainCanvas";
 import SafeGISAIChat from "./controls/SafeGIS AI/SafeGIS-AI-Chat";
 import SelectMaps from "./controls/Features/Maps/SelectMaps";
-import PathfinderControls from "./controls/Features/Pathfinder/PathfinderControls";
+import PathfinderControls, {
+  EMPTY_PATHFINDER_UNDO_SNAPSHOT,
+  type PathfinderUndoSnapshot,
+} from "./controls/Features/Pathfinder/PathfinderControls";
 import LocationSearchBar from "./controls/Main/LocationSearchBar";
 import SelectPlanningTools from "./controls/Features/Planning Suite/SelectPlanningTools";
 import SelectAssessment from "./controls/Features/Assessment Tools/SelectAssessment";
@@ -32,6 +36,92 @@ import Crop54Icon from "@mui/icons-material/Crop54";
 import Crop75Icon from "@mui/icons-material/Crop75";
 import CropFreeIcon from "@mui/icons-material/CropFree";
 
+type UiUndoSnapshot = {
+  searchText: string;
+  suggestions: any[];
+  highlightedIndex: number;
+  viewMode: "2d" | "3d";
+  showSelectMaps: boolean;
+  showPathfinder: boolean;
+  showPlanningTools: boolean;
+  showTimeOfDayDropdown: boolean;
+  showMapStyleDropdown: boolean;
+  selectedTimeOfDay: string | null;
+  show3DControls: boolean;
+  showLiveHazardMonitor: boolean;
+  liveEarthquakeEnabled: boolean;
+  liveWeatherEnabled: boolean;
+  selectedEarthquakeSources: string[];
+  selectedWeatherSources: string[];
+  showToolPanel: boolean;
+  selectedMaps: string[];
+  showAffectedAreas: boolean;
+  affectedAreasData: GeoJSON.FeatureCollection | null;
+  expandedPanels: Record<string, boolean>;
+  geologicalExpanded: boolean;
+  trafficExpanded: boolean;
+  selectedPlanningTools: string[];
+  selectedPlan: { name: string; date: string } | null;
+  showAssessmentTools: boolean;
+  selectedAssessmentTools: string[];
+  uploadedFiles: { name: string; layerName: string }[];
+  isBoundaryLoading: boolean;
+  boundaryLoadingStage: string;
+  isFileLoading: boolean;
+  fileLoadingStage: string;
+  showAspectRatioSelector: boolean;
+  selectedAspectRatio: string;
+  tempAspectRatio: string;
+  isDrawingAspectRatio: boolean;
+  aspectRatioShapeDrawn: boolean;
+  isDrawingBox: boolean;
+  isDrawingRectangle: boolean;
+  shapeDrawn: boolean;
+  scopeConfirmed: boolean;
+  showExposureResults: boolean;
+  exposureResultsData: any;
+  isAnalysisRunning: boolean;
+  exposureResultsMinimized: boolean;
+  exposureResultsPosition: { x: number; y: number };
+  isDraggingResults: boolean;
+  selectedMapStyle: string;
+  earthquakeEnabled: boolean;
+  volcanoListEnabled: boolean;
+  activeFaultsEnabled: boolean;
+  congestionEnabled: boolean;
+  savedAspectRatioShape: GeoJSON.FeatureCollection | null;
+  /** Pathfinder panel state (optional for snapshots taken before this existed). */
+  pathfinder?: PathfinderUndoSnapshot;
+};
+
+type FullUndoSnapshot = { ui: UiUndoSnapshot; map: MapUndoSnapshot | null };
+
+function getMapboxStyleUrlForUndo(
+  label: string,
+  viewMode: "2d" | "3d"
+): string {
+  switch (label) {
+    case "Default (Custom Mapbox Standard)":
+      return viewMode === "3d"
+        ? "mapbox://styles/shain34/cmesokqei00z501sdedixesto"
+        : "mapbox://styles/mapbox/streets-v12";
+    case "Satellite (Mapbox)":
+      return "mapbox://styles/mapbox/standard-satellite";
+    case "Outdoors (Mapbox)":
+      return "mapbox://styles/mapbox/outdoors-v12";
+    case "Light (Mapbox)":
+      return "mapbox://styles/mapbox/light-v11";
+    case "Dark (Mapbox)":
+      return "mapbox://styles/mapbox/dark-v11";
+    case "Navigation Day (Mapbox)":
+      return "mapbox://styles/mapbox/navigation-day-v1";
+    case "Navigation Night (Mapbox)":
+      return "mapbox://styles/mapbox/navigation-night-v1";
+    default:
+      return "mapbox://styles/mapbox/streets-v12";
+  }
+}
+
 export default function MainUILayout() {
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -43,6 +133,7 @@ export default function MainUILayout() {
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [showChat, setShowChat] = useState(false);
   const [isChatExpanded, setIsChatExpanded] = useState(false);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [showSelectMaps, setShowSelectMaps] = useState(false);
   const [showPathfinder, setShowPathfinder] = useState(false);
   const [showPlanningTools, setShowPlanningTools] = useState(false);
@@ -149,6 +240,123 @@ export default function MainUILayout() {
   const [isDraggingResults, setIsDraggingResults] = useState(false);
   const dragStartPos = useRef({ x: 0, y: 0 });
 
+  const undoPastRef = useRef<FullUndoSnapshot[]>([]);
+  const undoFutureRef = useRef<FullUndoSnapshot[]>([]);
+  const isApplyingHistoryRef = useRef(false);
+  const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  /** Previous checkpoint; we push this to the undo stack when the map/UI advances. */
+  const historyBaselineRef = useRef<FullUndoSnapshot | null>(null);
+  /** Ignore moveend-based history briefly after undo/redo/reset (programmatic camera). */
+  const undoSuppressMoveUntilRef = useRef(0);
+  const [, bumpHistoryUi] = useReducer((n: number) => n + 1, 0);
+  /** Disables undo/redo buttons while apply runs (redo/undo symmetry + no double-clicks). */
+  const [historyNavBusy, setHistoryNavBusy] = useState(false);
+
+  const latestUiForUndoRef = useRef<UiUndoSnapshot | null>(null);
+
+  /** Panel open/close & shell UI — preserved on undo/redo (same idea as reset not closing panels). */
+  const panelShellPreserveRef = useRef({
+    showSelectMaps: false,
+    showPathfinder: false,
+    showPlanningTools: false,
+    showLiveHazardMonitor: false,
+    showToolPanel: false,
+    showAssessmentTools: false,
+    showTimeOfDayDropdown: false,
+    showMapStyleDropdown: false,
+    expandedPanels: {} as Record<string, boolean>,
+    geologicalExpanded: false,
+    trafficExpanded: false,
+    showExposureResults: false,
+    exposureResultsMinimized: true,
+    exposureResultsPosition: { x: 0, y: 0 },
+    isDraggingResults: false,
+  });
+
+  latestUiForUndoRef.current = {
+    searchText,
+    suggestions,
+    highlightedIndex,
+    viewMode,
+    showSelectMaps,
+    showPathfinder,
+    showPlanningTools,
+    showTimeOfDayDropdown,
+    showMapStyleDropdown,
+    selectedTimeOfDay,
+    show3DControls,
+    showLiveHazardMonitor,
+    liveEarthquakeEnabled,
+    liveWeatherEnabled,
+    selectedEarthquakeSources: [...selectedEarthquakeSources],
+    selectedWeatherSources: [...selectedWeatherSources],
+    showToolPanel,
+    selectedMaps: [...selectedMaps],
+    showAffectedAreas,
+    affectedAreasData: affectedAreasData
+      ? (JSON.parse(JSON.stringify(affectedAreasData)) as GeoJSON.FeatureCollection)
+      : null,
+    expandedPanels: { ...expandedPanels },
+    geologicalExpanded,
+    trafficExpanded,
+    selectedPlanningTools: [...selectedPlanningTools],
+    selectedPlan: selectedPlan ? { ...selectedPlan } : null,
+    showAssessmentTools,
+    selectedAssessmentTools: [...selectedAssessmentTools],
+    uploadedFiles: [...uploadedFiles],
+    isBoundaryLoading,
+    boundaryLoadingStage,
+    isFileLoading,
+    fileLoadingStage,
+    showAspectRatioSelector,
+    selectedAspectRatio,
+    tempAspectRatio,
+    isDrawingAspectRatio,
+    aspectRatioShapeDrawn,
+    isDrawingBox,
+    isDrawingRectangle,
+    shapeDrawn,
+    scopeConfirmed,
+    showExposureResults,
+    exposureResultsData: exposureResultsData
+      ? JSON.parse(JSON.stringify(exposureResultsData))
+      : null,
+    isAnalysisRunning,
+    exposureResultsMinimized,
+    exposureResultsPosition: { ...exposureResultsPosition },
+    isDraggingResults,
+    selectedMapStyle,
+    earthquakeEnabled,
+    volcanoListEnabled,
+    activeFaultsEnabled,
+    congestionEnabled,
+    savedAspectRatioShape: savedAspectRatioShapeRef.current
+      ? (JSON.parse(
+          JSON.stringify(savedAspectRatioShapeRef.current)
+        ) as GeoJSON.FeatureCollection)
+      : null,
+  };
+
+  panelShellPreserveRef.current = {
+    showSelectMaps,
+    showPathfinder,
+    showPlanningTools,
+    showLiveHazardMonitor,
+    showToolPanel,
+    showAssessmentTools,
+    showTimeOfDayDropdown,
+    showMapStyleDropdown,
+    expandedPanels: { ...expandedPanels },
+    geologicalExpanded,
+    trafficExpanded,
+    showExposureResults,
+    exposureResultsMinimized,
+    exposureResultsPosition: { ...exposureResultsPosition },
+    isDraggingResults,
+  };
+
   const squareRatio = 1; // 1:1 square
   const rectangleRatio = 16 / 9; // rectangle ratio (can change to 4/3 etc.)
 
@@ -184,6 +392,8 @@ export default function MainUILayout() {
     useRef<
       import("./controls/Features/Pathfinder/PathfinderControls").PathfinderControlsRef
     >(null);
+  /** Avoid pathfinder debounced history right after applyUndoSnapshot. */
+  const suppressPathfinderUndoScheduleRef = useRef(false);
   const centerRightControlsRef = useRef<CenterRightControlsRef>(null);
 
   // Track temporary box coordinates
@@ -1027,6 +1237,456 @@ export default function MainUILayout() {
     return congestionSharedRefs.current;
   };
 
+  const buildFullSnapshot = useCallback((): FullUndoSnapshot => {
+    const ui = latestUiForUndoRef.current;
+    if (!ui) {
+      throw new Error("Undo: UI snapshot ref not ready");
+    }
+    const uiClone = JSON.parse(JSON.stringify(ui)) as UiUndoSnapshot;
+    uiClone.pathfinder =
+      pathfinderRef.current?.getUndoSnapshot?.() ??
+      EMPTY_PATHFINDER_UNDO_SNAPSHOT;
+    return {
+      ui: uiClone,
+      map: mapRef.current?.captureUndoState?.(ui.uploadedFiles) ?? null,
+    };
+  }, []);
+
+  const pushHistoryNow = useCallback(() => {
+    if (isApplyingHistoryRef.current) return;
+    try {
+      const s = buildFullSnapshot();
+      undoPastRef.current.push(s);
+      undoFutureRef.current = [];
+      while (undoPastRef.current.length > 40) undoPastRef.current.shift();
+      historyBaselineRef.current = null;
+      bumpHistoryUi();
+    } catch {
+      /* map may not be ready yet */
+    }
+  }, [buildFullSnapshot]);
+
+  /** Commit prior baseline to the undo stack, then save the current state as the new baseline. */
+  const flushUndoHistoryCheckpoint = useCallback(() => {
+    if (isApplyingHistoryRef.current) return;
+    if (Date.now() < undoSuppressMoveUntilRef.current) return;
+    try {
+      const now = buildFullSnapshot();
+      if (historyBaselineRef.current !== null) {
+        undoPastRef.current.push(historyBaselineRef.current);
+        undoFutureRef.current = [];
+        while (undoPastRef.current.length > 40) undoPastRef.current.shift();
+        bumpHistoryUi();
+      }
+      historyBaselineRef.current = now;
+    } catch {
+      /* map not ready */
+    }
+  }, [buildFullSnapshot]);
+
+  const scheduleDebouncedHistory = useCallback(() => {
+    if (isApplyingHistoryRef.current) return;
+    if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
+    historyDebounceRef.current = setTimeout(() => {
+      historyDebounceRef.current = null;
+      flushUndoHistoryCheckpoint();
+    }, 500);
+  }, [flushUndoHistoryCheckpoint]);
+
+  const onUserMapTransformForUndo = useCallback(() => {
+    if (isApplyingHistoryRef.current) return;
+    if (Date.now() < undoSuppressMoveUntilRef.current) return;
+    scheduleDebouncedHistory();
+  }, [scheduleDebouncedHistory]);
+
+  const onPathfinderUndoSchedule = useCallback(() => {
+    if (suppressPathfinderUndoScheduleRef.current) return;
+    scheduleDebouncedHistory();
+  }, [scheduleDebouncedHistory]);
+
+  const applyFullSnapshotRef = useRef<
+    (full: FullUndoSnapshot) => Promise<void>
+  >(async () => {});
+
+  const applyFullSnapshot = async (full: FullUndoSnapshot) => {
+    try {
+      const { ui, map: mapSnap } = full;
+      const shell = panelShellPreserveRef.current;
+      flushSync(() => {
+        setSearchText(ui.searchText);
+        setSuggestions(ui.suggestions ?? []);
+        setHighlightedIndex(ui.highlightedIndex ?? -1);
+        setViewMode(ui.viewMode);
+        // Keep which panels/windows are open — do not restore from history (matches reset behavior).
+        setShowSelectMaps(shell.showSelectMaps);
+        setShowPathfinder(shell.showPathfinder);
+        setShowPlanningTools(shell.showPlanningTools);
+        setShowTimeOfDayDropdown(shell.showTimeOfDayDropdown);
+        setShowMapStyleDropdown(shell.showMapStyleDropdown);
+        setSelectedTimeOfDay(ui.selectedTimeOfDay);
+        setShow3DControls(ui.show3DControls);
+        setShowLiveHazardMonitor(shell.showLiveHazardMonitor);
+        setLiveEarthquakeEnabled(ui.liveEarthquakeEnabled);
+        setLiveWeatherEnabled(ui.liveWeatherEnabled);
+        setSelectedEarthquakeSources(ui.selectedEarthquakeSources ?? []);
+        setSelectedWeatherSources(ui.selectedWeatherSources ?? []);
+        setShowToolPanel(shell.showToolPanel);
+        setSelectedMaps(ui.selectedMaps ?? []);
+        setShowAffectedAreas(ui.showAffectedAreas);
+        setAffectedAreasData(ui.affectedAreasData);
+        setExpandedPanels(shell.expandedPanels ?? {});
+        setGeologicalExpanded(shell.geologicalExpanded);
+        setTrafficExpanded(shell.trafficExpanded);
+        setSelectedPlanningTools(ui.selectedPlanningTools ?? []);
+        setSelectedPlan(ui.selectedPlan);
+        setShowAssessmentTools(shell.showAssessmentTools);
+        setSelectedAssessmentTools(ui.selectedAssessmentTools ?? []);
+        setUploadedFiles(ui.uploadedFiles ?? []);
+        setIsBoundaryLoading(ui.isBoundaryLoading);
+        setBoundaryLoadingStage(ui.boundaryLoadingStage ?? "");
+        setIsFileLoading(ui.isFileLoading);
+        setFileLoadingStage(ui.fileLoadingStage ?? "");
+        setShowAspectRatioSelector(ui.showAspectRatioSelector);
+        setSelectedAspectRatio(ui.selectedAspectRatio ?? "");
+        setTempAspectRatio(ui.tempAspectRatio ?? "");
+        setIsDrawingAspectRatio(ui.isDrawingAspectRatio);
+        setAspectRatioShapeDrawn(ui.aspectRatioShapeDrawn);
+        setIsDrawingBox(ui.isDrawingBox);
+        setIsDrawingRectangle(ui.isDrawingRectangle);
+        setShapeDrawn(ui.shapeDrawn);
+        setScopeConfirmed(ui.scopeConfirmed);
+        setShowExposureResults(shell.showExposureResults);
+        setExposureResultsData(ui.exposureResultsData ?? null);
+        setIsAnalysisRunning(ui.isAnalysisRunning);
+        setExposureResultsMinimized(shell.exposureResultsMinimized);
+        setExposureResultsPosition(
+          shell.exposureResultsPosition ?? { x: 0, y: 0 }
+        );
+        setIsDraggingResults(shell.isDraggingResults);
+        setSelectedMapStyle(ui.selectedMapStyle);
+        setEarthquakeEnabled(ui.earthquakeEnabled);
+        setVolcanoListEnabled(ui.volcanoListEnabled);
+        setActiveFaultsEnabled(ui.activeFaultsEnabled);
+        setCongestionEnabled(ui.congestionEnabled);
+      });
+      savedAspectRatioShapeRef.current = ui.savedAspectRatioShape
+        ? (JSON.parse(
+            JSON.stringify(ui.savedAspectRatioShape)
+          ) as GeoJSON.FeatureCollection)
+        : null;
+
+      const map = mapRef.current?.getMap?.();
+      if (map && mapSnap && mapRef.current?.restoreUndoMapsLayers) {
+        mapRef.current.setIs3DModeForUndo?.(ui.viewMode === "3d");
+        const styleUrl = getMapboxStyleUrlForUndo(
+          ui.selectedMapStyle,
+          ui.viewMode
+        );
+
+        /**
+         * Mapbox often does NOT fire `style.load` when setStyle URL is unchanged
+         * (e.g. undo only restores camera). Without a fallback, restore never runs.
+         */
+        let restoreStarted = false;
+        const runRestore = async () => {
+          if (restoreStarted) return;
+          restoreStarted = true;
+          await mapRef.current!.restoreUndoMapsLayers!(mapSnap, ui.viewMode);
+        };
+
+        await new Promise<void>((resolve, reject) => {
+          const onStyleLoad = () => {
+            clearTimeout(fallbackTimer);
+            map.off("style.load", onStyleLoad);
+            runRestore().then(resolve).catch(reject);
+          };
+
+          const fallbackTimer = window.setTimeout(() => {
+            map.off("style.load", onStyleLoad);
+            runRestore().then(resolve).catch(reject);
+          }, 300);
+
+          map.once("style.load", onStyleLoad);
+          try {
+            map.setStyle(styleUrl);
+          } catch (e) {
+            clearTimeout(fallbackTimer);
+            map.off("style.load", onStyleLoad);
+            reject(e);
+          }
+        });
+      } else if (mapSnap && mapRef.current?.restoreUndoMapsLayers) {
+        mapRef.current.setIs3DModeForUndo?.(ui.viewMode === "3d");
+        await mapRef.current.restoreUndoMapsLayers(mapSnap, ui.viewMode);
+      }
+
+      queueMicrotask(() => {
+        if (ui.congestionEnabled) void enableCongestion();
+        else disableCongestion();
+      });
+
+      window.setTimeout(() => {
+        suppressPathfinderUndoScheduleRef.current = true;
+        pathfinderRef.current?.applyUndoSnapshot?.(
+          ui.pathfinder ?? EMPTY_PATHFINDER_UNDO_SNAPSHOT
+        );
+        window.setTimeout(() => {
+          suppressPathfinderUndoScheduleRef.current = false;
+        }, 200);
+      }, 0);
+    } finally {
+      historyBaselineRef.current = null;
+      undoSuppressMoveUntilRef.current = Date.now() + 1400;
+      bumpHistoryUi();
+    }
+  };
+
+  applyFullSnapshotRef.current = applyFullSnapshot;
+
+  const handleUndo = useCallback(async () => {
+    if (isApplyingHistoryRef.current) return;
+    if (undoPastRef.current.length < 1) return;
+    let current: FullUndoSnapshot;
+    try {
+      current = buildFullSnapshot();
+    } catch {
+      return;
+    }
+    const prev = undoPastRef.current.pop()!;
+    undoFutureRef.current.push(current);
+    bumpHistoryUi();
+
+    setHistoryNavBusy(true);
+    isApplyingHistoryRef.current = true;
+    try {
+      await applyFullSnapshotRef.current(prev);
+    } catch (e) {
+      console.error("Undo failed:", e);
+      undoPastRef.current.push(prev);
+      undoFutureRef.current.pop();
+      bumpHistoryUi();
+    } finally {
+      isApplyingHistoryRef.current = false;
+      setHistoryNavBusy(false);
+      bumpHistoryUi();
+    }
+  }, [buildFullSnapshot]);
+
+  const handleRedo = useCallback(async () => {
+    if (isApplyingHistoryRef.current) return;
+    if (undoFutureRef.current.length < 1) return;
+    let current: FullUndoSnapshot;
+    try {
+      current = buildFullSnapshot();
+    } catch {
+      return;
+    }
+    const next = undoFutureRef.current.pop()!;
+    undoPastRef.current.push(current);
+    bumpHistoryUi();
+
+    setHistoryNavBusy(true);
+    isApplyingHistoryRef.current = true;
+    try {
+      await applyFullSnapshotRef.current(next);
+    } catch (e) {
+      console.error("Redo failed:", e);
+      undoFutureRef.current.push(next);
+      undoPastRef.current.pop();
+      bumpHistoryUi();
+    } finally {
+      isApplyingHistoryRef.current = false;
+      setHistoryNavBusy(false);
+      bumpHistoryUi();
+    }
+  }, [buildFullSnapshot]);
+
+  useEffect(() => {
+    if (isApplyingHistoryRef.current) return;
+    scheduleDebouncedHistory();
+  }, [
+    uploadedFiles,
+    viewMode,
+    selectedMapStyle,
+    affectedAreasData,
+    // Panel open/close (showPathfinder, showToolPanel, etc.) intentionally omitted —
+    // opening/closing UIs does not create undo steps or change on undo/redo.
+    showAffectedAreas,
+    earthquakeEnabled,
+    volcanoListEnabled,
+    activeFaultsEnabled,
+    congestionEnabled,
+    selectedMaps,
+    isBoundaryLoading,
+    liveEarthquakeEnabled,
+    liveWeatherEnabled,
+    selectedEarthquakeSources,
+    selectedWeatherSources,
+    searchText,
+    highlightedIndex,
+    isDrawingBox,
+    isDrawingRectangle,
+    isDrawingAspectRatio,
+    shapeDrawn,
+    scopeConfirmed,
+    showAspectRatioSelector,
+    aspectRatioShapeDrawn,
+    scheduleDebouncedHistory,
+  ]);
+
+  const canUndo =
+    undoPastRef.current.length > 0 && !historyNavBusy;
+  const canRedo =
+    undoFutureRef.current.length > 0 && !historyNavBusy;
+
+  /**
+   * Map reset: clears drawn content, restores default basemap (2D + Default style),
+   * and turns off map-linked toggles (hazards, live monitor sources, layers selection,
+   * scope drawing, search, pathfinder fields, etc.). Keeps panels open (Live Hazard
+   * Monitor, tool panel, Atlas chat, etc.).
+   */
+  const performGlobalReset = () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    pushHistoryNow();
+
+    const map = mapRef.current?.getMap?.();
+    if (map) {
+      uploadedFiles.forEach((f) => {
+        const safeName = f.layerName.replace(/[^a-zA-Z0-9_-]/g, "");
+        const sourceId = `upload-${safeName}`;
+        const baseId = `${sourceId}-layer`;
+        ["fill", "line", "circle"].forEach((type) => {
+          const layerId = `${baseId}-${type}`;
+          if (map.getLayer(layerId)) map.removeLayer(layerId);
+        });
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      });
+      if (map.getLayer("drawn-box-layer")) map.removeLayer("drawn-box-layer");
+      if (map.getLayer("drawn-box-outline")) map.removeLayer("drawn-box-outline");
+      if (map.getSource("drawn-box")) map.removeSource("drawn-box");
+    }
+    setUploadedFiles([]);
+
+    centerRightControlsRef.current?.clearBoundaries();
+    mapRef.current?.removeBoundaryLayer?.();
+    mapRef.current?.clearRoutes?.();
+    mapRef.current?.clearStartMarker?.();
+    mapRef.current?.clearDestinationMarker?.();
+    mapRef.current?.clearLocationMarker?.();
+    mapRef.current?.clearFloodHazard?.();
+    mapRef.current?.clearAffectedAreas?.();
+    mapRef.current?.clearIncidentSegments?.();
+    mapRef.current?.clearHealthFacilities?.();
+    mapRef.current?.clearEmergencyShelters?.();
+    mapRef.current?.clearFireStations?.();
+    mapRef.current?.clearPoliceStations?.();
+    mapRef.current?.clearWeatherMarkers?.();
+    mapRef.current?.drawRoadClosures?.({
+      type: "FeatureCollection",
+      features: [],
+    });
+    mapRef.current?.drawLaneClosures?.({
+      type: "FeatureCollection",
+      features: [],
+    });
+    mapRef.current?.drawRoadObstructions?.({
+      type: "FeatureCollection",
+      features: [],
+    });
+    mapRef.current?.clearAllResources?.();
+
+    // Clear hazard / traffic visuals (disable* below also clears + stops polling).
+    mapRef.current?.drawEarthquakeDots?.([]);
+    mapRef.current?.drawVolcanoDots?.([]);
+    mapRef.current?.drawActiveFaults?.(null);
+    if (mapRef.current?.drawCongestion) {
+      mapRef.current.drawCongestion({
+        type: "FeatureCollection",
+        features: [],
+      });
+    }
+    if (mapRef.current?.congestionMarkersRef) {
+      mapRef.current.congestionMarkersRef.current.forEach((m: any) =>
+        m.remove()
+      );
+      mapRef.current.congestionMarkersRef.current = [];
+    }
+
+    savedAspectRatioShapeRef.current = null;
+
+    // Stop layer / traffic polling and sync Layers panel toggles with empty map.
+    disableCongestion();
+    disableEarthquakeHazard();
+    disableVolcanoList();
+    disableActiveFaults();
+
+    pathfinderRef.current?.resetMapLinkedUi?.();
+    exposureAssessmentRef.current?.clearSteps?.();
+    locationJustSelectedRef.current = false;
+
+    if (autoLightingInterval) {
+      clearInterval(autoLightingInterval);
+      setAutoLightingInterval(null);
+    }
+
+    // Basemap + view + map-linked UI (panels stay open).
+    flushSync(() => {
+      setViewMode("2d");
+      setSelectedMapStyle("Default (Custom Mapbox Standard)");
+      setShowMapStyleDropdown(false);
+      setShow3DControls(true);
+      setSelectedTimeOfDay("Auto");
+      setLiveEarthquakeEnabled(false);
+      setLiveWeatherEnabled(false);
+      setSelectedEarthquakeSources([]);
+      setSelectedWeatherSources([]);
+      setSelectedMaps([]);
+      setShowAffectedAreas(false);
+      setAffectedAreasData(null);
+      setSearchText("");
+      setSuggestions([]);
+      setHighlightedIndex(-1);
+      setIsDrawingBox(false);
+      setIsDrawingRectangle(false);
+      setIsDrawingAspectRatio(false);
+      setShapeDrawn(false);
+      setScopeConfirmed(false);
+      setShowAspectRatioSelector(false);
+      setAspectRatioShapeDrawn(false);
+      setTempAspectRatio("");
+      setSelectedAspectRatio("");
+      setIsBoundaryLoading(false);
+      setBoundaryLoadingStage("");
+      setIsFileLoading(false);
+      setFileLoadingStage("");
+    });
+    mapRef.current?.setIs3DModeForUndo?.(false);
+    const defaultStyleUrl = getMapboxStyleUrlForUndo(
+      "Default (Custom Mapbox Standard)",
+      "2d"
+    );
+    if (mapRef.current?.setMapStyle) {
+      mapRef.current.setMapStyle(defaultStyleUrl);
+    }
+
+    historyBaselineRef.current = null;
+    undoSuppressMoveUntilRef.current = Date.now() + 2000;
+
+    setTimeout(() => {
+      mapRef.current?.flyTo?.({
+        center: [0, 0],
+        zoom: 1.8,
+        pitch: 0,
+        bearing: 0,
+        duration: 1200,
+      });
+    }, 400);
+  };
+
+  const openResetConfirmModal = () => setShowResetConfirmModal(true);
+
   const handleStartExposureAnalysis = () => {
     console.log("Main-UI-Layout: Starting exposure analysis");
 
@@ -1254,7 +1914,10 @@ export default function MainUILayout() {
               isChatExpanded ? "w-[calc(100vw-360px)]" : "w-screen"
             } h-screen relative overflow-hidden`}
           >
-            <MapComponent ref={mapRef} />
+            <MapComponent
+              ref={mapRef}
+              onUserMapTransform={onUserMapTransformForUndo}
+            />
           </div>
           {/* Center Top Controls - Hide when expanded */}
           {!isChatExpanded && (
@@ -1313,7 +1976,11 @@ export default function MainUILayout() {
               />
             ) : (
               <div className="absolute top-[15px] left-[70px] z-50 w-[280px]">
-                <PathfinderControls ref={pathfinderRef} mapRef={mapRef} />
+                <PathfinderControls
+                  ref={pathfinderRef}
+                  mapRef={mapRef}
+                  onStateChangeForUndo={onPathfinderUndoSchedule}
+                />
               </div>
             ))}
           {/* Panels - Hide when expanded */}
@@ -1455,6 +2122,11 @@ export default function MainUILayout() {
               isFileLoading={isFileLoading}
               setIsFileLoading={setIsFileLoading}
               setFileLoadingStage={setFileLoadingStage}
+              onGlobalReset={openResetConfirmModal}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={() => void handleUndo()}
+              onRedo={() => void handleRedo()}
             />
           )}
           {/* Layers Panel - Show when there are active layers */}
@@ -1956,6 +2628,12 @@ export default function MainUILayout() {
                 setShowToolPanel(true);
                 return;
               }
+            }}
+            mapHistoryCallbacks={{
+              undo: () => void handleUndo(),
+              redo: () => void handleRedo(),
+              openResetConfirm: openResetConfirmModal,
+              performReset: performGlobalReset,
             }}
           />
           {/* Aspect Ratio Selector - Hide when expanded */}
@@ -2864,6 +3542,58 @@ export default function MainUILayout() {
             />
           )}
         </>
+      )}
+
+      {/* Reset confirmation — replaces browser confirm() */}
+      {showResetConfirmModal && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4"
+          role="presentation"
+          onClick={() => setShowResetConfirmModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-modal-title"
+            className="bg-[#2E2E2E] rounded-xl shadow-2xl border border-white/10 p-5 max-w-[400px] w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="reset-modal-title"
+              className="text-white text-sm font-semibold mb-2"
+            >
+              Reset map?
+            </h2>
+            <p className="text-[#C7C7C7] text-[11px] leading-relaxed mb-5">
+              This clears everything drawn on the map: imported layers,
+              boundaries, routes, markers, facilities, closures, and hazard
+              overlays. The basemap returns to the default 2D streets style and
+              the view switches to 2D. Map-linked controls reset (layer toggles,
+              live hazard sources, selected maps, scope drawing, search, and
+              pathfinder fields) so they match the empty map. Panels stay open
+              (Atlas chat unchanged).
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="px-3 py-1.5 rounded-md text-[11px] font-medium text-[#C7C7C7] border border-white/20 hover:bg-white/5 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetConfirmModal(false);
+                  performGlobalReset();
+                }}
+                className="px-3 py-1.5 rounded-md text-[11px] font-medium text-[#2E2E2E] bg-gradient-to-b from-[#9699FF] to-white hover:opacity-90 transition"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

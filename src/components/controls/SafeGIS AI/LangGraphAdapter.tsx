@@ -29,6 +29,8 @@ export interface LangGraphResponse {
     requires_clarification?: boolean;
     multiple_actions?: any[];
     info_message?: string;
+    /** map_reset: skip confirmation modal when true */
+    immediate?: boolean;
     also_enable?: {
       tool?: string;
       action?: string;
@@ -135,6 +137,14 @@ export interface MapCallbacks {
 
   // Open panels / UI controls by name (e.g. "chat_expand", "map_style_dropdown", "boundary_panel")
   openPanel?: (panel: string) => void;
+
+  /** Toolbar history controls (same as undo/redo/reset buttons) */
+  mapUndo?: () => void | Promise<void>;
+  mapRedo?: () => void | Promise<void>;
+  /** Opens the same reset confirmation modal as the toolbar button */
+  openMapResetConfirm?: () => void;
+  /** Performs global map reset without modal (Atlas “immediate” reset) */
+  performMapReset?: () => void;
 }
 
 /**
@@ -526,6 +536,60 @@ export async function processLangGraphResponse(
           }
           if (data.text) {
             addMessage("assistant", data.text);
+          }
+          break;
+
+        case "map_undo":
+          if (callbacks.mapUndo) {
+            await Promise.resolve(callbacks.mapUndo());
+            addMessage(
+              "assistant",
+              data.text
+                ? `✅ ${data.text}`
+                : "✅ **Undo** — Restored the previous map state if one was available."
+            );
+          }
+          break;
+
+        case "map_redo":
+          if (callbacks.mapRedo) {
+            await Promise.resolve(callbacks.mapRedo());
+            addMessage(
+              "assistant",
+              data.text
+                ? `✅ ${data.text}`
+                : "✅ **Redo** — Reapplied the last undone change if available."
+            );
+          }
+          break;
+
+        case "map_reset":
+          if (data.immediate) {
+            if (callbacks.performMapReset) {
+              callbacks.performMapReset();
+              addMessage(
+                "assistant",
+                data.text
+                  ? `✅ ${data.text}`
+                  : "✅ **Map reset** — Cleared map content and restored the default basemap."
+              );
+            } else if (callbacks.openMapResetConfirm) {
+              callbacks.openMapResetConfirm();
+              addMessage(
+                "assistant",
+                "✅ Opening the map reset confirmation — please confirm to proceed."
+              );
+            }
+          } else {
+            if (callbacks.openMapResetConfirm) {
+              callbacks.openMapResetConfirm();
+              addMessage(
+                "assistant",
+                data.text
+                  ? `✅ ${data.text}`
+                  : "✅ **Reset** — Opened the confirmation dialog. Confirm to clear the map."
+              );
+            }
           }
           break;
 

@@ -9,6 +9,9 @@ import {
   ChevronDown,
   Upload,
   Check,
+  RotateCcw,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import {
   RefObject,
@@ -31,6 +34,8 @@ export interface CenterRightControlsRef {
   ) => void;
   clearBoundaries: () => void;
   openImportFilesPanel: () => void;
+  /** Close import / boundary panels and dropdowns. */
+  closeAllPanels: () => void;
 }
 
 // Type for boundary data
@@ -71,6 +76,12 @@ interface RightSideControlsProps {
   isFileLoading?: boolean;
   setIsFileLoading?: React.Dispatch<React.SetStateAction<boolean>>;
   setFileLoadingStage?: React.Dispatch<React.SetStateAction<string>>;
+  /** Reset map + all UI to defaults (from parent). */
+  onGlobalReset?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 const RightSideControls = forwardRef<
@@ -93,6 +104,11 @@ const RightSideControls = forwardRef<
       isFileLoading: externalIsFileLoading,
       setIsFileLoading: externalSetIsFileLoading,
       setFileLoadingStage: externalSetFileLoadingStage,
+      onGlobalReset,
+      canUndo = false,
+      canRedo = false,
+      onUndo,
+      onRedo,
     },
     ref
   ) => {
@@ -229,6 +245,13 @@ const RightSideControls = forwardRef<
       openImportFilesPanel: () => {
         setShowGeoJSONPanel(true);
         setShowBoundariesPanel(false);
+      },
+      closeAllPanels: () => {
+        setShowGeoJSONPanel(false);
+        setShowBoundariesPanel(false);
+        setShowBoundaryDropdown(false);
+        setShowBoundaryLevelDropdown(false);
+        setShowBoundarySourceDropdown(false);
       },
     }));
 
@@ -931,6 +954,83 @@ const RightSideControls = forwardRef<
             </div>
           )}
         </div>
+
+        {/* Undo / Redo / Global reset */}
+        {(onUndo || onRedo || onGlobalReset) && (
+          <div className="flex flex-col gap-1">
+            {(onUndo || onRedo) && (
+              <div className="flex flex-col gap-1">
+                {onUndo && (
+                  <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] h-[40px] flex justify-center items-center">
+                    <button
+                      type="button"
+                      disabled={!canUndo}
+                      onClick={() => onUndo()}
+                      onMouseEnter={() => setHoveredButton("undo")}
+                      onMouseLeave={() => setHoveredButton(null)}
+                      className={`w-[32px] h-[32px] inline-flex items-center justify-center rounded transition text-[#C7C7C7] ${
+                        canUndo
+                          ? "hover:bg-[#3a3a3a] cursor-pointer"
+                          : "opacity-40 cursor-not-allowed"
+                      }`}
+                      title="Undo"
+                    >
+                      <Undo2 size={18} className="shrink-0" />
+                    </button>
+                    {hoveredButton === "undo" && (
+                      <div className="absolute right-[50px] top-1/2 -translate-y-1/2 bg-white text-black text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-[9999]">
+                        Undo
+                      </div>
+                    )}
+                  </div>
+                )}
+                {onRedo && (
+                  <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] h-[40px] flex justify-center items-center">
+                    <button
+                      type="button"
+                      disabled={!canRedo}
+                      onClick={() => onRedo()}
+                      onMouseEnter={() => setHoveredButton("redo")}
+                      onMouseLeave={() => setHoveredButton(null)}
+                      className={`w-[32px] h-[32px] inline-flex items-center justify-center rounded transition text-[#C7C7C7] ${
+                        canRedo
+                          ? "hover:bg-[#3a3a3a] cursor-pointer"
+                          : "opacity-40 cursor-not-allowed"
+                      }`}
+                      title="Redo (reapply last undone change)"
+                    >
+                      <Redo2 size={18} className="shrink-0" />
+                    </button>
+                    {hoveredButton === "redo" && (
+                      <div className="absolute right-[50px] top-1/2 -translate-y-1/2 bg-white text-black text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-[9999]">
+                        Redo
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {onGlobalReset && (
+              <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] h-[40px] flex justify-center items-center">
+                <button
+                  type="button"
+                  onClick={() => onGlobalReset()}
+                  onMouseEnter={() => setHoveredButton("resetAll")}
+                  onMouseLeave={() => setHoveredButton(null)}
+                  className="w-[32px] h-[32px] inline-flex items-center justify-center rounded transition hover:bg-[#3a3a3a] text-[#C7C7C7]"
+                  title="Reset map (clear layers & drawings)"
+                >
+                  <RotateCcw size={18} className="shrink-0" />
+                </button>
+                {hoveredButton === "resetAll" && (
+                  <div className="absolute right-[50px] top-1/2 -translate-y-1/2 bg-white text-black text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-[9999]">
+                    Reset all
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }

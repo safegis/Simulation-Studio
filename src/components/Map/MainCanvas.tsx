@@ -65,6 +65,37 @@ import {
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
+/** Serializable map state for undo/redo (paired with UI snapshot in Main-UI-Layout). */
+export type MapUndoSnapshot = {
+  camera: {
+    lng: number;
+    lat: number;
+    zoom: number;
+    pitch: number;
+    bearing: number;
+  };
+  uploads: Array<{ layerName: string; data: GeoJSON.FeatureCollection }>;
+  drawnBox: GeoJSON.FeatureCollection | null;
+  routes: GeoJSON.FeatureCollection | null;
+  affectedAreas: GeoJSON.FeatureCollection | null;
+  volcanoes: any[];
+  earthquakes: any[];
+  activeFaults: GeoJSON.FeatureCollection | null;
+  floodHazards: Array<{
+    geojsonUrl: string;
+    returnPeriod: string;
+    provinceName: string;
+  }>;
+  markers: {
+    location: [number, number] | null;
+    start: [number, number] | null;
+    dest: [number, number] | null;
+  };
+  routeFeatureIndex: number | null;
+  /** Admin boundary layer (`geoboundaries` source), if present. */
+  boundary: GeoJSON.FeatureCollection | null;
+};
+
 type FlyToOptions = {
   center?: [number, number];
   zoom?: number;
@@ -76,7 +107,15 @@ type FlyToOptions = {
   essential?: boolean;
 };
 
-const MapComponent = forwardRef(function MapComponent(_, ref) {
+type MapComponentProps = {
+  /** Called (debounced) after user pans/zooms/rotates the map — for undo history. */
+  onUserMapTransform?: () => void;
+};
+
+const MapComponent = forwardRef(function MapComponent(
+  { onUserMapTransform }: MapComponentProps,
+  ref
+) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
   const mapIsLoaded = useRef<boolean>(false);
@@ -120,6 +159,11 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
   const [resourceDesc, setResourceDesc] = useState("");
   const roadClosureMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const laneClosureMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const undoMoveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const onUserMapTransformRef = useRef(onUserMapTransform);
+  onUserMapTransformRef.current = onUserMapTransform;
   const selectedFeatureIndexRef = useRef<number | null>(null);
   const locationMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
@@ -195,6 +239,15 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           boundsListenersRef.current.forEach((cb) => cb(bbox));
         } catch (e) {
           // ignore
+        }
+        if (onUserMapTransformRef.current) {
+          if (undoMoveDebounceRef.current) {
+            clearTimeout(undoMoveDebounceRef.current);
+          }
+          undoMoveDebounceRef.current = setTimeout(() => {
+            undoMoveDebounceRef.current = null;
+            onUserMapTransformRef.current?.();
+          }, 400);
         }
       });
       map.getCanvas().addEventListener("dragover", (e: DragEvent) => {
@@ -398,6 +451,68 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     }
 
     return null;
+  };
+
+  const stripGeoboundariesForUndo = (map: mapboxgl.Map) => {
+    const sourceId = "geoboundaries";
+    const fillLayerId = "boundary-fill";
+    const lineLayerId = "boundary-line";
+    const hoverLayerId = `${fillLayerId}-hover`;
+    const selectedLayerId = `${fillLayerId}-selected`;
+    if (boundaryClickHandlerRef.current && map.getLayer(fillLayerId)) {
+      map.off("click", fillLayerId, boundaryClickHandlerRef.current);
+      boundaryClickHandlerRef.current = null;
+    }
+    boundaryPopupRef.current?.remove();
+    boundaryPopupRef.current = null;
+    if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId);
+    if (map.getLayer(hoverLayerId)) map.removeLayer(hoverLayerId);
+    if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
+    if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+  };
+
+  const restoreSimpleBoundaryFromSnapshot = (
+    map: mapboxgl.Map,
+    geojson: GeoJSON.FeatureCollection | null
+  ) => {
+    stripGeoboundariesForUndo(map);
+    if (!geojson?.features?.length) return;
+    const data = JSON.parse(JSON.stringify(geojson)) as GeoJSON.FeatureCollection;
+    map.addSource("geoboundaries", {
+      type: "geojson",
+      data,
+      generateId: true,
+    });
+    map.addLayer({
+      id: "boundary-fill",
+      type: "fill",
+      source: "geoboundaries",
+      paint: { "fill-color": "#9699FF", "fill-opacity": 0.2 },
+    });
+    map.addLayer({
+      id: "boundary-line",
+      type: "line",
+      source: "geoboundaries",
+      paint: { "line-color": "#9699FF", "line-width": 2 },
+    });
+  };
+
+  const mapUndoImplRefs: {
+    addGeoJSONLayer:
+      | ((
+          geojson: GeoJSON.FeatureCollection,
+          layerName: string
+        ) => Promise<void>)
+      | null;
+    drawAffectedAreas:
+      | ((geojson: GeoJSON.FeatureCollection) => void)
+      | null;
+    clearAffectedAreas: (() => void) | null;
+  } = {
+    addGeoJSONLayer: null,
+    drawAffectedAreas: null,
+    clearAffectedAreas: null,
   };
 
   useImperativeHandle(ref, () => ({
@@ -864,7 +979,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
     },
     weatherMarkersRef,
 
-    addGeoJSONLayer: async (
+    addGeoJSONLayer: (mapUndoImplRefs.addGeoJSONLayer = async (
       geojson: GeoJSON.FeatureCollection,
       layerName: string
     ) => {
@@ -1118,13 +1233,15 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           console.error("Manual bounds calculation also failed:", manualErr);
         }
       }
-    },
+    }),
     getMap: () => mapInstance.current,
     getResourcesOnMap,
     flyToResource,
     onResourcesChanged,
     clearAllResources,
-    drawAffectedAreas: (geojson: GeoJSON.FeatureCollection) => {
+    drawAffectedAreas: (mapUndoImplRefs.drawAffectedAreas = (
+      geojson: GeoJSON.FeatureCollection
+    ) => {
       const map = mapInstance.current;
       if (!map || !mapIsLoaded.current) return;
 
@@ -1393,7 +1510,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
           `Drew ${pointFeatures.length} affected point markers with zoom-responsive sizing`
         );
       }
-    },
+    }),
 
     fitBoundsToAffectedAreas: (geojson: GeoJSON.FeatureCollection) => {
       const map = mapInstance.current;
@@ -1537,7 +1654,7 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       }
     },
 
-    clearAffectedAreas: () => {
+    clearAffectedAreas: (mapUndoImplRefs.clearAffectedAreas = () => {
       const map = mapInstance.current;
       if (!map || !mapIsLoaded.current) return;
 
@@ -1566,8 +1683,277 @@ const MapComponent = forwardRef(function MapComponent(_, ref) {
       console.log(
         "Cleared affected areas (polygons, lines, and points) from map"
       );
-    },
+    }),
     getUploadedLayerData,
+
+    captureUndoState: (
+      uploadedFilesList: { name: string; layerName: string }[]
+    ): MapUndoSnapshot | null => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return null;
+      const c = map.getCenter();
+      const uploads: MapUndoSnapshot["uploads"] = [];
+      for (const f of uploadedFilesList) {
+        const data = getUploadedLayerData(f.layerName);
+        if (data && data.type === "FeatureCollection") {
+          uploads.push({
+            layerName: f.layerName,
+            data: JSON.parse(JSON.stringify(data)) as GeoJSON.FeatureCollection,
+          });
+        }
+      }
+      let drawnBox: GeoJSON.FeatureCollection | null = null;
+      const drawnSrc = map.getSource("drawn-box") as
+        | (mapboxgl.GeoJSONSource & { _data?: GeoJSON.FeatureCollection })
+        | undefined;
+      if (drawnSrc && drawnSrc._data) {
+        drawnBox = JSON.parse(
+          JSON.stringify(drawnSrc._data)
+        ) as GeoJSON.FeatureCollection;
+      }
+      return {
+        camera: {
+          lng: c.lng,
+          lat: c.lat,
+          zoom: map.getZoom(),
+          pitch: map.getPitch(),
+          bearing: map.getBearing(),
+        },
+        uploads,
+        drawnBox,
+        routes: latestRoutesGeoJSON.current
+          ? JSON.parse(JSON.stringify(latestRoutesGeoJSON.current))
+          : null,
+        affectedAreas: latestAffectedAreas.current
+          ? JSON.parse(JSON.stringify(latestAffectedAreas.current))
+          : null,
+        volcanoes: JSON.parse(JSON.stringify(latestVolcanoes.current)),
+        earthquakes: JSON.parse(JSON.stringify(latestEarthquakes.current)),
+        activeFaults: latestActiveFaults.current
+          ? JSON.parse(JSON.stringify(latestActiveFaults.current))
+          : null,
+        floodHazards: JSON.parse(JSON.stringify(latestFloodHazards.current)),
+        markers: {
+          location: locationMarkerRef.current
+            ? (() => {
+                const ll = locationMarkerRef.current!.getLngLat();
+                return [ll.lng, ll.lat] as [number, number];
+              })()
+            : null,
+          start: startMarkerRef.current
+            ? (() => {
+                const ll = startMarkerRef.current!.getLngLat();
+                return [ll.lng, ll.lat] as [number, number];
+              })()
+            : null,
+          dest: destinationMarkerRef.current
+            ? (() => {
+                const ll = destinationMarkerRef.current!.getLngLat();
+                return [ll.lng, ll.lat] as [number, number];
+              })()
+            : null,
+        },
+        routeFeatureIndex: selectedFeatureIndexRef.current,
+        boundary: (() => {
+          const bSrc = map.getSource("geoboundaries") as
+            | (mapboxgl.GeoJSONSource & {
+                _data?: GeoJSON.FeatureCollection;
+              })
+            | undefined;
+          if (
+            bSrc &&
+            bSrc._data &&
+            (bSrc._data as GeoJSON.FeatureCollection).features?.length
+          ) {
+            return JSON.parse(
+              JSON.stringify(bSrc._data)
+            ) as GeoJSON.FeatureCollection;
+          }
+          return null;
+        })(),
+      };
+    },
+
+    setIs3DModeForUndo: (is3d: boolean) => {
+      is3DMode.current = is3d;
+    },
+
+    /**
+     * Re-applies layers/refs after a style reload (used with undo/redo).
+     * Parent should set map style, wait for style.load, then call this.
+     */
+    restoreUndoMapsLayers: async (
+      snap: MapUndoSnapshot,
+      viewMode: "2d" | "3d" = "2d"
+    ) => {
+      const map = mapInstance.current;
+      if (!map || !mapIsLoaded.current) return;
+      const addLayer = mapUndoImplRefs.addGeoJSONLayer;
+      const uploads = snap.uploads ?? [];
+      if (uploads.length > 0 && !addLayer) return;
+
+      if (viewMode === "3d") {
+        addTerrainOnly(map);
+      } else {
+        try {
+          map.setTerrain(null);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      locationMarkerRef.current?.remove();
+      locationMarkerRef.current = null;
+      startMarkerRef.current?.remove();
+      startMarkerRef.current = null;
+      destinationMarkerRef.current?.remove();
+      destinationMarkerRef.current = null;
+
+      if (map.getLayer("drawn-box-layer")) map.removeLayer("drawn-box-layer");
+      if (map.getLayer("drawn-box-outline")) map.removeLayer("drawn-box-outline");
+      if (map.getSource("drawn-box")) map.removeSource("drawn-box");
+
+      stripGeoboundariesForUndo(map);
+
+      const style = map.getStyle();
+      if (style?.sources) {
+        Object.keys(style.sources).forEach((sourceId) => {
+          if (!sourceId.startsWith("upload-")) return;
+          const safe = sourceId.replace(/^upload-/, "");
+          const baseId = `${sourceId}-layer`;
+          ["fill", "line", "circle"].forEach((type) => {
+            const layerId = `${baseId}-${type}`;
+            if (map.getLayer(layerId)) map.removeLayer(layerId);
+          });
+          if (map.getSource(sourceId)) map.removeSource(sourceId);
+        });
+      }
+
+      mapUndoImplRefs.clearAffectedAreas?.();
+
+      latestRoutesGeoJSON.current = snap.routes
+        ? JSON.parse(JSON.stringify(snap.routes))
+        : null;
+      latestVolcanoes.current = JSON.parse(JSON.stringify(snap.volcanoes));
+      latestEarthquakes.current = JSON.parse(JSON.stringify(snap.earthquakes));
+      latestActiveFaults.current = snap.activeFaults
+        ? JSON.parse(JSON.stringify(snap.activeFaults))
+        : null;
+      latestFloodHazards.current = JSON.parse(JSON.stringify(snap.floodHazards));
+      latestAffectedAreas.current = snap.affectedAreas
+        ? JSON.parse(JSON.stringify(snap.affectedAreas))
+        : null;
+      selectedFeatureIndexRef.current = snap.routeFeatureIndex;
+
+      for (const u of uploads) {
+        await addLayer!(u.data, u.layerName);
+      }
+
+      if (snap.drawnBox?.features?.length) {
+        map.addSource("drawn-box", { type: "geojson", data: snap.drawnBox });
+        map.addLayer({
+          id: "drawn-box-layer",
+          type: "fill",
+          source: "drawn-box",
+          paint: { "fill-color": "#9699FF", "fill-opacity": 0.15 },
+        });
+        map.addLayer({
+          id: "drawn-box-outline",
+          type: "line",
+          source: "drawn-box",
+          paint: { "line-color": "#9699FF", "line-width": 2 },
+        });
+      }
+
+      if (latestRoutesGeoJSON.current) {
+        drawRoutesHelper(
+          mapInstance.current,
+          mapIsLoaded,
+          latestRoutesGeoJSON,
+          selectedFeatureIndexRef,
+          getTopSymbolLayerId
+        );
+      }
+
+      if (latestVolcanoes.current.length > 0) {
+        drawVolcanoDotsHelper(
+          mapInstance.current,
+          mapIsLoaded.current,
+          latestVolcanoes,
+          latestVolcanoes.current
+        );
+      }
+      if (latestEarthquakes.current.length > 0) {
+        drawEarthquakeDotsHelper(
+          mapInstance.current,
+          mapIsLoaded.current,
+          latestEarthquakes,
+          latestEarthquakes.current
+        );
+      }
+      if (latestActiveFaults.current) {
+        drawActiveFaultsHelper(
+          mapInstance.current,
+          mapIsLoaded.current,
+          latestActiveFaults,
+          latestActiveFaults.current
+        );
+      }
+
+      if (latestAffectedAreas.current?.features?.length) {
+        mapUndoImplRefs.drawAffectedAreas?.(latestAffectedAreas.current);
+      }
+
+      for (const fh of latestFloodHazards.current) {
+        await drawFloodHazardHelper(
+          mapInstance.current,
+          mapIsLoaded.current,
+          fh.geojsonUrl,
+          fh.returnPeriod,
+          fh.provinceName
+        );
+      }
+
+      if (snap.markers.location) {
+        const [lng, lat] = snap.markers.location;
+        const marker = new mapboxgl.Marker({ color: "#9699FF" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        locationMarkerRef.current = marker;
+      }
+      if (snap.markers.start) {
+        const [lng, lat] = snap.markers.start;
+        const marker = new mapboxgl.Marker({ color: "#00FF00" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        startMarkerRef.current = marker;
+      }
+      if (snap.markers.dest) {
+        const [lng, lat] = snap.markers.dest;
+        const marker = new mapboxgl.Marker({ color: "#FF4C4C" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        destinationMarkerRef.current = marker;
+      }
+
+      if (snap.routeFeatureIndex != null && latestRoutesGeoJSON.current) {
+        highlightRouteByFeatureIndex(
+          mapInstance.current,
+          mapIsLoaded,
+          selectedFeatureIndexRef,
+          snap.routeFeatureIndex
+        );
+      }
+
+      restoreSimpleBoundaryFromSnapshot(map, snap.boundary ?? null);
+
+      map.jumpTo({
+        center: [snap.camera.lng, snap.camera.lat],
+        zoom: snap.camera.zoom,
+        pitch: snap.camera.pitch,
+        bearing: snap.camera.bearing,
+      });
+    },
 
     // Add boundary layer using geoBoundaries API (free, CC-BY 4.0)
     addBoundaryLayer: async (
