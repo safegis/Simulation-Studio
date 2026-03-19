@@ -530,14 +530,14 @@ const RightSideControls = forwardRef<
           </button>
           {hoveredButton === "importFiles" && !showGeoJSONPanel && (
             <div className="absolute right-[50px] top-1/2 -translate-y-1/2 bg-white text-black text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-[9999]">
-              Import Map Files
+              Import File/s
             </div>
           )}
 
           {showGeoJSONPanel && (
             <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-64 bg-[#2E2E2E] rounded-md shadow-md p-3 z-40 flex flex-col items-center">
               <h3 className="text-[11px] font-semibold text-white mb-2">
-                Import Geospatial Data
+                Import Spatial Data
               </h3>
 
               <div className="flex flex-col gap-1 w-full">

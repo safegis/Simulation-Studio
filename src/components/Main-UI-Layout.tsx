@@ -3565,13 +3565,8 @@ export default function MainUILayout() {
               Reset map?
             </h2>
             <p className="text-[#C7C7C7] text-[11px] leading-relaxed mb-5">
-              This clears everything drawn on the map: imported layers,
-              boundaries, routes, markers, facilities, closures, and hazard
-              overlays. The basemap returns to the default 2D streets style and
-              the view switches to 2D. Map-linked controls reset (layer toggles,
-              live hazard sources, selected maps, scope drawing, search, and
-              pathfinder fields) so they match the empty map. Panels stay open
-              (Atlas chat unchanged).
+              This clears everything drawn on the map and resets zoom level,
+              angle, style, orientation, and position.
             </p>
             <div className="flex justify-end gap-2">
               <button
