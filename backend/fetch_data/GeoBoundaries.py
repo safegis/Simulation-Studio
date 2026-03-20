@@ -1,7 +1,19 @@
 """GeoBoundaries API integration for fetching administrative boundary data"""
+import logging
 import httpx
 from fastapi import HTTPException
 from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
+
+
+def _format_request_error(e: httpx.RequestError) -> str:
+    """httpx often leaves str(e) empty; use type + repr + __cause__."""
+    name = type(e).__name__
+    body = str(e).strip() or repr(e)
+    if e.__cause__ is not None:
+        return f"{name}: {body} (caused by {e.__cause__!r})"
+    return f"{name}: {body}"
 
 
 async def get_boundary_data(country_code: str, admin_level: str) -> Dict[str, Any]:
@@ -21,7 +33,23 @@ async def get_boundary_data(country_code: str, admin_level: str) -> Dict[str, An
         
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             # Fetch metadata
-            meta_response = await client.get(api_url)
+            try:
+                meta_response = await client.get(api_url)
+            except httpx.RequestError as e:
+                logger.warning(
+                    "Boundary metadata request failed: %s %s — %s",
+                    country_code,
+                    admin_level,
+                    _format_request_error(e),
+                    exc_info=True,
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "Network error while fetching boundary metadata from "
+                        f"geoBoundaries: {_format_request_error(e)}"
+                    ),
+                )
             
             if meta_response.status_code == 404:
                 raise HTTPException(
@@ -48,7 +76,24 @@ async def get_boundary_data(country_code: str, admin_level: str) -> Dict[str, An
                     detail="No GeoJSON URL found in metadata"
                 )
             
-            geojson_response = await client.get(geojson_url)
+            try:
+                geojson_response = await client.get(geojson_url)
+            except httpx.RequestError as e:
+                logger.warning(
+                    "Boundary GeoJSON download failed: %s %s url=%s — %s",
+                    country_code,
+                    admin_level,
+                    geojson_url[:120],
+                    _format_request_error(e),
+                    exc_info=True,
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "Network error while downloading boundary GeoJSON "
+                        f"(often GitHub): {_format_request_error(e)}"
+                    ),
+                )
             geojson_response.raise_for_status()
             geojson_data = geojson_response.json()
             
@@ -71,10 +116,17 @@ async def get_boundary_data(country_code: str, admin_level: str) -> Dict[str, An
             detail=f"Failed to fetch boundary data: {str(e)}"
         )
     except httpx.RequestError as e:
+        logger.warning(
+            "Unexpected RequestError in get_boundary_data: %s",
+            _format_request_error(e),
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=503,
-            detail=f"Network error while fetching boundary data: {str(e)}"
+            detail=f"Network error while fetching boundary data: {_format_request_error(e)}",
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
