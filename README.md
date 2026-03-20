@@ -27,14 +27,3 @@ python main.py
 ```
 
 See `frontend/README.md` and `backend/README.md` for details.
-
-## Environment variables
-
-Local secrets are **not** in Git. Recreate them from the templates:
-
-```bash
-cp frontend/.env.example frontend/.env.local
-cp backend/.env.example backend/.env
-```
-
-Then edit both files with your API keys and URLs. Variable names match what the code reads (`NEXT_PUBLIC_*` for the browser, plus backend keys in `backend/.env`).
