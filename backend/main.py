@@ -15,7 +15,7 @@ import uvicorn
 
 # Import our modules
 from fetch_data.HazardScraper import start_scraper
-from fetch_data import MapHazardAPIs, ExposureAssessment, GeoBoundaries, TomTomTraffic
+from fetch_data import MapHazardAPIs, ExposureAssessment, GeoBoundaries, TomTomTraffic, OverpassEvacuation
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -128,6 +128,24 @@ async def get_boundaries(country_code: str, admin_level: str):
         GeoJSON FeatureCollection with boundary data
     """
     return await GeoBoundaries.get_boundary_data(country_code, admin_level)
+
+
+@app.get("/api/overpass/evacuation-destinations")
+async def get_evacuation_destinations(
+    lat: float = Query(..., description="Starting latitude (WGS84)"),
+    lon: float = Query(..., description="Starting longitude (WGS84)"),
+    radius_km: float = Query(
+        5.0,
+        ge=0.5,
+        le=50.0,
+        description="Search radius in km (min 0.5)",
+    ),
+):
+    """
+    Schools, social facilities, community centres, and evacuation centres from OSM (Overpass).
+    """
+    return await OverpassEvacuation.query_evacuation_places(lat, lon, radius_km)
+
 
 # Include TomTom Traffic router
 app.include_router(TomTomTraffic.router)

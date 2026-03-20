@@ -4,11 +4,13 @@ import {
   useRef,
   useState,
   useEffect,
+  useLayoutEffect,
+  useCallback,
   forwardRef,
   useImperativeHandle,
 } from "react";
 import ReactDOM from "react-dom";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   MapPin,
   Route,
@@ -31,6 +33,27 @@ const getOrdinal = (n: number) => {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
+/**
+ * Backend /api/traffic/route-incidents expects a single [lng, lat][] line.
+ * Mapbox routes may be LineString or MultiLineString.
+ */
+function getCoordinatesForTrafficApi(feature: {
+  geometry?: { type?: string; coordinates?: unknown };
+} | null | undefined): number[][] | null {
+  const g = feature?.geometry;
+  if (!g?.coordinates) return null;
+  if (g.type === "LineString") {
+    const c = g.coordinates as number[][];
+    return Array.isArray(c) ? c : null;
+  }
+  if (g.type === "MultiLineString") {
+    const lines = g.coordinates as number[][][];
+    if (!Array.isArray(lines) || lines.length === 0) return null;
+    return lines.flat();
+  }
+  return null;
+}
+
 /** Serializable slice of Pathfinder state for undo/redo with parent map history. */
 export type PathfinderUndoSnapshot = {
   startText: string;
@@ -43,7 +66,10 @@ export type PathfinderUndoSnapshot = {
   destinationHighlightedIndex: number;
   selectedMode: string;
   isLoadingRoutes: boolean;
+  /** @deprecated use routesLoadingPhase; kept true only when phase is "filtering" (undo compat). */
   isFilteringMode: boolean;
+  /** When loading: why the spinner is shown (newer snapshots). */
+  routesLoadingPhase?: "finding" | "filtering" | "sorting" | null;
   routesData: any[];
   showStepsMap: Record<string, boolean>;
   selectedRouteKey: string | null;
@@ -51,7 +77,13 @@ export type PathfinderUndoSnapshot = {
   routesCache: Record<string, { routesWithTraffic: any[]; geojson: any }>;
   selectedSort: string;
   showSortDropdown: boolean;
+  /** Custom evac facility picker (matches sort dropdown pattern). */
+  showEvacDropdown?: boolean;
   showModal: boolean;
+  /** Pathfinder sub-mode (older snapshots may omit; defaults to evacuation). */
+  pathfinderTab?: "destination" | "evacuation";
+  evacRadiusKm?: number;
+  selectedEvacId?: string;
 };
 
 export const EMPTY_PATHFINDER_UNDO_SNAPSHOT: PathfinderUndoSnapshot = {
@@ -66,6 +98,7 @@ export const EMPTY_PATHFINDER_UNDO_SNAPSHOT: PathfinderUndoSnapshot = {
   selectedMode: "all",
   isLoadingRoutes: false,
   isFilteringMode: false,
+  routesLoadingPhase: null,
   routesData: [],
   showStepsMap: {},
   selectedRouteKey: null,
@@ -73,7 +106,11 @@ export const EMPTY_PATHFINDER_UNDO_SNAPSHOT: PathfinderUndoSnapshot = {
   routesCache: {},
   selectedSort: "Best balance",
   showSortDropdown: false,
+  showEvacDropdown: false,
   showModal: false,
+  pathfinderTab: "evacuation",
+  evacRadiusKm: 1,
+  selectedEvacId: "",
 };
 
 export interface PathfinderControlsRef {
@@ -118,7 +155,9 @@ const PathfinderControls = forwardRef<
 
   const [selectedMode, setSelectedMode] = useState<string>("all");
   const [isLoadingRoutes, setIsLoadingRoutes] = useState(false);
-  const [isFilteringMode, setIsFilteringMode] = useState(false);
+  const [routesLoadingPhase, setRoutesLoadingPhase] = useState<
+    "finding" | "filtering" | "sorting" | null
+  >(null);
 
   const startRef = useRef<HTMLInputElement>(null);
   const destinationRef = useRef<HTMLInputElement>(null);
@@ -161,6 +200,49 @@ const PathfinderControls = forwardRef<
   const [selectedSort, setSelectedSort] = useState<string>("Best balance");
   const [showSortDropdown, setShowSortDropdown] = useState<boolean>(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [showEvacDropdown, setShowEvacDropdown] = useState(false);
+  /** Trigger button wrapper — portaled menu is positioned from this rect. */
+  const evacDropdownTriggerRef = useRef<HTMLDivElement>(null);
+  /** Portaled dropdown panel (for click-outside; not inside trigger DOM). */
+  const evacDropdownMenuRef = useRef<HTMLDivElement>(null);
+  /** Pathfinder root scrolls — reposition menu so it tracks the trigger. */
+  const pathfinderPanelScrollRef = useRef<HTMLDivElement>(null);
+  const [evacMenuLayout, setEvacMenuLayout] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: 160,
+  });
+
+  const updateEvacMenuPosition = useCallback(() => {
+    const el = evacDropdownTriggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const gap = 4;
+    const preferredMax = 160;
+    const available = window.innerHeight - r.bottom - gap - 8;
+    const maxHeight = Math.max(80, Math.min(preferredMax, available));
+    setEvacMenuLayout({
+      top: r.bottom + gap,
+      left: r.left,
+      width: r.width,
+      maxHeight,
+    });
+  }, []);
+
+  const backendBase =
+    process.env.NEXT_PUBLIC_BACKEND_ENDPOINT || "http://localhost:8000";
+
+  const [pathfinderTab, setPathfinderTab] = useState<"destination" | "evacuation">(
+    "evacuation"
+  );
+  const [evacRadiusKm, setEvacRadiusKm] = useState(1);
+  const [evacPlaces, setEvacPlaces] = useState<
+    { id: string; name: string; lat: number; lon: number; kind?: string }[]
+  >([]);
+  const [evacLoading, setEvacLoading] = useState(false);
+  const [evacError, setEvacError] = useState<string | null>(null);
+  const [selectedEvacId, setSelectedEvacId] = useState("");
 
   const startItemRefs = useRef<(HTMLLIElement | null)[]>([]);
   const destinationItemRefs = useRef<(HTMLLIElement | null)[]>([]);
@@ -169,6 +251,38 @@ const PathfinderControls = forwardRef<
   const suppressCoordsRouteFetchRef = useRef(false);
   /** Skip “pick first route” effect while restoring selection from snapshot. */
   const suppressAutoRouteSelectionRef = useRef(false);
+  /** Clears brief “Sorting routes…” overlay timer if still pending. */
+  const sortOverlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  /** True while /routes fetch + traffic merge is in flight (sync, before awaits). */
+  const routeRequestInFlightRef = useRef(false);
+
+  const clearSortOverlayTimeout = useCallback(() => {
+    if (sortOverlayTimeoutRef.current !== null) {
+      clearTimeout(sortOverlayTimeoutRef.current);
+      sortOverlayTimeoutRef.current = null;
+    }
+  }, []);
+
+  /** User changed sort (dropdown or AI): show “Sorting Routes…” briefly unless a route fetch is in flight. */
+  const applySelectedSort = useCallback(
+    (option: string) => {
+      clearSortOverlayTimeout();
+      if (!routeRequestInFlightRef.current) {
+        setRoutesLoadingPhase("sorting");
+        setIsLoadingRoutes(true);
+        sortOverlayTimeoutRef.current = setTimeout(() => {
+          setIsLoadingRoutes(false);
+          setRoutesLoadingPhase(null);
+          sortOverlayTimeoutRef.current = null;
+        }, 220);
+      }
+      setSelectedSort(option);
+      setShowSortDropdown(false);
+    },
+    [clearSortOverlayTimeout]
+  );
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -199,7 +313,7 @@ const PathfinderControls = forwardRef<
         safest: "Safest",
         best_balance: "Best balance",
       };
-      setSelectedSort(sortMap[sort] || "Best balance");
+      applySelectedSort(sortMap[sort] || "Best balance");
     },
     resetMapLinkedUi: () => {
       if (trafficPollingIntervalRef.current) {
@@ -220,8 +334,17 @@ const PathfinderControls = forwardRef<
       setShowStepsMap({});
       routesCacheRef.current = {};
       setIsLoadingRoutes(false);
-      setIsFilteringMode(false);
+      setRoutesLoadingPhase(null);
+      routeRequestInFlightRef.current = false;
+      clearSortOverlayTimeout();
       setSelectedMode("all");
+      setPathfinderTab("evacuation");
+      setEvacRadiusKm(1);
+      setEvacPlaces([]);
+      setEvacError(null);
+      setSelectedEvacId("");
+      setEvacLoading(false);
+      setShowEvacDropdown(false);
     },
     getUndoSnapshot: (): PathfinderUndoSnapshot => ({
       startText,
@@ -234,7 +357,8 @@ const PathfinderControls = forwardRef<
       destinationHighlightedIndex,
       selectedMode,
       isLoadingRoutes,
-      isFilteringMode,
+      isFilteringMode: routesLoadingPhase === "filtering",
+      routesLoadingPhase,
       routesData: JSON.parse(JSON.stringify(routesData)),
       showStepsMap: { ...showStepsMap },
       selectedRouteKey,
@@ -242,7 +366,11 @@ const PathfinderControls = forwardRef<
       routesCache: JSON.parse(JSON.stringify(routesCacheRef.current)),
       selectedSort,
       showSortDropdown,
+      showEvacDropdown,
       showModal,
+      pathfinderTab,
+      evacRadiusKm,
+      selectedEvacId,
     }),
     applyUndoSnapshot: (snap: PathfinderUndoSnapshot) => {
       if (trafficPollingIntervalRef.current) {
@@ -267,14 +395,30 @@ const PathfinderControls = forwardRef<
       setDestinationHighlightedIndex(snap.destinationHighlightedIndex ?? -1);
       setSelectedMode(snap.selectedMode ?? "all");
       setIsLoadingRoutes(snap.isLoadingRoutes ?? false);
-      setIsFilteringMode(snap.isFilteringMode ?? false);
+      {
+        const phase =
+          snap.routesLoadingPhase !== undefined
+            ? snap.routesLoadingPhase
+            : snap.isLoadingRoutes
+              ? snap.isFilteringMode
+                ? "filtering"
+                : "finding"
+              : null;
+        setRoutesLoadingPhase(phase);
+      }
       setRoutesData(snap.routesData ?? []);
       setShowStepsMap(snap.showStepsMap ?? {});
       setSelectedRouteKey(snap.selectedRouteKey ?? null);
       setRouteKeyToFeatureIndex(snap.routeKeyToFeatureIndex ?? {});
       setSelectedSort(snap.selectedSort ?? "Best balance");
       setShowSortDropdown(snap.showSortDropdown ?? false);
+      setShowEvacDropdown(snap.showEvacDropdown ?? false);
       setShowModal(snap.showModal ?? false);
+      setPathfinderTab(snap.pathfinderTab ?? "evacuation");
+      setEvacRadiusKm(snap.evacRadiusKm ?? 1);
+      setSelectedEvacId(snap.selectedEvacId ?? "");
+      setEvacPlaces([]);
+      setEvacError(null);
 
       if (snap.startCoords) {
         mapRef.current?.addStartMarker?.(
@@ -351,15 +495,21 @@ const PathfinderControls = forwardRef<
     destinationHighlightedIndex,
     selectedMode,
     isLoadingRoutes,
-    isFilteringMode,
+    routesLoadingPhase,
     routesData,
     showStepsMap,
     selectedRouteKey,
     routeKeyToFeatureIndex,
     selectedSort,
     showSortDropdown,
+    showEvacDropdown,
     showModal,
+    pathfinderTab,
+    evacRadiusKm,
+    selectedEvacId,
     mapRef,
+    applySelectedSort,
+    clearSortOverlayTimeout,
   ]);
 
   // Auto-fetch routes when both start and destination coords are set
@@ -400,17 +550,59 @@ const PathfinderControls = forwardRef<
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
       if (
         sortDropdownRef.current &&
-        !sortDropdownRef.current.contains(e.target as Node)
+        !sortDropdownRef.current.contains(t)
       ) {
         setShowSortDropdown(false);
+      }
+      const inEvacTrigger =
+        evacDropdownTriggerRef.current?.contains(t) ?? false;
+      const inEvacMenu = evacDropdownMenuRef.current?.contains(t) ?? false;
+      if (!inEvacTrigger && !inEvacMenu) {
+        setShowEvacDropdown(false);
       }
     };
 
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!showEvacDropdown || evacPlaces.length === 0) return;
+    updateEvacMenuPosition();
+  }, [
+    showEvacDropdown,
+    evacPlaces.length,
+    evacRadiusKm,
+    pathfinderTab,
+    startText,
+    updateEvacMenuPosition,
+  ]);
+
+  useEffect(() => {
+    if (!showEvacDropdown) return;
+    const update = () => updateEvacMenuPosition();
+    const panel = pathfinderPanelScrollRef.current;
+    panel?.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    const ro =
+      panel && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => update())
+        : null;
+    if (panel && ro) ro.observe(panel);
+    return () => {
+      panel?.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      vv?.removeEventListener("resize", update);
+      vv?.removeEventListener("scroll", update);
+      ro?.disconnect();
+    };
+  }, [showEvacDropdown, updateEvacMenuPosition]);
 
   useEffect(() => {
     if (!startText.trim()) {
@@ -426,7 +618,7 @@ const PathfinderControls = forwardRef<
 
     const delay = setTimeout(async () => {
       const res = await fetch(
-        `http://localhost:8000/geocode/autocomplete?text=${encodeURIComponent(
+        `${backendBase}/geocode/autocomplete?text=${encodeURIComponent(
           startText
         )}`
       );
@@ -452,7 +644,7 @@ const PathfinderControls = forwardRef<
 
     const delay = setTimeout(async () => {
       const res = await fetch(
-        `http://localhost:8000/geocode/autocomplete?text=${encodeURIComponent(
+        `${backendBase}/geocode/autocomplete?text=${encodeURIComponent(
           destinationText
         )}`
       );
@@ -495,6 +687,14 @@ const PathfinderControls = forwardRef<
   // Function to update traffic data for existing routes
   const updateTrafficData = async () => {
     if (routesData.length === 0) return;
+    if (!startCoords || !destinationCoords) return;
+
+    const prefix = `${startCoords.lat},${startCoords.lon}-${destinationCoords.lat},${destinationCoords.lon}-`;
+    const matchingKeys = Object.keys(routesCacheRef.current).filter((k) =>
+      k.startsWith(prefix)
+    );
+    const cacheKey =
+      matchingKeys.find((k) => k.endsWith("-all")) ?? matchingKeys[0];
 
     console.log("🔄 Updating traffic data...");
 
@@ -507,11 +707,6 @@ const PathfinderControls = forwardRef<
           }
 
           try {
-            // Get the cached geojson for this route
-            const cacheKey = Object.keys(routesCacheRef.current).find((key) =>
-              key.includes(route.profile)
-            );
-
             if (!cacheKey) return route;
 
             const cached = routesCacheRef.current[cacheKey];
@@ -522,18 +717,16 @@ const PathfinderControls = forwardRef<
             if (routeIndex === -1) return route;
 
             const feature = cached.geojson?.features?.[routeIndex];
+            const lineCoords = getCoordinatesForTrafficApi(feature);
 
-            if (feature?.geometry?.coordinates) {
+            if (lineCoords?.length) {
               const trafficRes = await fetch(
-                `${
-                  process.env.NEXT_PUBLIC_BACKEND_ENDPOINT ||
-                  "http://localhost:8000"
-                }/api/traffic/route-incidents`,
+                `${backendBase}/api/traffic/route-incidents`,
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    coordinates: feature.geometry.coordinates,
+                    coordinates: lineCoords,
                   }),
                 }
               );
@@ -637,15 +830,17 @@ const PathfinderControls = forwardRef<
       return;
     }
 
+    clearSortOverlayTimeout();
+    routeRequestInFlightRef.current = true;
     setIsLoadingRoutes(true);
-    setIsFilteringMode(isModeSwitch);
+    setRoutesLoadingPhase(isModeSwitch ? "filtering" : "finding");
     console.log(
       isModeSwitch ? "🔄 Filtering routes..." : "🔄 Loading routes started"
     );
 
     try {
       const res = await fetch(
-        `http://localhost:8000/routes?start_lat=${start.lat}&start_lon=${start.lon}&dest_lat=${destination.lat}&dest_lon=${destination.lon}&mode=${mode}`
+        `${backendBase}/routes?start_lat=${start.lat}&start_lon=${start.lon}&dest_lat=${destination.lat}&dest_lon=${destination.lon}&mode=${mode}`
       );
       const data = await res.json();
 
@@ -668,18 +863,16 @@ const PathfinderControls = forwardRef<
             // Get route coordinates from the corresponding GeoJSON feature
             const featureIndex = data.routesData.indexOf(route);
             const feature = data.geojson?.features?.[featureIndex];
+            const lineCoords = getCoordinatesForTrafficApi(feature);
 
-            if (feature?.geometry?.coordinates) {
+            if (lineCoords?.length) {
               const trafficRes = await fetch(
-                `${
-                  process.env.NEXT_PUBLIC_BACKEND_ENDPOINT ||
-                  "http://localhost:8000"
-                }/api/traffic/route-incidents`,
+                `${backendBase}/api/traffic/route-incidents`,
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    coordinates: feature.geometry.coordinates,
+                    coordinates: lineCoords,
                   }),
                 }
               );
@@ -769,7 +962,9 @@ const PathfinderControls = forwardRef<
         }
       }
     } finally {
+      routeRequestInFlightRef.current = false;
       setIsLoadingRoutes(false);
+      setRoutesLoadingPhase(null);
       console.log("✅ Loading routes completed");
     }
   };
@@ -847,6 +1042,146 @@ const PathfinderControls = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routesData, selectedMode, selectedSort]);
 
+  type EvacPlaceRow = {
+    id: string;
+    name: string;
+    lat: number;
+    lon: number;
+    kind?: string;
+  };
+
+  /** Set destination + routes from one OSM facility (evacuation mode). */
+  const applyEvacPlaceAsDestination = async (
+    p: EvacPlaceRow,
+    start: { lat: number; lon: number }
+  ) => {
+    setSelectedEvacId(p.id);
+    const label = `${p.name}${p.kind ? ` (${p.kind})` : ""}`;
+    suppressCoordsRouteFetchRef.current = true;
+    setDestinationText(label);
+    setDestinationCoords({ lat: p.lat, lon: p.lon });
+    mapRef.current?.addDestinationMarker(p.lon, p.lat);
+    routesCacheRef.current = {};
+    if (trafficPollingIntervalRef.current) {
+      clearInterval(trafficPollingIntervalRef.current);
+      trafficPollingIntervalRef.current = null;
+    }
+    setSelectedMode("all");
+    setShowEvacDropdown(false);
+    await fetchAndDrawRoutes(start, { lat: p.lat, lon: p.lon }, "all");
+    mapRef.current?.fitBoundsToMarkers?.();
+  };
+
+  /** Overpass: schools & shelters near start (evacuation mode). */
+  useEffect(() => {
+    if (pathfinderTab !== "evacuation" || !startCoords) {
+      if (pathfinderTab !== "evacuation") {
+        setEvacPlaces([]);
+        setEvacError(null);
+        setEvacLoading(false);
+      }
+      return;
+    }
+
+    const ac = new AbortController();
+    const timer = window.setTimeout(async () => {
+      const start = startCoords;
+      setEvacLoading(true);
+      setEvacError(null);
+      try {
+        const u = new URL(`${backendBase}/api/overpass/evacuation-destinations`);
+        u.searchParams.set("lat", String(start.lat));
+        u.searchParams.set("lon", String(start.lon));
+        u.searchParams.set("radius_km", String(evacRadiusKm));
+        const res = await fetch(u.toString(), { signal: ac.signal });
+        if (ac.signal.aborted) return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setEvacPlaces([]);
+          setShowEvacDropdown(false);
+          setEvacError(
+            typeof data.detail === "string"
+              ? data.detail
+              : "Could not load shelters from OSM"
+          );
+          return;
+        }
+        if (ac.signal.aborted) return;
+        const raw = (data.places || []) as EvacPlaceRow[];
+        const sorted =
+          raw.length === 0
+            ? []
+            : [...raw].sort((a, b) => {
+                const da =
+                  (a.lat - start.lat) ** 2 + (a.lon - start.lon) ** 2;
+                const db =
+                  (b.lat - start.lat) ** 2 + (b.lon - start.lon) ** 2;
+                return da - db;
+              });
+        setEvacPlaces(sorted);
+        setShowEvacDropdown(false);
+        if (sorted.length === 0) {
+          setSelectedEvacId("");
+          setDestinationText("");
+          setDestinationCoords(null);
+          mapRef.current?.clearDestinationMarker?.();
+          setRoutesData([]);
+          setSelectedRouteKey(null);
+          routesCacheRef.current = {};
+          mapRef.current?.clearRoutes?.();
+          if (trafficPollingIntervalRef.current) {
+            clearInterval(trafficPollingIntervalRef.current);
+            trafficPollingIntervalRef.current = null;
+          }
+        } else {
+          await applyEvacPlaceAsDestination(sorted[0], start);
+        }
+      } catch (e: unknown) {
+        if (e instanceof Error && e.name === "AbortError") return;
+        setEvacPlaces([]);
+        setShowEvacDropdown(false);
+        setEvacError(
+          e instanceof Error ? e.message : "Failed to load evacuation destinations"
+        );
+      } finally {
+        setEvacLoading(false);
+      }
+    }, 450);
+
+    return () => {
+      ac.abort();
+      clearTimeout(timer);
+    };
+  }, [
+    pathfinderTab,
+    startCoords,
+    evacRadiusKm,
+    backendBase,
+  ]); /* applyEvacPlaceAsDestination omitted — would retrigger debounce every render */
+
+  const handleEvacShelterSelect = (id: string) => {
+    setSelectedEvacId(id);
+    const p = evacPlaces.find((x) => x.id === id);
+    if (!p || !startCoords) {
+      if (!id) {
+        setDestinationText("");
+        setDestinationCoords(null);
+        mapRef.current?.clearDestinationMarker?.();
+        setRoutesData([]);
+        setSelectedRouteKey(null);
+        routesCacheRef.current = {};
+        mapRef.current?.clearRoutes?.();
+        if (trafficPollingIntervalRef.current) {
+          clearInterval(trafficPollingIntervalRef.current);
+          trafficPollingIntervalRef.current = null;
+        }
+        setShowEvacDropdown(false);
+      }
+      return;
+    }
+    void applyEvacPlaceAsDestination(p, startCoords);
+  };
+
   const handleSuggestionSelect = (place: any) => {
     startJustSelectedRef.current = true;
     setStartText(place.properties.formatted);
@@ -862,6 +1197,19 @@ const PathfinderControls = forwardRef<
       trafficPollingIntervalRef.current = null;
     }
     console.log("🗑️ Cache cleared - new start location");
+
+    if (pathfinderTab === "evacuation") {
+      setSelectedEvacId("");
+      setShowEvacDropdown(false);
+      setDestinationText("");
+      setDestinationCoords(null);
+      mapRef.current?.clearDestinationMarker?.();
+      setRoutesData([]);
+      setSelectedRouteKey(null);
+      mapRef.current?.clearRoutes?.();
+      mapRef.current?.flyTo({ center: [coords.lon, coords.lat], zoom: 14 });
+      return;
+    }
 
     if (destinationCoords) {
       fetchAndDrawRoutes(coords, destinationCoords, "all");
@@ -945,11 +1293,25 @@ const PathfinderControls = forwardRef<
 
   return (
     <div
+      ref={pathfinderPanelScrollRef}
       className="w-full bg-[#2E2E2E] rounded-lg shadow-md text-[#C7C7C7] flex flex-col p-3 scrollbar-rounded relative"
       style={{ maxHeight: "calc(100vh - 36px)", overflowY: "auto" }}
     >
-      <Tabs defaultValue="destination" className="w-full flex flex-col gap-2.5">
+      <Tabs
+        value={pathfinderTab}
+        onValueChange={(v) =>
+          setPathfinderTab(v as "destination" | "evacuation")
+        }
+        className="w-full flex flex-col gap-2.5"
+      >
         <TabsList className="bg-[#5A5A5A] rounded-md w-full grid grid-cols-2 p-1 h-auto items-center">
+          <TabsTrigger
+            value="evacuation"
+            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] data-[state=active]:shadow-none text-[#FFFFFF] text-[10px] font-medium rounded-sm flex items-center justify-center h-[24px] px-2 border-0"
+            style={{ lineHeight: "24px", padding: "0 0.5rem" }}
+          >
+            Find Shelter/s
+          </TabsTrigger>
           <TabsTrigger
             value="destination"
             className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] data-[state=active]:shadow-none text-[#FFFFFF] text-[10px] font-medium rounded-sm flex items-center justify-center h-[24px] px-2 border-0"
@@ -957,17 +1319,10 @@ const PathfinderControls = forwardRef<
           >
             Set Destination
           </TabsTrigger>
-          <TabsTrigger
-            value="evacuation"
-            className="data-[state=active]:bg-[#FFFFFF] data-[state=active]:text-[#2E2E2E] data-[state=active]:shadow-none text-[#FFFFFF] text-[10px] font-medium rounded-sm flex items-center justify-center h-[24px] px-2 border-0"
-            style={{ lineHeight: "24px", padding: "0 0.5rem" }}
-          >
-            Find Evacuation Area
-          </TabsTrigger>
         </TabsList>
 
+        {/* Shared starting point (both modes) */}
         <div className="flex flex-col gap-2">
-          {/* Inputs */}
           <div className="relative" ref={startContainerRef}>
             <div className="bg-[#5A5A5A] h-[30px] flex items-center gap-1.5 px-2 rounded-md shadow-md">
               <MapPin
@@ -1010,11 +1365,17 @@ const PathfinderControls = forwardRef<
                     setStartCoords(null);
                     setStartSuggestions([]);
                     mapRef.current?.clearStartMarker?.();
+                    setSelectedEvacId("");
+                    setShowEvacDropdown(false);
+                    setEvacPlaces([]);
+                    setEvacError(null);
 
                     // Stop loading state if currently fetching
                     if (isLoadingRoutes) {
                       setIsLoadingRoutes(false);
-                      setIsFilteringMode(false);
+                      setRoutesLoadingPhase(null);
+                      routeRequestInFlightRef.current = false;
+                      clearSortOverlayTimeout();
                     }
 
                     // Clear routes if they exist
@@ -1033,6 +1394,9 @@ const PathfinderControls = forwardRef<
                       // Clear routes from map
                       mapRef.current?.clearRoutes?.();
                     }
+                    setDestinationText("");
+                    setDestinationCoords(null);
+                    mapRef.current?.clearDestinationMarker?.();
                   }}
                   className="flex-shrink-0 hover:opacity-70 transition-opacity"
                 >
@@ -1082,6 +1446,10 @@ const PathfinderControls = forwardRef<
               )}
           </div>
 
+          <TabsContent
+            value="destination"
+            className="flex flex-col gap-2 outline-none mt-0 data-[state=inactive]:hidden"
+          >
           <div className="relative" ref={destinationContainerRef}>
             <div className="bg-[#5A5A5A] h-[30px] flex items-center gap-1.5 px-2 rounded-md shadow-md">
               <MapPin
@@ -1133,7 +1501,9 @@ const PathfinderControls = forwardRef<
                     // Stop loading state if currently fetching
                     if (isLoadingRoutes) {
                       setIsLoadingRoutes(false);
-                      setIsFilteringMode(false);
+                      setRoutesLoadingPhase(null);
+                      routeRequestInFlightRef.current = false;
+                      clearSortOverlayTimeout();
                     }
 
                     // Clear routes if they exist
@@ -1202,6 +1572,195 @@ const PathfinderControls = forwardRef<
                 document.body
               )}
           </div>
+          </TabsContent>
+
+          <TabsContent
+            value="evacuation"
+            className="flex flex-col gap-2 outline-none mt-0 data-[state=inactive]:hidden"
+          >
+            {!startCoords && (
+              <p className="text-[9px] text-gray-500 leading-snug">
+                Enter a starting location above, and nearby shelters will
+                automatically appear.
+              </p>
+            )}
+            {startCoords && (
+              <>
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center text-[9px] text-gray-400">
+                    <span>Radius near start</span>
+                    <span className="text-white font-semibold">
+                      {evacRadiusKm.toFixed(1)} km
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={30}
+                    step={0.5}
+                    value={evacRadiusKm}
+                    onChange={(e) =>
+                      setEvacRadiusKm(parseFloat(e.target.value))
+                    }
+                    className="w-full h-1.5 accent-[#9699FF] cursor-pointer"
+                  />
+                  <p className="text-[8px] text-gray-500">
+                    Minimum 0.5 km. List refreshes when you change radius.
+                  </p>
+                </div>
+                {evacLoading && (
+                  <p className="text-[9px] text-gray-400 animate-pulse">
+                    Loading nearby schools & shelters from OSM…
+                  </p>
+                )}
+                {evacError && (
+                  <p className="text-[9px] text-red-400 leading-snug">
+                    {evacError}
+                  </p>
+                )}
+                {!evacLoading && !evacError && startCoords && (
+                  <div className="flex flex-col gap-1 w-full min-w-0">
+                    <label className="text-[9px] text-gray-400">
+                      Evacuation destination (OSM)
+                    </label>
+                    <div className="w-full min-w-0">
+                      <div
+                        ref={evacDropdownTriggerRef}
+                        className="bg-[#5A5A5A] min-h-[30px] flex items-center gap-1.5 px-2 rounded-md shadow-md w-full min-w-0"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <button
+                            type="button"
+                            disabled={evacPlaces.length === 0}
+                            onClick={() =>
+                              evacPlaces.length > 0 &&
+                              setShowEvacDropdown((open) => !open)
+                            }
+                            className="flex items-center justify-between gap-1 w-full min-h-[30px] min-w-0 bg-transparent text-white text-[9px] py-1.5 rounded-sm hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span
+                              className={`truncate text-left flex-1 min-w-0 leading-snug ${
+                                selectedEvacId && evacPlaces.length > 0
+                                  ? "text-white"
+                                  : "text-[#C7C7C7]"
+                              }`}
+                            >
+                              {(() => {
+                                const sel = evacPlaces.find(
+                                  (x) => x.id === selectedEvacId
+                                );
+                                if (sel) {
+                                  return `${sel.name}${
+                                    sel.kind ? ` · ${sel.kind}` : ""
+                                  }`;
+                                }
+                                return evacPlaces.length === 0
+                                  ? "No facilities found — increase radius"
+                                  : "Select shelter / school…";
+                              })()}
+                            </span>
+                            {evacPlaces.length > 0 ? (
+                              showEvacDropdown ? (
+                                <ChevronUp
+                                  size={12}
+                                  className="flex-shrink-0"
+                                />
+                              ) : (
+                                <ChevronDown
+                                  size={12}
+                                  className="flex-shrink-0"
+                                />
+                              )
+                            ) : null}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={
+                            !selectedEvacId || evacPlaces.length === 0
+                          }
+                          aria-label="Clear evacuation destination"
+                          title={
+                            selectedEvacId && evacPlaces.length > 0
+                              ? "Clear destination"
+                              : "Select a destination to clear"
+                          }
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!selectedEvacId || evacPlaces.length === 0)
+                              return;
+                            handleEvacShelterSelect("");
+                          }}
+                          className="flex-shrink-0 p-0.5 transition-opacity enabled:hover:opacity-70 disabled:cursor-not-allowed"
+                        >
+                          <X
+                            width={14}
+                            height={14}
+                            strokeWidth={2}
+                            color={
+                              selectedEvacId && evacPlaces.length > 0
+                                ? "#C7C7C7"
+                                : "#B8B8B8"
+                            }
+                            className={
+                              selectedEvacId && evacPlaces.length > 0
+                                ? ""
+                                : "opacity-[0.85]"
+                            }
+                          />
+                        </button>
+                      </div>
+
+                      {showEvacDropdown &&
+                        evacPlaces.length > 0 &&
+                        typeof document !== "undefined" &&
+                        ReactDOM.createPortal(
+                          <div
+                            ref={evacDropdownMenuRef}
+                            className="fixed z-[9999] rounded-sm shadow-lg bg-[#5A5A5A] border border-[#4a4a4a] overflow-hidden"
+                            style={{
+                              top: evacMenuLayout.top,
+                              left: evacMenuLayout.left,
+                              width: evacMenuLayout.width,
+                            }}
+                          >
+                            <div
+                              className="scrollbar-rounded overflow-y-auto text-[9px] text-white py-0.5"
+                              style={{ maxHeight: evacMenuLayout.maxHeight }}
+                            >
+                              {evacPlaces.map((p) => (
+                                <div
+                                  key={p.id}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => handleEvacShelterSelect(p.id)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      handleEvacShelterSelect(p.id);
+                                    }
+                                  }}
+                                  className={`px-2 py-1.5 cursor-pointer hover:bg-[#6A6A6A] leading-snug break-words ${
+                                    selectedEvacId === p.id
+                                      ? "bg-gradient-to-r from-[#9699FF] to-white text-black font-medium"
+                                      : ""
+                                  }`}
+                                >
+                                  {p.name}
+                                  {p.kind ? ` · ${p.kind}` : ""}
+                                </div>
+                              ))}
+                            </div>
+                          </div>,
+                          document.body
+                        )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
 
           {/* Clear Routes Button */}
           {routesData.length > 0 && (
@@ -1226,6 +1785,12 @@ const PathfinderControls = forwardRef<
 
                 // Clear cache
                 routesCacheRef.current = {};
+
+                // Evacuation UI
+                setSelectedEvacId("");
+                setShowEvacDropdown(false);
+                setEvacPlaces([]);
+                setEvacError(null);
 
                 // Stop traffic polling
                 if (trafficPollingIntervalRef.current) {
@@ -1389,8 +1954,7 @@ const PathfinderControls = forwardRef<
                           <div
                             key={option}
                             onClick={() => {
-                              setSelectedSort(option);
-                              setShowSortDropdown(false);
+                              applySelectedSort(option);
                             }}
                             className={`px-2 py-0.5 cursor-pointer hover:bg-[#6A6A6A] 
             ${
@@ -1415,9 +1979,9 @@ const PathfinderControls = forwardRef<
               {isLoadingRoutes && (
                 <div
                   className={`flex flex-col items-center justify-center bg-[#1E1E1E] px-8 rounded-md ${
-                    isFilteringMode
-                      ? "py-8 min-h-[150px]"
-                      : "py-12 min-h-[200px]"
+                    routesLoadingPhase === "finding"
+                      ? "py-12 min-h-[200px]"
+                      : "py-8 min-h-[150px]"
                   }`}
                 >
                   <div className="relative w-10 h-10 mb-6">
@@ -1426,11 +1990,13 @@ const PathfinderControls = forwardRef<
                     <div className="absolute inset-0 border-3 border-transparent border-t-[#9699FF] rounded-full animate-spin"></div>
                   </div>
                   <p className="text-white text-[11px] font-semibold">
-                    {isFilteringMode
+                    {routesLoadingPhase === "filtering"
                       ? "Filtering Routes..."
-                      : "Finding Routes..."}
+                      : routesLoadingPhase === "sorting"
+                        ? "Sorting Routes..."
+                        : "Finding Routes..."}
                   </p>
-                  {!isFilteringMode && (
+                  {routesLoadingPhase === "finding" && (
                     <p className="text-[#AAAAAA] text-[9px] text-center mt-2">
                       Analyzing traffic and calculating best paths
                     </p>
@@ -1585,36 +2151,46 @@ const PathfinderControls = forwardRef<
         </div>
       </Tabs>
 
-      {/* Floating top-right summary box */}
+      {/* Bottom-center summary: above CenterBottomClock (clock ~50px + bottom-15px + gap) */}
       {routesData.length > 0 && (
-        <div className="fixed top-[15px] right-[15px] bg-[#2E2E2E] rounded-xl shadow-md text-white p-3.5 z-[1000] w-[210px]">
+        <div
+          className="fixed left-1/2 z-[1000] w-[500px] max-w-[calc(100vw-32px)] -translate-x-1/2 bg-[#2E2E2E] rounded-xl shadow-md text-white p-3.5"
+          style={{
+            bottom:
+              "calc(15px + 50px + 14px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           <p className="text-center text-[13px] font-semibold">Route Hazards</p>
           <hr className="border-gray-500 my-2" />
 
-          <div className="mt-3 space-y-2">
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="flex-1">Obstructions</span>
-              <span className="text-right min-w-[40px]">3</span>
+          <div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-0 items-start">
+            <div className="space-y-2 min-w-0">
+              <div className="flex justify-between items-center gap-2 text-[10px]">
+                <span className="flex-1 truncate">Obstructions</span>
+                <span className="text-right min-w-[40px] shrink-0">3</span>
+              </div>
+              <div className="flex justify-between items-center gap-2 text-[10px]">
+                <span className="flex-1 truncate">Congestion</span>
+                <span className="text-right min-w-[40px] shrink-0">5</span>
+              </div>
+              <div className="flex justify-between items-center gap-2 text-[10px]">
+                <span className="flex-1 truncate">Road Closure</span>
+                <span className="text-right min-w-[40px] shrink-0">1</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="flex-1">Congestion</span>
-              <span className="text-right min-w-[40px]">5</span>
-            </div>
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="flex-1">Road Closure</span>
-              <span className="text-right min-w-[40px]">1</span>
-            </div>
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="flex-1">Lane Closure</span>
-              <span className="text-right min-w-[40px]">2</span>
-            </div>
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="flex-1">Flooded Points</span>
-              <span className="text-right min-w-[40px]">4</span>
+            <div className="space-y-2 min-w-0">
+              <div className="flex justify-between items-center gap-2 text-[10px]">
+                <span className="flex-1 truncate">Lane Closure</span>
+                <span className="text-right min-w-[40px] shrink-0">2</span>
+              </div>
+              <div className="flex justify-between items-center gap-2 text-[10px]">
+                <span className="flex-1 truncate">Flooded Points</span>
+                <span className="text-right min-w-[40px] shrink-0">4</span>
+              </div>
             </div>
 
             {/* More info button */}
-            <div className="text-center">
+            <div className="text-center col-span-2 pt-2">
               <button
                 onClick={() => setShowModal(true)}
                 className="text-[10px] text-[#8183e5] hover:text-[#a7a9fa]"
