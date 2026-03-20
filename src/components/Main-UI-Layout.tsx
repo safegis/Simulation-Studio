@@ -1710,6 +1710,13 @@ export default function MainUILayout() {
     setShowAffectedAreas(false);
   };
 
+  const handleAbortExposureAnalysis = () => {
+    setIsAnalysisRunning(false);
+    setShowExposureResults(false);
+    setExposureResultsData(null);
+    setExposureResultsPosition({ x: 0, y: 0 });
+  };
+
   const handleRunExposureAnalysis = (
     data: any,
     affectedAreas?: GeoJSON.FeatureCollection
@@ -2098,6 +2105,7 @@ export default function MainUILayout() {
                 }}
                 onStartExposureAnalysis={handleStartExposureAnalysis}
                 onRunExposureAnalysis={handleRunExposureAnalysis}
+                onAbortExposureAnalysis={handleAbortExposureAnalysis}
                 exposureAssessmentRef={exposureAssessmentRef}
               />
             </div>
@@ -2973,14 +2981,20 @@ export default function MainUILayout() {
                 </h3>
                 {!isAnalysisRunning && (
                   <button
-                    onClick={() =>
-                      setExposureResultsMinimized(!exposureResultsMinimized)
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExposureResultsMinimized(!exposureResultsMinimized);
+                    }}
+                    className="text-white hover:text-gray-300 transition flex items-center gap-1.5 shrink-0 text-[10px] font-medium"
+                    aria-label={
+                      exposureResultsMinimized ? "Show more" : "Show less"
                     }
-                    className="text-white hover:text-gray-300 transition flex items-center"
                   >
+                    {exposureResultsMinimized && <span>Show more</span>}
                     <ChevronDown
                       size={16}
-                      className={`transition-transform duration-200 ${
+                      className={`transition-transform duration-200 shrink-0 ${
                         exposureResultsMinimized ? "rotate-180" : ""
                       }`}
                     />
@@ -3007,8 +3021,14 @@ export default function MainUILayout() {
                 ) : exposureResultsData ? (
                   <>
                     {/* Analysis Overview */}
-                    <div className="mb-3">
-                      <h4 className="text-[10px] font-semibold mb-2">
+                    <div
+                      className={exposureResultsMinimized ? "mb-1.5" : "mb-3"}
+                    >
+                      <h4
+                        className={`text-[10px] font-semibold ${
+                          exposureResultsMinimized ? "mb-1" : "mb-2"
+                        }`}
+                      >
                         Analysis Overview
                       </h4>
                       <div className="grid grid-cols-2 gap-2 text-[10px]">
@@ -3036,32 +3056,38 @@ export default function MainUILayout() {
                             )}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-gray-400 mb-0.5">
-                            Started at:
-                          </div>
-                          <div className="text-white">
-                            {exposureResultsData.startTime ? (
-                              exposureResultsData.startTime
-                            ) : (
-                              <span className="text-gray-500">Running...</span>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-400 mb-0.5">
-                            Finished at:
-                          </div>
-                          <div className="text-white">
-                            {exposureResultsData.analysisTime ? (
-                              exposureResultsData.analysisTime
-                            ) : (
-                              <span className="text-gray-500">
-                                In progress...
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        {!exposureResultsMinimized && (
+                          <>
+                            <div>
+                              <div className="text-gray-400 mb-0.5">
+                                Started at:
+                              </div>
+                              <div className="text-white">
+                                {exposureResultsData.startTime ? (
+                                  exposureResultsData.startTime
+                                ) : (
+                                  <span className="text-gray-500">
+                                    Running...
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-400 mb-0.5">
+                                Finished at:
+                              </div>
+                              <div className="text-white">
+                                {exposureResultsData.analysisTime ? (
+                                  exposureResultsData.analysisTime
+                                ) : (
+                                  <span className="text-gray-500">
+                                    In progress...
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -3099,24 +3125,25 @@ export default function MainUILayout() {
 
                             return (
                               <div key={hazardIndex} className="mb-2">
-                                {/* CHANGED: Always show header, removed condition */}
-                                <div className="mb-1.5 pb-1.5 border-b border-gray-600">
-                                  <div className="text-white font-semibold text-[10px] flex items-start gap-1.5">
-                                    <span className="bg-[#5A5C99] px-1.5 py-0.5 rounded text-[9px] whitespace-nowrap">
-                                      Hazard Data:
-                                    </span>
-                                    <div className="flex flex-col">
-                                      <span className="text-[9px]">
-                                        {hazardType}
+                                {!exposureResultsMinimized && (
+                                  <div className="mb-1.5 pb-1.5 border-b border-gray-600">
+                                    <div className="text-white font-semibold text-[10px] flex items-start gap-1.5">
+                                      <span className="bg-[#5A5C99] px-1.5 py-0.5 rounded text-[9px] whitespace-nowrap">
+                                        Hazard Data:
                                       </span>
-                                      {analysisArea && (
-                                        <span className="text-[9px] text-gray-400 mt-0.5">
-                                          {analysisArea}
+                                      <div className="flex flex-col">
+                                        <span className="text-[9px]">
+                                          {hazardType}
                                         </span>
-                                      )}
+                                        {analysisArea && (
+                                          <span className="text-[9px] text-gray-400 mt-0.5">
+                                            {analysisArea}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
+                                )}
 
                                 <div className="space-y-1.5">
                                   {elements.map(
@@ -3481,6 +3508,106 @@ export default function MainUILayout() {
                                                                     ).toFixed(
                                                                       2
                                                                     )}
+                                                                  </span>
+                                                                </td>
+                                                              </tr>
+                                                            )
+                                                          )}
+                                                        </tbody>
+                                                      </table>
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              {element.featureExposureBreakdown &&
+                                                element.featureExposureBreakdown
+                                                  .length > 0 && (
+                                                  <div className="mt-2 pt-2 border-t border-gray-600">
+                                                    <h6 className="text-[9px] font-semibold text-white mb-1.5">
+                                                      Affected administrative
+                                                      units
+                                                    </h6>
+                                                    <p className="text-[8px] text-gray-500 mb-1.5">
+                                                      Each row is one boundary
+                                                      polygon; % is that unit’s
+                                                      area inside the hazard.
+                                                    </p>
+                                                    <div
+                                                      className="max-h-[200px] overflow-y-auto"
+                                                      style={{
+                                                        scrollbarWidth: "thin",
+                                                        scrollbarColor:
+                                                          "#706f6f transparent",
+                                                      }}
+                                                    >
+                                                      <table className="w-full text-[9px]">
+                                                        <thead className="sticky top-0 bg-[#3a3a3a] z-10">
+                                                          <tr className="text-gray-400 border-b border-gray-600">
+                                                            <th className="text-left py-1 pr-2 pl-0">
+                                                              Name
+                                                            </th>
+                                                            <th className="text-center py-1 px-1">
+                                                              Total (km²)
+                                                            </th>
+                                                            <th className="text-center py-1 px-1">
+                                                              Affected (km²)
+                                                            </th>
+                                                            <th className="text-center py-1 pl-1 pr-0">
+                                                              % exposed
+                                                            </th>
+                                                          </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                          {element.featureExposureBreakdown.map(
+                                                            (
+                                                              row: any,
+                                                              idx: number
+                                                            ) => (
+                                                              <tr
+                                                                key={
+                                                                  row.boundaryId ??
+                                                                  `${row.boundaryName}-${idx}`
+                                                                }
+                                                                className="border-b border-gray-700 last:border-b-0 hover:bg-[#404040] transition"
+                                                                title={
+                                                                  row.boundaryId
+                                                                    ? `ID: ${row.boundaryId}`
+                                                                    : undefined
+                                                                }
+                                                              >
+                                                                <td className="py-1 pr-2 pl-0 text-white max-w-[140px] truncate">
+                                                                  {
+                                                                    row.boundaryName
+                                                                  }
+                                                                </td>
+                                                                <td className="py-1 px-1 text-center text-gray-300">
+                                                                  {Number(
+                                                                    row.totalAreaKm2
+                                                                  ).toFixed(2)}
+                                                                </td>
+                                                                <td className="py-1 px-1 text-center text-gray-300">
+                                                                  {Number(
+                                                                    row.affectedAreaKm2
+                                                                  ).toFixed(2)}
+                                                                </td>
+                                                                <td className="py-1 pl-1 pr-0 text-center">
+                                                                  <span
+                                                                    className={`font-semibold ${
+                                                                      Number(
+                                                                        row.percentAffected
+                                                                      ) > 50
+                                                                        ? "text-[#FFD700]"
+                                                                        : Number(
+                                                                              row.percentAffected
+                                                                            ) >
+                                                                          25
+                                                                        ? "text-yellow-400"
+                                                                        : "text-gray-300"
+                                                                    }`}
+                                                                  >
+                                                                    {Number(
+                                                                      row.percentAffected
+                                                                    ).toFixed(2)}
+                                                                    %
                                                                   </span>
                                                                 </td>
                                                               </tr>

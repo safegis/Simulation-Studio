@@ -8,21 +8,71 @@ const geojsonCache = new Map<string, GeoJSON.FeatureCollection>();
 
 // Load GeoJSON with caching
 const loadGeoJSON = async (
-  geojsonUrl: string
+  geojsonUrl: string,
+  signal?: AbortSignal
 ): Promise<GeoJSON.FeatureCollection> => {
   if (geojsonCache.has(geojsonUrl)) {
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
     console.log(`Using cached GeoJSON: ${geojsonUrl}`);
     return geojsonCache.get(geojsonUrl)!;
   }
 
   console.log(`Fetching GeoJSON: ${geojsonUrl}`);
-  const response = await fetch(geojsonUrl);
+  const response = await fetch(geojsonUrl, { signal });
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   const geojson = await response.json();
   geojsonCache.set(geojsonUrl, geojson);
   return geojson;
+};
+
+/**
+ * Draw imported hazard as a muted (gray) layer so the red "affected areas"
+ * are clearly the exposure result; hazard is context only.
+ */
+export const drawMutedHazardForExposure = (
+  map: mapboxgl.Map | null,
+  mapIsLoaded: boolean,
+  geojson: GeoJSON.FeatureCollection,
+  layerLabel: string
+): void => {
+  if (!map || !mapIsLoaded || !geojson?.features?.length) return;
+
+  const safeName = layerLabel.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80);
+  const sourceId = `exposure-hazard-muted-${safeName}`;
+  const layerId = `${sourceId}-layer`;
+  const borderLayerId = `${sourceId}-border`;
+
+  if (map.getLayer(borderLayerId)) map.removeLayer(borderLayerId);
+  if (map.getLayer(layerId)) map.removeLayer(layerId);
+  if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+  map.addSource(sourceId, { type: "geojson", data: geojson });
+
+  const mutedFill = "#6B7280";
+  const mutedLine = "#4B5563";
+
+  // Add on top so this muted hazard covers the original upload layer (lavender)
+  // Affected areas (red) are added later and will sit above this
+  map.addLayer({
+    id: layerId,
+    type: "fill",
+    source: sourceId,
+    paint: { "fill-color": mutedFill, "fill-opacity": 0.22 },
+  });
+  map.addLayer({
+    id: borderLayerId,
+    type: "line",
+    source: sourceId,
+    paint: {
+      "line-color": mutedLine,
+      "line-width": 1,
+      "line-opacity": 0.5,
+    },
+  });
 };
 
 // BEFORE: No visualization for hazard layers during analysis
@@ -33,12 +83,13 @@ export const drawAnalysisFloodHazard = async (
   geojsonUrl: string,
   returnPeriod: string,
   provinceName: string,
-  getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined
+  getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined,
+  signal?: AbortSignal
 ): Promise<void> => {
   if (!map || !mapIsLoaded) return;
 
   try {
-    const geojson = await loadGeoJSON(geojsonUrl);
+    const geojson = await loadGeoJSON(geojsonUrl, signal);
 
     const sourceId = `analysis-flood-${returnPeriod}-${provinceName}`.replace(
       /\s+/g,
@@ -139,6 +190,10 @@ export const drawAnalysisFloodHazard = async (
       `Rendered analysis flood hazard for ${provinceName} (${returnPeriod})`
     );
   } catch (error) {
+    const isAbort =
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (error instanceof Error && error.name === "AbortError");
+    if (isAbort) throw error;
     console.error(
       `Failed to load analysis flood hazard for ${provinceName}:`,
       error
@@ -146,22 +201,29 @@ export const drawAnalysisFloodHazard = async (
   }
 };
 
-// BEFORE: No visualization for exposure elements during analysis
-// AFTER: Draw exposure elements with distinct colors for land cover vs transportation
-export const drawAnalysisExposureElement = async (
+export type AnalysisElementMapStyle = "default" | "boundary";
+
+/**
+ * Draw an exposure-analysis element layer from an in-memory FeatureCollection
+ * (e.g. geoBoundaries fetched via /api/boundaries — no static geojson URL).
+ */
+export const drawAnalysisExposureElementFromGeoJSON = async (
   map: mapboxgl.Map | null,
   mapIsLoaded: boolean,
-  geojsonUrl: string,
+  geojson: GeoJSON.FeatureCollection,
   elementName: string,
   elementType: "Land Cover" | "Transportation Networks",
-  getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined
+  getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined,
+  mapStyle: AnalysisElementMapStyle = "default",
+  signal?: AbortSignal
 ): Promise<void> => {
   if (!map || !mapIsLoaded) return;
+  if (signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
 
   try {
-    const geojson = await loadGeoJSON(geojsonUrl);
-
-    const safeName = elementName.replace(/[^a-zA-Z0-9_-]/g, "-");
+    const safeName = elementName.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 120);
     const sourceId = `analysis-element-${safeName}`;
     const layerId = `${sourceId}-layer`;
     const outlineLayerId = `${sourceId}-outline`;
@@ -171,20 +233,27 @@ export const drawAnalysisExposureElement = async (
     if (map.getLayer(layerId)) map.removeLayer(layerId);
     if (map.getSource(sourceId)) map.removeSource(sourceId);
 
-    // Add source
     map.addSource(sourceId, {
       type: "geojson",
       data: geojson,
     });
 
-    // Get the top symbol layer but place BELOW affected areas
     const beforeId = getTopSymbolLayerId(map);
 
-    // BEFORE: Would use generic purple color
-    // AFTER: Use green for land cover, yellow for transportation networks
+    const isBoundaryStyle = mapStyle === "boundary";
     const isLandCover = elementType === "Land Cover";
-    const fillColor = isLandCover ? "#4CAF50" : "#FFC107"; // Green for land cover, Yellow for transportation
-    const lineColor = isLandCover ? "#2E7D32" : "#F57C00";
+    const fillColor = isBoundaryStyle
+      ? "#9699FF"
+      : isLandCover
+        ? "#4CAF50"
+        : "#FFC107";
+    const lineColor = isBoundaryStyle
+      ? "#9699FF"
+      : isLandCover
+        ? "#2E7D32"
+        : "#F57C00";
+    const fillOpacity = isBoundaryStyle ? 0.2 : 0.25;
+    const lineWidth = isBoundaryStyle ? 2 : 1;
 
     // Check geometry type to determine layer type
     const hasPolygons = geojson.features.some(
@@ -200,7 +269,6 @@ export const drawAnalysisExposureElement = async (
     );
 
     if (hasPolygons) {
-      // Land cover - polygon fill
       map.addLayer(
         {
           id: layerId,
@@ -208,7 +276,7 @@ export const drawAnalysisExposureElement = async (
           source: sourceId,
           paint: {
             "fill-color": fillColor,
-            "fill-opacity": 0.25,
+            "fill-opacity": fillOpacity,
           },
         },
         beforeId
@@ -221,8 +289,8 @@ export const drawAnalysisExposureElement = async (
           source: sourceId,
           paint: {
             "line-color": lineColor,
-            "line-width": 1,
-            "line-opacity": 0.5,
+            "line-width": lineWidth,
+            "line-opacity": isBoundaryStyle ? 0.85 : 0.5,
           },
         },
         beforeId
@@ -262,39 +330,80 @@ export const drawAnalysisExposureElement = async (
       );
     }
 
-    // Add popup on click
-    map.on("click", layerId, (e) => {
-      if (!e.features || e.features.length === 0) return;
+    // No popup for administrative boundaries (context layer only)
+    if (!isBoundaryStyle) {
+      map.on("click", layerId, (e) => {
+        if (!e.features || e.features.length === 0) return;
 
-      const feature = e.features[0];
-      const props = feature.properties || {};
+        const feature = e.features[0];
+        const props = feature.properties || {};
 
-      let html = `<div style="padding: 8px; min-width: 180px;">
+        let html = `<div style="padding: 8px; min-width: 180px;">
         <strong>${elementName}</strong><br/>
         <span style="font-size: 12px; color: #666;">Type: ${elementType}</span><br/>`;
 
-      // Show relevant properties
-      for (const key in props) {
-        if (key !== "raw" && props[key]) {
-          html += `<span style="font-size: 11px;">${key}: ${props[key]}</span><br/>`;
+        for (const key in props) {
+          if (key !== "raw" && props[key]) {
+            html += `<span style="font-size: 11px;">${key}: ${props[key]}</span><br/>`;
+          }
         }
-      }
-      html += "</div>";
+        html += "</div>";
 
-      new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
-    });
+        new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+      });
 
-    // Change cursor on hover
-    map.on("mouseenter", layerId, () => {
-      map.getCanvas().style.cursor = "pointer";
-    });
+      map.on("mouseenter", layerId, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
 
-    map.on("mouseleave", layerId, () => {
-      map.getCanvas().style.cursor = "";
-    });
+      map.on("mouseleave", layerId, () => {
+        map.getCanvas().style.cursor = "";
+      });
+    }
 
     console.log(`Rendered analysis exposure element: ${elementName}`);
   } catch (error) {
+    const isAbort =
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (error instanceof Error && error.name === "AbortError");
+    if (isAbort) throw error;
+    console.error(
+      `Failed to load analysis exposure element ${elementName}:`,
+      error
+    );
+  }
+};
+
+// BEFORE: No visualization for exposure elements during analysis
+// AFTER: Draw exposure elements with distinct colors for land cover vs transportation
+export const drawAnalysisExposureElement = async (
+  map: mapboxgl.Map | null,
+  mapIsLoaded: boolean,
+  geojsonUrl: string,
+  elementName: string,
+  elementType: "Land Cover" | "Transportation Networks",
+  getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined,
+  signal?: AbortSignal
+): Promise<void> => {
+  if (!map || !mapIsLoaded) return;
+
+  try {
+    const geojson = await loadGeoJSON(geojsonUrl, signal);
+    await drawAnalysisExposureElementFromGeoJSON(
+      map,
+      mapIsLoaded,
+      geojson,
+      elementName,
+      elementType,
+      getTopSymbolLayerId,
+      "default",
+      signal
+    );
+  } catch (error) {
+    const isAbort =
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (error instanceof Error && error.name === "AbortError");
+    if (isAbort) throw error;
     console.error(
       `Failed to load analysis exposure element ${elementName}:`,
       error
@@ -327,14 +436,14 @@ export const ensureAffectedAreasOnTop = (
     if (map.getLayer(affectedOutlineId)) map.removeLayer(affectedOutlineId);
     if (map.getLayer(affectedLayerId)) map.removeLayer(affectedLayerId);
 
-    // Re-add on top (no beforeId = top layer)
+    // Re-add on top so exposed boundaries stay the visual focus
     map.addLayer({
       id: affectedLayerId,
       type: "fill",
       source: "affected-areas",
       paint: {
         "fill-color": "#FF0000",
-        "fill-opacity": 0.35, // Slightly more visible
+        "fill-opacity": 0.5,
       },
     });
 
@@ -344,8 +453,8 @@ export const ensureAffectedAreasOnTop = (
       source: "affected-areas",
       paint: {
         "line-color": "#FF0000",
-        "line-width": 2.5,
-        "line-opacity": 0.9,
+        "line-width": 3,
+        "line-opacity": 0.95,
       },
     });
 
@@ -367,7 +476,8 @@ export const clearAnalysisLayers = (
   layers.forEach((layer) => {
     if (
       layer.id.startsWith("analysis-flood-") ||
-      layer.id.startsWith("analysis-element-")
+      layer.id.startsWith("analysis-element-") ||
+      layer.id.startsWith("exposure-hazard-muted-")
     ) {
       if (map.getLayer(layer.id)) {
         map.removeLayer(layer.id);
@@ -380,7 +490,8 @@ export const clearAnalysisLayers = (
   sources.forEach((sourceId) => {
     if (
       sourceId.startsWith("analysis-flood-") ||
-      sourceId.startsWith("analysis-element-")
+      sourceId.startsWith("analysis-element-") ||
+      sourceId.startsWith("exposure-hazard-muted-")
     ) {
       if (map.getSource(sourceId)) {
         map.removeSource(sourceId);

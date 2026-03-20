@@ -12,11 +12,21 @@ import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { floodHazardMaps } from "../../Maps/Hazard Layers/Flood/NOAAFloodHazardConfig";
-import { exposureElementsData } from "./OSMExposureElementsData";
+import {
+  exposureElementsData,
+  type ExposureElementConfig,
+} from "./OSMExposureElementsData";
+import {
+  getBoundaryExposureListItems,
+  ADMIN_LEVEL_TO_GB,
+  type BoundaryExposureConfig,
+} from "./boundaryExposureCatalog";
 
 import {
   drawAnalysisFloodHazard,
   drawAnalysisExposureElement,
+  drawAnalysisExposureElementFromGeoJSON,
+  drawMutedHazardForExposure,
   ensureAffectedAreasOnTop,
 } from "../../../../Map/Markers/Assessment Tools/ExposureAssessmentMarkers";
 
@@ -40,6 +50,8 @@ interface Props {
     data: any,
     affectedAreas?: GeoJSON.FeatureCollection
   ) => void;
+  /** Parent resets results modal / running flag when user stops or clears during a run */
+  onAbortExposureAnalysis?: () => void;
 }
 
 // Exposed methods for external control (e.g., AI agent)
@@ -64,6 +76,7 @@ const ExposureAssessmentControls = forwardRef<
       onShowAspectRatioSelector,
       onStartAnalysis,
       onRunAnalysis,
+      onAbortExposureAnalysis,
     },
     ref
   ) => {
@@ -92,6 +105,8 @@ const ExposureAssessmentControls = forwardRef<
     ] = useState(false);
     const [elementFileSearchTerm, setElementFileSearchTerm] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    /** Cancels in-flight exposure analysis (fetch + map GeoJSON loads). */
+    const analysisAbortRef = useRef<AbortController | null>(null);
 
     // Refs for dropdown positioning
     const hazardFileButtonRef = useRef<HTMLButtonElement>(null);
@@ -119,7 +134,7 @@ const ExposureAssessmentControls = forwardRef<
 
     interface ElementDataItem {
       displayName: string;
-      config: any;
+      config: ExposureElementConfig | BoundaryExposureConfig;
     }
 
     // Get all available hazard data (currently only flood)
@@ -173,6 +188,9 @@ const ExposureAssessmentControls = forwardRef<
         });
       }
 
+      // Administrative boundaries (same catalog as "Add Boundaries to Map")
+      getBoundaryExposureListItems().forEach((item) => allData.push(item));
+
       return allData;
     };
 
@@ -189,6 +207,11 @@ const ExposureAssessmentControls = forwardRef<
       setImportedHazardFileDropdownOpen(false);
       setElementDataDropdownOpen(false);
       setImportedElementFileDropdownOpen(false);
+    };
+
+    const handleStopAnalysis = () => {
+      onAbortExposureAnalysis?.();
+      analysisAbortRef.current?.abort();
     };
 
     // Debug: Log state changes
@@ -262,6 +285,11 @@ const ExposureAssessmentControls = forwardRef<
 
     const handleRunAnalysis = async () => {
       console.log("Running exposure analysis via backend...");
+      analysisAbortRef.current?.abort();
+      const abortController = new AbortController();
+      analysisAbortRef.current = abortController;
+      const { signal } = abortController;
+
       setIsAnalyzing(true);
 
       const startTime = new Date().toLocaleString("en-US", {
@@ -282,6 +310,9 @@ const ExposureAssessmentControls = forwardRef<
       const allAffectedFeatures: GeoJSON.Feature[] = [];
 
       try {
+        const backendUrl =
+          process.env.NEXT_PUBLIC_BACKEND_ENDPOINT || "http://localhost:8000";
+
         const hazardsToProcess: Array<{
           hazardData: any;
           hazardType: string;
@@ -305,6 +336,9 @@ const ExposureAssessmentControls = forwardRef<
           const allHazardData = getAllHazardData();
 
           for (const hazardName of selectedHazardData) {
+            if (signal.aborted) {
+              throw new DOMException("Aborted", "AbortError");
+            }
             const selectedHazard = allHazardData.find(
               (item) => item.displayName === hazardName
             );
@@ -312,7 +346,8 @@ const ExposureAssessmentControls = forwardRef<
             if (selectedHazard) {
               console.log(`Fetching hazard data: ${hazardName}...`);
               const hazardResponse = await fetch(
-                selectedHazard.config.geojsonUrl
+                selectedHazard.config.geojsonUrl,
+                { signal }
               );
 
               if (!hazardResponse.ok) {
@@ -337,7 +372,8 @@ const ExposureAssessmentControls = forwardRef<
                   selectedHazard.config.geojsonUrl,
                   selectedHazard.returnPeriod,
                   selectedHazard.config.name,
-                  getTopSymbolLayerId
+                  getTopSymbolLayerId,
+                  signal
                 );
               }
 
@@ -350,6 +386,9 @@ const ExposureAssessmentControls = forwardRef<
           // BEFORE: Would try to visualize imported files
           // AFTER: Just load data, don't visualize (already has markers from upload)
           for (const fileName of selectedImportedHazardFiles) {
+            if (signal.aborted) {
+              throw new DOMException("Aborted", "AbortError");
+            }
             const hazardData =
               mapRef?.current?.getUploadedLayerData?.(fileName);
 
@@ -363,8 +402,18 @@ const ExposureAssessmentControls = forwardRef<
               analysisArea: fileName,
             });
 
+            // Draw hazard as muted gray so red "affected areas" are clearly the result
+            if (mapRef?.current) {
+              drawMutedHazardForExposure(
+                mapRef.current.getMap(),
+                true,
+                hazardData as GeoJSON.FeatureCollection,
+                fileName
+              );
+            }
+
             console.log(
-              `✓ Loaded ${fileName}: ${hazardData.features?.length} features (using existing markers)`
+              `✓ Loaded ${fileName}: ${hazardData.features?.length} features (muted hazard layer; exposed areas will be red)`
             );
           }
         }
@@ -392,51 +441,114 @@ const ExposureAssessmentControls = forwardRef<
           const allElementData = getAllElementData();
 
           for (const elementName of selectedElementData) {
+            if (signal.aborted) {
+              throw new DOMException("Aborted", "AbortError");
+            }
             const selectedElement = allElementData.find(
               (item) => item.displayName === elementName
             );
 
             if (selectedElement) {
-              console.log(`Fetching element data: ${elementName}...`);
-              const elementResponse = await fetch(
-                selectedElement.config.geojsonUrl
-              );
+              const cfg = selectedElement.config;
+              const isBoundary =
+                "kind" in cfg && cfg.kind === "boundary";
 
-              if (!elementResponse.ok) {
-                throw new Error(
-                  `Failed to fetch ${elementName}: ${elementResponse.status}`
-                );
-              }
+              if (isBoundary) {
+                const gbLevel = ADMIN_LEVEL_TO_GB[cfg.adminLevel];
+                if (!gbLevel) {
+                  throw new Error(
+                    `Unsupported boundary admin level: ${cfg.adminLevel}`
+                  );
+                }
+                const boundaryUrl = `${backendUrl}/api/boundaries/${cfg.iso3}/${gbLevel}`;
+                console.log(`Fetching boundary element data: ${elementName}...`);
+                const elementResponse = await fetch(boundaryUrl, { signal });
 
-              const elementData = await elementResponse.json();
+                if (!elementResponse.ok) {
+                  const err = await elementResponse.json().catch(() => ({}));
+                  throw new Error(
+                    (err as { detail?: string }).detail ||
+                      `Failed to fetch boundary ${elementName}: ${elementResponse.status}`
+                  );
+                }
 
-              elementsToProcess.push({
-                elementName: elementName,
-                elementData: elementData,
-                elementType: selectedElement.config.elementType,
-              });
+                const elementData = await elementResponse.json();
+                if (
+                  !elementData?.features?.length
+                ) {
+                  throw new Error(
+                    `Boundary data is empty for ${elementName}`
+                  );
+                }
 
-              // NEW: Visualize element on map (only for existing data)
-              if (mapRef?.current) {
-                await drawAnalysisExposureElement(
-                  mapRef.current.getMap(),
-                  true,
-                  selectedElement.config.geojsonUrl,
+                elementsToProcess.push({
                   elementName,
-                  selectedElement.config.elementType,
-                  getTopSymbolLayerId
+                  elementData,
+                  elementType: "Land Cover",
+                });
+
+                if (mapRef?.current) {
+                  await drawAnalysisExposureElementFromGeoJSON(
+                    mapRef.current.getMap(),
+                    true,
+                    elementData as GeoJSON.FeatureCollection,
+                    elementName,
+                    "Land Cover",
+                    getTopSymbolLayerId,
+                    "boundary",
+                    signal
+                  );
+                }
+
+                console.log(
+                  `✓ Loaded and mapped boundary ${elementName}: ${elementData.features.length} features`
+                );
+              } else {
+                const osmCfg = cfg as ExposureElementConfig;
+                console.log(`Fetching element data: ${elementName}...`);
+                const elementResponse = await fetch(osmCfg.geojsonUrl, {
+                  signal,
+                });
+
+                if (!elementResponse.ok) {
+                  throw new Error(
+                    `Failed to fetch ${elementName}: ${elementResponse.status}`
+                  );
+                }
+
+                const elementData = await elementResponse.json();
+
+                elementsToProcess.push({
+                  elementName: elementName,
+                  elementData: elementData,
+                  elementType: osmCfg.elementType,
+                });
+
+                if (mapRef?.current) {
+                  await drawAnalysisExposureElement(
+                    mapRef.current.getMap(),
+                    true,
+                    osmCfg.geojsonUrl,
+                    elementName,
+                    osmCfg.elementType,
+                    getTopSymbolLayerId,
+                    signal
+                  );
+                }
+
+                console.log(
+                  `✓ Loaded and visualized ${elementName}: ${elementData.features?.length} features`
                 );
               }
-
-              console.log(
-                `✓ Loaded and visualized ${elementName}: ${elementData.features?.length} features`
-              );
             }
           }
         } else if (selectedImportedElementFiles.length > 0) {
           // BEFORE: Would try to visualize imported files
           // AFTER: Just load data, don't visualize (already has markers from upload)
           for (const fileName of selectedImportedElementFiles) {
+            if (signal.aborted) {
+              throw new DOMException("Aborted", "AbortError");
+            }
             const elementData =
               mapRef?.current?.getUploadedLayerData?.(fileName);
 
@@ -478,17 +590,20 @@ const ExposureAssessmentControls = forwardRef<
           throw new Error("No element data available");
         }
 
-        const backendUrl =
-          process.env.NEXT_PUBLIC_BACKEND_ENDPOINT || "http://localhost:8000";
-
         let analysisCount = 0;
         const totalAnalyses =
           hazardsToProcess.length * elementsToProcess.length;
 
         for (const hazard of hazardsToProcess) {
+          if (signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
           console.log(`\n🌊 Analyzing hazard: ${hazard.hazardType}`);
 
           for (const element of elementsToProcess) {
+            if (signal.aborted) {
+              throw new DOMException("Aborted", "AbortError");
+            }
             analysisCount++;
             console.log(
               `  [${analysisCount}/${totalAnalyses}] Processing ${element.elementName}...`
@@ -499,6 +614,7 @@ const ExposureAssessmentControls = forwardRef<
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                signal,
                 body: JSON.stringify({
                   hazard_data: hazard.hazardData,
                   element_data: element.elementData,
@@ -533,6 +649,8 @@ const ExposureAssessmentControls = forwardRef<
                 landuseBreakdown: result.elements[0].landuseBreakdown || null,
                 hazardLevelBreakdown:
                   result.elements[0].hazardLevelBreakdown || null,
+                featureExposureBreakdown:
+                  result.elements[0].featureExposureBreakdown || null,
               });
 
               // Log landuse breakdown if available
@@ -641,16 +759,26 @@ const ExposureAssessmentControls = forwardRef<
           onRunAnalysis(analysisData, affectedAreasGeoJSON);
         }
       } catch (error) {
-        console.error("Error during exposure analysis:", error);
+        const aborted =
+          (error instanceof DOMException && error.name === "AbortError") ||
+          (error instanceof Error && error.name === "AbortError");
+        if (aborted) {
+          console.log("Exposure analysis stopped by user");
+        } else {
+          console.error("Error during exposure analysis:", error);
 
-        let errorMessage = "Unknown error";
-        if (error instanceof Error) {
-          errorMessage = error.message;
+          let errorMessage = "Unknown error";
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          }
+
+          alert(`Failed to complete exposure analysis: ${errorMessage}`);
         }
-
-        alert(`Failed to complete exposure analysis: ${errorMessage}`);
       } finally {
         setIsAnalyzing(false);
+        if (analysisAbortRef.current === abortController) {
+          analysisAbortRef.current = null;
+        }
       }
     };
 
@@ -749,6 +877,10 @@ const ExposureAssessmentControls = forwardRef<
       },
       clearSteps: () => {
         console.log("🟢 REF: clearSteps called");
+        if (analysisAbortRef.current) {
+          onAbortExposureAnalysis?.();
+        }
+        analysisAbortRef.current?.abort();
         handleClearSteps();
       },
     }));
@@ -1051,45 +1183,70 @@ const ExposureAssessmentControls = forwardRef<
                   scrollbarColor: "#706f6f transparent",
                 }}
               >
-                {getAllElementData().map((item, index) => (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      setSelectedElementData((prev) =>
-                        prev.includes(item.displayName)
-                          ? prev.filter((name) => name !== item.displayName)
-                          : [...prev, item.displayName]
-                      );
-                    }}
-                    className={`p-2 rounded cursor-pointer transition flex items-center gap-2 ${
-                      selectedElementData.includes(item.displayName)
-                        ? "bg-[#3d3e69] border-2 border-[#9699FF]"
-                        : "bg-[#2a2a2a] hover:bg-[#353535]"
-                    }`}
-                  >
-                    <Checkbox
-                      checked={selectedElementData.includes(item.displayName)}
-                      className="pointer-events-none"
-                      style={{
-                        width: "14px",
-                        height: "14px",
-                        minWidth: "14px",
-                        minHeight: "14px",
+                {getAllElementData().map((item, index) => {
+                  const isBoundary =
+                    "kind" in item.config && item.config.kind === "boundary";
+                  const bCfg = isBoundary
+                    ? (item.config as BoundaryExposureConfig)
+                    : null;
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        setSelectedElementData((prev) =>
+                          prev.includes(item.displayName)
+                            ? prev.filter((name) => name !== item.displayName)
+                            : [...prev, item.displayName]
+                        );
                       }}
-                    />
-                    <div className="flex-1">
-                      <div className="text-white text-[10px] font-medium mb-1">
-                        {item.config.elementType}
-                      </div>
-                      <div className="text-gray-400 text-[10px] mb-0.5">
-                        {item.config.name}, {item.config.country}
-                      </div>
-                      <div className="text-gray-400 text-[10px]">
-                        Source: {item.config.source}
+                      className={`p-2 rounded cursor-pointer transition flex items-center gap-2 ${
+                        selectedElementData.includes(item.displayName)
+                          ? "bg-[#3d3e69] border-2 border-[#9699FF]"
+                          : "bg-[#2a2a2a] hover:bg-[#353535]"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={selectedElementData.includes(item.displayName)}
+                        className="pointer-events-none"
+                        style={{
+                          width: "14px",
+                          height: "14px",
+                          minWidth: "14px",
+                          minHeight: "14px",
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        {isBoundary && bCfg ? (
+                          <>
+                            <div className="text-white text-[10px] font-medium mb-1">
+                              Administrative boundary
+                            </div>
+                            <div className="text-gray-400 text-[10px] mb-0.5 break-words">
+                              {bCfg.countryName} — {bCfg.levelLabel}
+                            </div>
+                            <div className="text-gray-400 text-[10px]">
+                              Source: geoBoundaries (same as Add Boundaries)
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-white text-[10px] font-medium mb-1">
+                              {(item.config as ExposureElementConfig).elementType}
+                            </div>
+                            <div className="text-gray-400 text-[10px] mb-0.5">
+                              {(item.config as ExposureElementConfig).name},{" "}
+                              {(item.config as ExposureElementConfig).country}
+                            </div>
+                            <div className="text-gray-400 text-[10px]">
+                              Source:{" "}
+                              {(item.config as ExposureElementConfig).source}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1240,18 +1397,21 @@ const ExposureAssessmentControls = forwardRef<
           {isAnalyzing ? "Analyzing..." : "Run Assessment"}
         </button>
 
-        {/* Clear Steps Button */}
+        {/* Clear Steps / Stop Analysis */}
         <button
-          onClick={handleClearSteps}
-          disabled={!hasAnySelection}
+          type="button"
+          onClick={isAnalyzing ? handleStopAnalysis : handleClearSteps}
+          disabled={isAnalyzing ? false : !hasAnySelection}
           className={`w-full px-2.5 py-2 rounded shadow-md font-medium transition
           ${
-            hasAnySelection
-              ? "bg-[#5A5C99] text-white hover:opacity-90"
+            isAnalyzing || hasAnySelection
+              ? isAnalyzing
+                ? "bg-[#8E4A5C] text-white hover:opacity-90"
+                : "bg-[#5A5C99] text-white hover:opacity-90"
               : "bg-[#3a3a3a] text-gray-500 cursor-not-allowed"
           }`}
         >
-          Clear Steps
+          {isAnalyzing ? "Stop Analysis" : "Clear Steps"}
         </button>
       </div>
     );

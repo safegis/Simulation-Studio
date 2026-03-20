@@ -4,7 +4,7 @@
 import {
   ZoomIn,
   ZoomOut,
-  Layers2,
+  File,
   X,
   ChevronDown,
   Upload,
@@ -522,7 +522,7 @@ const RightSideControls = forwardRef<
                 : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
             }`}
           >
-            <Layers2
+            <File
               size={18}
               color={showGeoJSONPanel ? "#2E2E2E" : "#C7C7C7"}
               className="shrink-0"

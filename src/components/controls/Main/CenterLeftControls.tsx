@@ -1,7 +1,7 @@
 // CenterLeftControls.tsx
 import { useState } from "react";
 import {
-  Earth,
+  Layers,
   MapPinned,
   ListTodo,
   ChartColumn,
@@ -105,7 +105,7 @@ export default function CenterLeftControls({
                 : "hover:bg-[#3a3a3a] text-[#C7C7C7]"
             }`}
           >
-            <Earth size={18} className="shrink-0" />
+            <Layers size={18} className="shrink-0" />
           </button>
           {hoveredButton === "mapLayers" && (
             <div className="absolute left-[45px] top-1/2 -translate-y-1/2 bg-white text-black text-[11px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-[9999]">

@@ -47,6 +47,7 @@ interface Props {
     data: any,
     affectedAreas?: GeoJSON.FeatureCollection
   ) => void;
+  onAbortExposureAnalysis?: () => void;
   exposureAssessmentRef?: React.RefObject<ExposureAssessmentControlsRef | null>;
   // Geological section expanded state (for AI control)
   geologicalExpanded?: boolean;
@@ -114,6 +115,7 @@ export default function ToolPanel({
   setTrafficExpanded,
   onStartExposureAnalysis,
   onRunExposureAnalysis,
+  onAbortExposureAnalysis,
   exposureAssessmentRef,
 }: Props) {
   const [hydroExpanded, setHydroExpanded] = useState(false);
@@ -1273,6 +1275,7 @@ export default function ToolPanel({
                     onShowAspectRatioSelector={onShowAspectRatioSelector}
                     onStartAnalysis={onStartExposureAnalysis}
                     onRunAnalysis={onRunExposureAnalysis}
+                    onAbortExposureAnalysis={onAbortExposureAnalysis}
                   />
                 )}
 
