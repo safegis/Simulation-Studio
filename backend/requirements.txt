@@ -4,6 +4,8 @@ pandas
 geopandas
 playwright
 httpx
+sqlalchemy
+psycopg2-binary
 pillow
 numpy
 pydantic

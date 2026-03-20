@@ -17,3 +17,12 @@ This repo contains the backend side of SafeGIS's Simulation Studio. It contains 
 ### 💻 II. Tech Stack
 
 `Python` `FastAPI` `ScrapeGraphAI`
+
+### Import / connect spatial data (panel)
+
+- `POST /api/spatial-data/fetch-url` — Server-side HTTP GET/POST to a URL; returns GeoJSON `FeatureCollection` (or wraps `Feature` / geometry). Supports Bearer, API key header/query, and Basic auth. Secrets are sent in the request body to this backend only.
+- `POST /api/spatial-data/postgis` — PostgreSQL/PostGIS only: reads up to **10,000** rows from `schema.table` via GeoPandas. Other engines in the UI are not wired yet.
+
+Requires `sqlalchemy` and `psycopg2-binary` (see `requirements.txt`). Install with `pip install -r requirements.txt` from `backend/`.
+
+**MCP tab:** Uses the same GeoJSON HTTP proxy as API (GET + optional Bearer). Full MCP session protocol (JSON-RPC over SSE/WebSocket) is not implemented in Simulation Studio yet.

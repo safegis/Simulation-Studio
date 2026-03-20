@@ -64,7 +64,7 @@ type UiUndoSnapshot = {
   selectedPlan: { name: string; date: string } | null;
   showAssessmentTools: boolean;
   selectedAssessmentTools: string[];
-  uploadedFiles: { name: string; layerName: string }[];
+  uploadedFiles: { name: string; layerName: string; sourceType?: string }[];
   isBoundaryLoading: boolean;
   boundaryLoadingStage: string;
   isFileLoading: boolean;
@@ -188,7 +188,7 @@ export default function MainUILayout() {
 
   // Uploaded files state (lifted from CenterRightControls)
   const [uploadedFiles, setUploadedFiles] = useState<
-    { name: string; layerName: string }[]
+    { name: string; layerName: string; sourceType?: string }[]
   >([]);
 
   // Boundary loading state with stage
@@ -2163,6 +2163,16 @@ export default function MainUILayout() {
             handleMapStyleChange={handleMapStyleChange}
             handleTimeOfDayChange={handleTimeOfDayChange}
             uploadedFiles={uploadedFiles.map((f) => f.name)}
+            spatialContext={uploadedFiles}
+            spatialDataCallbacks={{
+              openImportConnectPanel: () => {
+                centerRightControlsRef.current?.openImportFilesPanel?.();
+              },
+              fetchGeoJsonFromUrl: (payload) =>
+                centerRightControlsRef.current?.fetchAndAddGeoJsonFromUrl(
+                  payload
+                ) ?? Promise.resolve({ ok: false, error: "Controls not ready" }),
+            }}
             liveHazardMonitorCallbacks={{
               openLiveHazardMonitor: () => setShowLiveHazardMonitor(true),
               expandEarthquakeSection: () => {
@@ -2600,7 +2610,14 @@ export default function MainUILayout() {
                 setExpandedPanels((prev) => ({ ...prev, "hazard-Geological Hazards": true }));
                 return;
               }
-              if (p === "import_files_panel" || p === "import_panel" || p === "upload_panel") {
+              if (
+                p === "import_files_panel" ||
+                p === "import_panel" ||
+                p === "upload_panel" ||
+                p === "spatial_data_panel" ||
+                p === "import_connect_spatial" ||
+                p === "open_spatial_data"
+              ) {
                 centerRightControlsRef.current?.openImportFilesPanel?.();
                 return;
               }
@@ -2634,6 +2651,21 @@ export default function MainUILayout() {
               }
               if (p === "tool_panel" || p === "tools_panel" || p === "left_panel") {
                 setShowToolPanel(true);
+                return;
+              }
+            }}
+            closePanel={(panel: string) => {
+              const p = panel.toLowerCase().replace(/\s+/g, "_");
+              if (p === "live_hazard_monitor" || p === "hazard_monitor" || p === "live_hazards") {
+                setShowLiveHazardMonitor(false);
+                return;
+              }
+              if (p === "map_style_dropdown" || p === "map_style" || p === "style_dropdown") {
+                setShowMapStyleDropdown(false);
+                return;
+              }
+              if (p === "time_of_day_dropdown" || p === "time_of_day" || p === "lighting_dropdown") {
+                setShowTimeOfDayDropdown(false);
                 return;
               }
             }}

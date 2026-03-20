@@ -15,7 +15,7 @@ import uvicorn
 
 # Import our modules
 from fetch_data.HazardScraper import start_scraper
-from fetch_data import MapHazardAPIs, ExposureAssessment, GeoBoundaries, TomTomTraffic, OverpassEvacuation
+from fetch_data import MapHazardAPIs, ExposureAssessment, GeoBoundaries, TomTomTraffic, OverpassEvacuation, SpatialDataConnect
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -145,6 +145,23 @@ async def get_evacuation_destinations(
     Schools, social facilities, community centres, and evacuation centres from OSM (Overpass).
     """
     return await OverpassEvacuation.query_evacuation_places(lat, lon, radius_km)
+
+
+@app.post("/api/spatial-data/fetch-url")
+async def spatial_data_fetch_url(request: SpatialDataConnect.FetchUrlRequest):
+    """
+    Server-side fetch of a URL returning GeoJSON (FeatureCollection, Feature, or Geometry).
+    Proxies auth headers so secrets are not persisted in the browser.
+    """
+    return await SpatialDataConnect.fetch_url_geojson(request)
+
+
+@app.post("/api/spatial-data/postgis")
+def spatial_data_postgis(request: SpatialDataConnect.PostgisRequest):
+    """
+    Read up to 10k rows from a PostGIS table/view into GeoJSON (via GeoPandas).
+    """
+    return SpatialDataConnect.fetch_postgis_geojson(request)
 
 
 # Include TomTom Traffic router

@@ -1,6 +1,10 @@
 // LangGraphAdapter.tsx
 // Adapter to connect LangGraph backend with frontend UI
 
+import type { AtlasFetchUrlPayload } from "../Main/CenterRightControls";
+
+export type { AtlasFetchUrlPayload };
+
 export interface LangGraphMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -54,6 +58,17 @@ export interface LangGraphResponse {
     start?: string;
     destination?: string;
     sort_by?: string;
+    // Spatial data agent (Atlas + Import / connect)
+    url?: string;
+    method?: string;
+    auth_type?: string;
+    bearer_or_key_value?: string | null;
+    api_key_header_name?: string;
+    api_query_param_name?: string;
+    basic_user?: string | null;
+    basic_password?: string | null;
+    post_body_json?: string | null;
+    layer_display_name?: string | null;
   };
   requires_frontend: boolean;
   requires_clarification: boolean;
@@ -137,6 +152,8 @@ export interface MapCallbacks {
 
   // Open panels / UI controls by name (e.g. "chat_expand", "map_style_dropdown", "boundary_panel")
   openPanel?: (panel: string) => void;
+  /** Close panels opened via openPanel (e.g. "live_hazard_monitor") */
+  closePanel?: (panel: string) => void;
 
   /** Toolbar history controls (same as undo/redo/reset buttons) */
   mapUndo?: () => void | Promise<void>;
@@ -145,6 +162,13 @@ export interface MapCallbacks {
   openMapResetConfirm?: () => void;
   /** Performs global map reset without modal (Atlas “immediate” reset) */
   performMapReset?: () => void;
+
+  /** Open Import / connect spatial data (right toolbar) */
+  openSpatialDataPanel?: () => void;
+  /** Proxy GeoJSON URL via Simulation backend and add layer */
+  fetchGeoJsonFromUrl?: (
+    payload: AtlasFetchUrlPayload
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 /**
@@ -539,6 +563,77 @@ export async function processLangGraphResponse(
           }
           break;
 
+        case "close_panel":
+          if (callbacks.closePanel && data.panel) {
+            callbacks.closePanel(data.panel as string);
+          }
+          if (data.text) {
+            addMessage("assistant", data.text);
+          }
+          break;
+
+        case "open_spatial_data_panel":
+          if (callbacks.openSpatialDataPanel) {
+            callbacks.openSpatialDataPanel();
+          } else if (callbacks.openPanel) {
+            callbacks.openPanel("import_files_panel");
+          }
+          addMessage(
+            "assistant",
+            data.text
+              ? data.text
+              : "✅ **Opened Import / connect spatial data** — add files, API, PostGIS, or a GeoJSON URL."
+          );
+          break;
+
+        case "add_spatial_layer_from_url": {
+          const url = (data as any).url as string | undefined;
+          if (!url) {
+            addMessage(
+              "assistant",
+              "❌ No URL was provided for the GeoJSON layer."
+            );
+            break;
+          }
+          if (!callbacks.fetchGeoJsonFromUrl) {
+            addMessage(
+              "assistant",
+              "❌ GeoJSON fetch from URL is not available (map controls not ready)."
+            );
+            break;
+          }
+          const d = data as any;
+          const payload: AtlasFetchUrlPayload = {
+            url,
+            method: (d.method === "POST" ? "POST" : "GET") as "GET" | "POST",
+            auth_type:
+              (d.auth_type as AtlasFetchUrlPayload["auth_type"]) || "none",
+            bearer_or_key_value: d.bearer_or_key_value ?? null,
+            api_key_header_name: d.api_key_header_name || "X-API-Key",
+            api_query_param_name: d.api_query_param_name || "api_key",
+            basic_user: d.basic_user ?? null,
+            basic_password: d.basic_password ?? null,
+            post_body_json: d.post_body_json ?? null,
+            layer_display_name:
+              d.layer_display_name ?? d.layerDisplayName ?? null,
+          };
+          const result = await callbacks.fetchGeoJsonFromUrl(payload);
+          if (result.ok) {
+            addMessage(
+              "assistant",
+              data.text
+                ? `✅ ${data.text}`
+                : "✅ **Layer added** — GeoJSON was fetched and displayed on the map."
+            );
+          } else {
+            addMessage(
+              "assistant",
+              `❌ **Could not load layer:** ${result.error || "Unknown error"}`
+            );
+          }
+          break;
+        }
+
         case "map_undo":
           if (callbacks.mapUndo) {
             await Promise.resolve(callbacks.mapUndo());
@@ -615,6 +710,13 @@ export async function processLangGraphResponse(
   return false;
 }
 
+/** Base URL for Atlas (strip trailing /generate from NEXT_PUBLIC_MODEL_ENDPOINT). */
+export function getAtlasBaseUrl(): string {
+  const ep = process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.trim();
+  if (!ep) return "";
+  return ep.replace(/\/generate\/?$/i, "").replace(/\/$/, "") || "";
+}
+
 /**
  * Send message to LangGraph backend
  */
@@ -624,6 +726,11 @@ export async function sendToLangGraph(
   mapState: Record<string, any> = {},
   webSearchEnabled: boolean = false,
   uploadedFiles: string[] = [],
+  spatialContext: Array<{
+    name: string;
+    layerName: string;
+    sourceType?: string;
+  }> = [],
   signal?: AbortSignal
 ): Promise<LangGraphResponse> {
   const endpoint = process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
@@ -646,6 +753,7 @@ export async function sendToLangGraph(
       map_state: mapState,
       web_search_enabled: webSearchEnabled,
       uploaded_files: uploadedFiles,
+      spatial_context: spatialContext,
     }),
     signal,
   });
@@ -661,4 +769,5 @@ export default {
   processLangGraphResponse,
   sendToLangGraph,
   STYLE_MAP,
+  getAtlasBaseUrl,
 };

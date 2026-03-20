@@ -125,6 +125,18 @@ const ExposureAssessmentControls = forwardRef<
     const hazardDataOptions = ["Use existing data", "Use imported data"];
     const elementDataOptions = ["Use existing data", "Use imported data"];
 
+    /**
+     * `addGeoJSONLayer` registers sources as `upload-${safeLayerName}` where `layerName` is an
+     * internal id from upload. The exposure UI and AI store the human-readable `file.name`.
+     * Map lookup must use `layerName`, not display name.
+     */
+    const resolveUploadLayerName = (nameOrLayer: string): string => {
+      const hit = uploadedFiles.find(
+        (u) => u.name === nameOrLayer || u.layerName === nameOrLayer
+      );
+      return hit?.layerName ?? nameOrLayer;
+    };
+
     // Define proper types for hazard and element data
     interface HazardDataItem {
       displayName: string;
@@ -389,11 +401,17 @@ const ExposureAssessmentControls = forwardRef<
             if (signal.aborted) {
               throw new DOMException("Aborted", "AbortError");
             }
+            const layerKey = resolveUploadLayerName(fileName);
             const hazardData =
-              mapRef?.current?.getUploadedLayerData?.(fileName);
+              mapRef?.current?.getUploadedLayerData?.(layerKey);
 
             if (!hazardData) {
-              throw new Error(`Could not retrieve hazard data for ${fileName}`);
+              throw new Error(
+                `Could not retrieve hazard data for ${fileName}` +
+                  (layerKey !== fileName
+                    ? ` (map source: ${layerKey}). Is the layer still on the map?`
+                    : ". Is the layer still on the map?")
+              );
             }
 
             hazardsToProcess.push({
@@ -408,7 +426,7 @@ const ExposureAssessmentControls = forwardRef<
                 mapRef.current.getMap(),
                 true,
                 hazardData as GeoJSON.FeatureCollection,
-                fileName
+                layerKey
               );
             }
 
@@ -549,11 +567,14 @@ const ExposureAssessmentControls = forwardRef<
             if (signal.aborted) {
               throw new DOMException("Aborted", "AbortError");
             }
+            const layerKey = resolveUploadLayerName(fileName);
             const elementData =
-              mapRef?.current?.getUploadedLayerData?.(fileName);
+              mapRef?.current?.getUploadedLayerData?.(layerKey);
 
             if (!elementData) {
-              console.error(`Could not retrieve data for ${fileName}`);
+              console.error(
+                `Could not retrieve element data for ${fileName} (map source: ${layerKey})`
+              );
               continue;
             }
 

@@ -1,6 +1,6 @@
 // \SafeGIS\Simulation-Studio\frontend\src\components\controls\SafeGIS AI\SafeGIS-AI-Chat.tsx
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type ChangeEvent } from "react";
 
 import {
   History,
@@ -17,9 +17,14 @@ import {
   ChevronUp,
   ExternalLink,
   AudioLines,
+  X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import LangGraphAdapter, { LangGraphMessage, sendToLangGraph } from "./LangGraphAdapter";
+import LangGraphAdapter, {
+  LangGraphMessage,
+  sendToLangGraph,
+  getAtlasBaseUrl,
+} from "./LangGraphAdapter";
 
 type Props = {
   isVisible: boolean;
@@ -63,8 +68,16 @@ type Props = {
     runAnalysis: () => void;
     clearSteps: () => void;
   };
-  // Uploaded files for exposure assessment
+  // Uploaded files for exposure assessment (display names only)
   uploadedFiles?: string[];
+  /** Layers on the map for Atlas (names, ids, optional source: file / api / postgis / …) */
+  spatialContext?: { name: string; layerName: string; sourceType?: string }[];
+  spatialDataCallbacks?: {
+    openImportConnectPanel: () => void;
+    fetchGeoJsonFromUrl: (
+      payload: import("./LangGraphAdapter").AtlasFetchUrlPayload
+    ) => Promise<{ ok: boolean; error?: string }>;
+  };
   // Layers Panel control callbacks
   layersPanelCallbacks?: {
     openLayersPanel: (layerType?: "hazard" | "critical_facility") => void;
@@ -93,6 +106,7 @@ type Props = {
   };
   // Open panels / UI by name (chat_expand, map_style_dropdown, boundary_panel, etc.)
   openPanel?: (panel: string) => void;
+  closePanel?: (panel: string) => void;
   /** Undo / redo / reset — same as right toolbar (reset opens confirm unless performReset) */
   mapHistoryCallbacks?: {
     undo: () => void | Promise<void>;
@@ -356,7 +370,10 @@ export default function SafeGISAIChat({
   boundaryCallbacks,
   pathfinderCallbacks,
   openPanel,
+  closePanel,
   mapHistoryCallbacks,
+  spatialContext = [],
+  spatialDataCallbacks,
 }: Props) {
   const [animateVisible, setAnimateVisible] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -373,7 +390,15 @@ export default function SafeGISAIChat({
     setIsExpanded(isExpandedProp);
   }, [isExpandedProp]);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const ragFileInputRef = useRef<HTMLInputElement | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  /** True while POSTing to Atlas /rag/ingest-file (on Send). */
+  const [ragUploading, setRagUploading] = useState(false);
+  /** Files queued in the composer; ingested only when user sends. */
+  const [pendingRagFiles, setPendingRagFiles] = useState<
+    { id: string; file: File }[]
+  >([]);
+  const [ragAttachError, setRagAttachError] = useState<string | null>(null);
 
   // Voice recording state (ElevenLabs real-time STT via WebSocket)
   const [isRecording, setIsRecording] = useState(false);
@@ -425,15 +450,65 @@ export default function SafeGISAIChat({
   // Helper functions
   const getTextareaPlaceholder = () => {
     if (isRecording) {
-      return "🎤 Listening... speak and see words here in real time";
+      return voiceLiveText.trim()
+        ? ""
+        : "🎤 Listening... speak and see words here in real time";
     }
     if (conversationalMode) {
-      return "Conversation mode — speak to Atlas, interrupt anytime";
+      return conversationLiveText.trim()
+        ? ""
+        : "Conversation mode — speak to Atlas, interrupt anytime";
+    }
+    if (pendingRagFiles.length > 0 || inputText.trim()) {
+      return "";
     }
     return "Ask a question or define a task...";
   };
 
-  const isTextareaDisabled = isRecording || loading || conversationalMode;
+  const isTextareaDisabled =
+    isRecording || loading || conversationalMode || ragUploading;
+
+  const formatRagApiDetail = (data: unknown): string => {
+    if (!data || typeof data !== "object") return String(data ?? "");
+    const d = (data as { detail?: unknown }).detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d))
+      return d
+        .map((x: { msg?: string }) => (typeof x?.msg === "string" ? x.msg : JSON.stringify(x)))
+        .join("; ");
+    return JSON.stringify(d);
+  };
+
+  const RAG_MAX_FILE_BYTES = 5_000_000;
+
+  const handleRagFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!picked.length) return;
+    setRagAttachError(null);
+    const oversized = picked.find((f) => f.size > RAG_MAX_FILE_BYTES);
+    if (oversized) {
+      setRagAttachError(
+        `File too large (max ${Math.round(RAG_MAX_FILE_BYTES / 1_000_000)} MB): ${oversized.name}`
+      );
+      return;
+    }
+    setPendingRagFiles((prev) => [
+      ...prev,
+      ...picked.map((file) => ({
+        id:
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${file.name}`,
+        file,
+      })),
+    ]);
+  };
+
+  const removePendingRagFile = (id: string) => {
+    setPendingRagFiles((prev) => prev.filter((p) => p.id !== id));
+    setRagAttachError(null);
+  };
 
   // ElevenLabs real-time speech-to-text: WebSocket + PCM stream
   const startRecording = async () => {
@@ -696,7 +771,8 @@ export default function SafeGISAIChat({
         conversationHistoryRef.current,
         { currentMapStyle: selectedMapStyle, viewMode: viewMode },
         webSearchEnabled,
-        uploadedFiles
+        uploadedFiles,
+        spatialContext
       );
       setConversationHistory(response.conversation_history);
       conversationHistoryRef.current = response.conversation_history;
@@ -743,6 +819,7 @@ export default function SafeGISAIChat({
         { currentMapStyle: selectedMapStyle, viewMode: viewMode },
         webSearchEnabled,
         uploadedFiles,
+        spatialContext,
         signal
       );
       setConversationHistory(response.conversation_history);
@@ -751,7 +828,16 @@ export default function SafeGISAIChat({
       if (mapCallbacksRef.current) {
         await LangGraphAdapter.processLangGraphResponse(
           response,
-          mapCallbacksRef.current,
+          {
+            ...mapCallbacksRef.current,
+            ...(spatialDataCallbacks
+              ? {
+                  openSpatialDataPanel:
+                    spatialDataCallbacks.openImportConnectPanel,
+                  fetchGeoJsonFromUrl: spatialDataCallbacks.fetchGeoJsonFromUrl,
+                }
+              : {}),
+          },
           (role: "user" | "assistant", content: string, citations?: any[]) => {
             setMessages((prev) => [...prev, { role, content, citations }]);
           }
@@ -932,11 +1018,83 @@ export default function SafeGISAIChat({
 
   // LangGraph Multi-Agent System Integration
   const handleSend = async () => {
-    if (!inputText.trim()) return;
+    if (conversationalMode || isRecording) return;
+    if (!inputText.trim() && pendingRagFiles.length === 0) return;
 
-    const userText = inputText;
-    setMessages((prev) => [...prev, { role: "user", content: userText }]);
+    const filesSnapshot = [...pendingRagFiles];
+    const userTextRaw = inputText.trim();
+    const defaultAttachPrompt =
+      "Answer or summarize using the document(s) I attached in this message.";
+
+    if (filesSnapshot.length > 0) {
+      const base = getAtlasBaseUrl();
+      if (!base) {
+        setRagAttachError(
+          "Set NEXT_PUBLIC_MODEL_ENDPOINT (e.g. http://localhost:8002/generate) to upload documents."
+        );
+        return;
+      }
+      setOperationSteps(["Indexing documents for RAG..."]);
+      setRagUploading(true);
+      setRagAttachError(null);
+      try {
+        for (let i = 0; i < filesSnapshot.length; i++) {
+          const { file } = filesSnapshot[i];
+          const safeName = file.name.replace(/[^\w.\-]+/g, "_") || "upload";
+          const sourceId = `chat-${Date.now()}-${i}-${safeName}`;
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await fetch(
+            `${base}/rag/ingest-file?${new URLSearchParams({ source_id: sourceId })}`,
+            { method: "POST", body: fd }
+          );
+          let data: Record<string, unknown> = {};
+          try {
+            data = (await res.json()) as Record<string, unknown>;
+          } catch {
+            /* non-JSON */
+          }
+          if (!res.ok) {
+            const msg = formatRagApiDetail(data) || res.statusText;
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: `**Could not index "${file.name}":** ${msg}`,
+              },
+            ]);
+            setRagUploading(false);
+            setOperationSteps([]);
+            return;
+          }
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: `**Upload failed:** ${message}` },
+        ]);
+        setRagUploading(false);
+        setOperationSteps([]);
+        return;
+      }
+      setRagUploading(false);
+      setPendingRagFiles([]);
+    }
+
+    const attachmentNames = filesSnapshot.map((x) => x.file.name);
+    const userTextForApi =
+      filesSnapshot.length > 0
+        ? `[Documents indexed for RAG in this turn: ${attachmentNames.join(", ")}]\n\n${userTextRaw || defaultAttachPrompt}`
+        : userTextRaw;
+
+    const displayUserMessage =
+      filesSnapshot.length > 0
+        ? `📎 **Attached:** ${attachmentNames.join(", ")}\n\n${userTextRaw || defaultAttachPrompt}`
+        : userTextRaw;
+
     setInputText("");
+    setMessages((prev) => [...prev, { role: "user", content: displayUserMessage }]);
     setLoading(true);
     setOperationSteps([]);
 
@@ -955,14 +1113,15 @@ export default function SafeGISAIChat({
 
       // Send to LangGraph backend
       const response = await LangGraphAdapter.sendToLangGraph(
-        userText,
+        userTextForApi,
         conversationHistory,
         {
           currentMapStyle: selectedMapStyle,
           viewMode: viewMode,
         },
         webSearchEnabled,
-        uploadedFiles
+        uploadedFiles,
+        spatialContext
       );
 
       // Add more web search steps if search results were found
@@ -1386,6 +1545,9 @@ export default function SafeGISAIChat({
           openPanel: openPanel
             ? (panel: string) => openPanel(panel)
             : undefined,
+          closePanel: closePanel
+            ? (panel: string) => closePanel(panel)
+            : undefined,
           mapUndo: mapHistoryCallbacks
             ? () => mapHistoryCallbacks.undo()
             : undefined,
@@ -1398,6 +1560,8 @@ export default function SafeGISAIChat({
           performMapReset: mapHistoryCallbacks
             ? () => mapHistoryCallbacks.performReset()
             : undefined,
+          openSpatialDataPanel: spatialDataCallbacks?.openImportConnectPanel,
+          fetchGeoJsonFromUrl: spatialDataCallbacks?.fetchGeoJsonFromUrl,
         };
       mapCallbacksRef.current = mapCallbacks;
       await LangGraphAdapter.processLangGraphResponse(
@@ -1432,6 +1596,8 @@ export default function SafeGISAIChat({
     setInputText("");
     setLoading(false);
     setOperationSteps([]);
+    setPendingRagFiles([]);
+    setRagAttachError(null);
   };
 
   return (
@@ -1576,35 +1742,105 @@ export default function SafeGISAIChat({
               </div>
             </div>
 
-            {/* Textarea */}
-            <div className="flex flex-col w-full h-[70px] backdrop-blur-xl !rounded-[0.375rem] shadow-lg p-1 border-animated">
-              <textarea
-                value={
-                  isRecording
-                    ? voiceLiveText
-                    : conversationalMode
-                    ? conversationLiveText
-                    : inputText
-                }
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey && !isTextareaDisabled) {
-                    e.preventDefault();
-                    handleSend();
+            {/* Textarea + pending RAG attachments (inline: chips + text in one flow) */}
+            <div className="flex flex-col w-full min-h-[70px] max-h-[200px] backdrop-blur-xl !rounded-[0.375rem] shadow-lg p-1 border-animated">
+              {ragAttachError && (
+                <p className="text-[9px] text-red-300/95 px-0.5 pb-0.5 shrink-0 leading-tight">
+                  {ragAttachError}
+                </p>
+              )}
+              <div className="flex w-full min-w-0 flex-row flex-wrap items-center content-start gap-x-1 gap-y-1 px-0.5 py-0.5 flex-1 min-h-[32px] max-h-[128px] overflow-y-auto overflow-x-hidden custom-scrollbar">
+                {pendingRagFiles.map(({ id, file }) => (
+                  <span
+                    key={id}
+                    className="inline-flex max-w-[11rem] items-center gap-0.5 shrink-0 rounded-md bg-white/15 border border-white/10 text-[#E8E8E8] text-[9px] leading-tight pl-1.5 pr-0.5 py-0.5 align-middle"
+                  >
+                    <span className="truncate" title={file.name}>
+                      {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removePendingRagFile(id)}
+                      disabled={ragUploading || loading}
+                      className="shrink-0 rounded p-0.5 text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-40"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <X size={11} strokeWidth={2.5} />
+                    </button>
+                  </span>
+                ))}
+                <textarea
+                  value={
+                    isRecording
+                      ? voiceLiveText
+                      : conversationalMode
+                      ? conversationLiveText
+                      : inputText
                   }
-                }}
-                placeholder={getTextareaPlaceholder()}
-                disabled={isTextareaDisabled}
-                className={`flex-1 resize-none overflow-y-auto bg-transparent text-[#C7C7C7] placeholder-[#C7C7C7]/70 text-[10px] rounded-md px-1 py-0.5 outline-none border-none custom-scrollbar ${
-                  isTextareaDisabled ? "cursor-not-allowed opacity-60" : ""
-                } ${isRecording ? "placeholder-orange-300" : ""} ${conversationalMode ? "placeholder-emerald-300" : ""}`}
-              />
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    const ta = e.currentTarget;
+                    const textVal = isRecording
+                      ? voiceLiveText
+                      : conversationalMode
+                      ? conversationLiveText
+                      : inputText;
+                    if (
+                      !isTextareaDisabled &&
+                      pendingRagFiles.length > 0 &&
+                      textVal === "" &&
+                      ta.selectionStart === 0 &&
+                      ta.selectionEnd === 0 &&
+                      (e.key === "Backspace" || e.key === "Delete")
+                    ) {
+                      e.preventDefault();
+                      setPendingRagFiles((prev) => prev.slice(0, -1));
+                      setRagAttachError(null);
+                      return;
+                    }
+                    if (
+                      e.key === "Enter" &&
+                      !e.shiftKey &&
+                      !isTextareaDisabled &&
+                      (inputText.trim() || pendingRagFiles.length > 0)
+                    ) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  rows={1}
+                  placeholder={getTextareaPlaceholder()}
+                  disabled={isTextareaDisabled}
+                  className={`min-w-[4rem] flex-[1_1_120px] min-h-[22px] max-h-[120px] resize-none self-center overflow-y-auto bg-transparent text-[#C7C7C7] placeholder-[#C7C7C7]/70 text-[10px] leading-snug rounded-sm px-0.5 py-0.5 outline-none border-none custom-scrollbar ${
+                    isTextareaDisabled ? "cursor-not-allowed opacity-60" : ""
+                  } ${isRecording ? "placeholder-orange-300" : ""} ${conversationalMode ? "placeholder-emerald-300" : ""}`}
+                />
+              </div>
 
-              <div className="flex justify-between mt-0.5">
+              <div className="flex justify-between mt-0.5 shrink-0">
                 <div className="flex gap-0.5">
+                  <input
+                    ref={ragFileInputRef}
+                    type="file"
+                    multiple
+                    className="sr-only"
+                    accept=".pdf,.txt,.md,.markdown,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff,.tif,application/pdf,text/plain,text/markdown,image/*"
+                    aria-hidden
+                    tabIndex={-1}
+                    onChange={handleRagFileChange}
+                  />
                   <button
-                    onClick={() => console.log("Plus button clicked")}
-                    className="h-5 w-5 flex items-center justify-center rounded-sm text-white hover:text-gray-200 transition bg-transparent"
+                    type="button"
+                    onClick={() => ragFileInputRef.current?.click()}
+                    disabled={
+                      ragUploading || loading || isRecording || conversationalMode
+                    }
+                    title={
+                      ragUploading
+                        ? "Indexing document…"
+                        : "Attach PDF, text, or image (indexed when you send; images need Tesseract on the server)"
+                    }
+                    className="h-5 w-5 flex items-center justify-center rounded-sm text-white hover:text-gray-200 transition bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus size={13} />
                   </button>
@@ -1650,13 +1886,17 @@ export default function SafeGISAIChat({
                     onClick={handleSend}
                     disabled={
                       loading ||
-                      !inputText.trim() ||
-                      isRecording
+                      ragUploading ||
+                      isRecording ||
+                      conversationalMode ||
+                      (!inputText.trim() && pendingRagFiles.length === 0)
                     }
                     className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
                       loading ||
-                      !inputText.trim() ||
-                      isRecording
+                      ragUploading ||
+                      isRecording ||
+                      conversationalMode ||
+                      (!inputText.trim() && pendingRagFiles.length === 0)
                         ? "bg-[#676767] opacity-50 cursor-not-allowed"
                         : "bg-[#676767] hover:bg-[#737373]"
                     }`}

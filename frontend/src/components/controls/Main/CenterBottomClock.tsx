@@ -14,7 +14,7 @@ export default function CenterBottomClock({
   isBoundaryLoading = false,
   boundaryLoadingStage = "Loading boundary data...",
   isFileLoading = false,
-  fileLoadingStage = "Importing spatial data...",
+  fileLoadingStage = "Loading spatial data...",
 }: CenterBottomClockProps) {
   const [currentTimeFormatted, setCurrentTimeFormatted] = useState("");
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
