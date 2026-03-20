@@ -1,2 +1,5 @@
 .DS_Store
 *.log
+
+# Old split-repo checkout (remove when no longer needed)
+backend_legacy_repo/
