@@ -25,21 +25,20 @@ You may `cd frontend` or `cd backend` to run `npm` or `python`, but **`git commi
 
 ## Quick start
 
-**Frontend** (from repo root):
+**Frontend** — from the parent folder that contains `Simulation-Studio`, or from this monorepo root use `cd frontend`:
 
 ```bash
-cd frontend
+cd Simulation-Studio/frontend
 npm install
 npm run dev
 ```
 
-**Backend** (from repo root):
+**Backend** — same idea; from monorepo root use `cd backend`:
 
 ```bash
-cd backend
-python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python main.py
+cd Simulation-Studio/backend
+python -m venv .venv && .venv/bin/pip install -r requirements.txt   # first-time setup
+.venv/bin/python main.py
 ```
 
 See `frontend/README.md` and `backend/README.md` for details.

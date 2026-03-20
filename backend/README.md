@@ -18,6 +18,24 @@ This repo contains the backend side of SafeGIS's Simulation Studio. It contains 
 
 `Python` `FastAPI` `ScrapeGraphAI`
 
+### Run the backend (development)
+
+From the directory that contains `Simulation-Studio` (e.g. the SafeGIS repo root):
+
+```bash
+cd Simulation-Studio/backend
+.venv/bin/python main.py
+```
+
+If you are **already** at the Simulation-Studio monorepo root:
+
+```bash
+cd backend
+.venv/bin/python main.py
+```
+
+Create the venv and install dependencies first if needed: `python -m venv .venv && .venv/bin/pip install -r requirements.txt` (from `backend/`).
+
 ### Import / connect spatial data (panel)
 
 - `POST /api/spatial-data/fetch-url` — Server-side HTTP GET/POST to a URL; returns GeoJSON `FeatureCollection` (or wraps `Feature` / geometry). Supports Bearer, API key header/query, and Basic auth. Secrets are sent in the request body to this backend only.

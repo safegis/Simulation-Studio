@@ -10,10 +10,27 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### Run the frontend (development)
+
+From the directory that contains `Simulation-Studio` (e.g. the SafeGIS repo root):
 
 ```bash
+cd Simulation-Studio/frontend
 npm run dev
+```
+
+If you are **already** at the Simulation-Studio monorepo root (the folder that contains `frontend/` and `backend/`):
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Other package managers
+
+```bash
 # or
 yarn dev
 # or
@@ -21,8 +38,6 @@ pnpm dev
 # or
 bun dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
