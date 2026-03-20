@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pandas
+geopandas
+playwright
+httpx
+pillow
+numpy
+pydantic
+shapely
+opencv-python
+scipy
+torch
+transformers

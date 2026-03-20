@@ -1,0 +1,459 @@
+[
+  {
+    "province": "Abra",
+    "capital": "Bangued",
+    "lat": 17.5965664,
+    "lon": 120.6179987
+  },
+  {
+    "province": "Agusan del Norte",
+    "capital": "Cabadbaran",
+    "lat": 9.1232854,
+    "lon": 125.5322317
+  },
+  {
+    "province": "Agusan del Sur",
+    "capital": "Prosperidad",
+    "lat": 8.6023961,
+    "lon": 125.9116338
+  },
+  { "province": "Aklan", "capital": "Kalibo", "lat": 11.7094, "lon": 122.3681 },
+  {
+    "province": "Albay",
+    "capital": "Legazpi",
+    "lat": 13.1391,
+    "lon": 123.7436
+  },
+  {
+    "province": "Antique",
+    "capital": "San Jose de Buenavista",
+    "lat": 10.7667,
+    "lon": 121.9333
+  },
+  {
+    "province": "Apayao",
+    "capital": "Kabugao",
+    "lat": 18.0333,
+    "lon": 121.1167
+  },
+  { "province": "Aurora", "capital": "Baler", "lat": 15.7594, "lon": 121.5606 },
+  {
+    "province": "Basilan",
+    "capital": "Isabela City",
+    "lat": 6.7014,
+    "lon": 121.9711
+  },
+  {
+    "province": "Bataan",
+    "capital": "Balanga",
+    "lat": 14.6764,
+    "lon": 120.5367
+  },
+  {
+    "province": "Batanes",
+    "capital": "Basco",
+    "lat": 20.4486,
+    "lon": 121.9703
+  },
+  {
+    "province": "Batangas",
+    "capital": "Batangas City",
+    "lat": 13.7565,
+    "lon": 121.0583
+  },
+  {
+    "province": "Benguet",
+    "capital": "La Trinidad",
+    "lat": 16.4597,
+    "lon": 120.5903
+  },
+  {
+    "province": "Biliran",
+    "capital": "Naval",
+    "lat": 11.5594,
+    "lon": 124.3931
+  },
+  {
+    "province": "Bohol",
+    "capital": "Tagbilaran",
+    "lat": 9.6472,
+    "lon": 123.8531
+  },
+  {
+    "province": "Bukidnon",
+    "capital": "Malaybalay",
+    "lat": 8.1531,
+    "lon": 125.1278
+  },
+  {
+    "province": "Bulacan",
+    "capital": "Malolos",
+    "lat": 14.8433,
+    "lon": 120.8114
+  },
+  {
+    "province": "Cagayan",
+    "capital": "Tuguegarao",
+    "lat": 17.6132,
+    "lon": 121.727
+  },
+  {
+    "province": "Camarines Norte",
+    "capital": "Daet",
+    "lat": 14.1119,
+    "lon": 122.955
+  },
+  {
+    "province": "Camarines Sur",
+    "capital": "Pili",
+    "lat": 13.5833,
+    "lon": 123.1833
+  },
+  {
+    "province": "Camiguin",
+    "capital": "Mambajao",
+    "lat": 9.25,
+    "lon": 124.7167
+  },
+  {
+    "province": "Capiz",
+    "capital": "Roxas City",
+    "lat": 11.585,
+    "lon": 122.7508
+  },
+  {
+    "province": "Catanduanes",
+    "capital": "Virac",
+    "lat": 13.5833,
+    "lon": 124.2333
+  },
+  { "province": "Cavite", "capital": "Imus", "lat": 14.4297, "lon": 120.9367 },
+  {
+    "province": "Cebu",
+    "capital": "Cebu City",
+    "lat": 10.3157,
+    "lon": 123.8854
+  },
+  {
+    "province": "Cotabato",
+    "capital": "Kidapawan",
+    "lat": 7.0103,
+    "lon": 125.0889
+  },
+  {
+    "province": "Davao de Oro",
+    "capital": "Nabunturan",
+    "lat": 7.6069,
+    "lon": 125.9653
+  },
+  {
+    "province": "Davao del Norte",
+    "capital": "Tagum",
+    "lat": 7.4479,
+    "lon": 125.8078
+  },
+  {
+    "province": "Davao del Sur",
+    "capital": "Digos",
+    "lat": 6.7497,
+    "lon": 125.3572
+  },
+  {
+    "province": "Davao Occidental",
+    "capital": "Malita",
+    "lat": 6.4167,
+    "lon": 125.6
+  },
+  {
+    "province": "Davao Oriental",
+    "capital": "Mati",
+    "lat": 6.955,
+    "lon": 126.2181
+  },
+  {
+    "province": "Dinagat Islands",
+    "capital": "San Jose",
+    "lat": 10.1281,
+    "lon": 125.6092
+  },
+  {
+    "province": "Eastern Samar",
+    "capital": "Borongan",
+    "lat": 11.605,
+    "lon": 125.4331
+  },
+  {
+    "province": "Guimaras",
+    "capital": "Jordan",
+    "lat": 10.5928,
+    "lon": 122.6403
+  },
+  {
+    "province": "Ifugao",
+    "capital": "Lagawe",
+    "lat": 16.8333,
+    "lon": 121.1667
+  },
+  {
+    "province": "Ilocos Norte",
+    "capital": "Laoag",
+    "lat": 18.1987,
+    "lon": 120.5937
+  },
+  {
+    "province": "Ilocos Sur",
+    "capital": "Vigan",
+    "lat": 17.5747,
+    "lon": 120.3869
+  },
+  {
+    "province": "Iloilo",
+    "capital": "Iloilo City",
+    "lat": 10.7202,
+    "lon": 122.5621
+  },
+  {
+    "province": "Isabela",
+    "capital": "Ilagan",
+    "lat": 17.1453,
+    "lon": 121.8844
+  },
+  {
+    "province": "Kalinga",
+    "capital": "Tabuk",
+    "lat": 17.4189,
+    "lon": 121.4467
+  },
+  {
+    "province": "La Union",
+    "capital": "San Fernando",
+    "lat": 16.6158,
+    "lon": 120.3169
+  },
+  {
+    "province": "Laguna",
+    "capital": "Santa Cruz",
+    "lat": 14.2792,
+    "lon": 121.4161
+  },
+  {
+    "province": "Lanao del Norte",
+    "capital": "Tubod",
+    "lat": 8.0456,
+    "lon": 123.8069
+  },
+  {
+    "province": "Lanao del Sur",
+    "capital": "Marawi",
+    "lat": 7.9986,
+    "lon": 124.2928
+  },
+  {
+    "province": "Leyte",
+    "capital": "Tacloban",
+    "lat": 11.2444,
+    "lon": 125.0039
+  },
+  {
+    "province": "Maguindanao",
+    "capital": "Buluan",
+    "lat": 6.7167,
+    "lon": 124.7833
+  },
+  {
+    "province": "Marinduque",
+    "capital": "Boac",
+    "lat": 13.45,
+    "lon": 121.8333
+  },
+  {
+    "province": "Masbate",
+    "capital": "Masbate City",
+    "lat": 12.3686,
+    "lon": 123.6178
+  },
+  {
+    "province": "Metro Manila",
+    "capital": "Manila",
+    "lat": 14.5995,
+    "lon": 120.9842
+  },
+  {
+    "province": "Misamis Occidental",
+    "capital": "Oroquieta",
+    "lat": 8.4858,
+    "lon": 123.8053
+  },
+  {
+    "province": "Misamis Oriental",
+    "capital": "Cagayan de Oro",
+    "lat": 8.4542,
+    "lon": 124.6319
+  },
+  {
+    "province": "Mountain Province",
+    "capital": "Bontoc",
+    "lat": 17.0833,
+    "lon": 120.9667
+  },
+  {
+    "province": "Negros Occidental",
+    "capital": "Bacolod",
+    "lat": 10.677,
+    "lon": 122.9506
+  },
+  {
+    "province": "Negros Oriental",
+    "capital": "Dumaguete",
+    "lat": 9.3068,
+    "lon": 123.3054
+  },
+  {
+    "province": "Northern Samar",
+    "capital": "Catarman",
+    "lat": 12.4994,
+    "lon": 124.6361
+  },
+  {
+    "province": "Nueva Ecija",
+    "capital": "Palayan",
+    "lat": 15.5403,
+    "lon": 121.0831
+  },
+  {
+    "province": "Nueva Vizcaya",
+    "capital": "Bayombong",
+    "lat": 16.4833,
+    "lon": 121.15
+  },
+  {
+    "province": "Occidental Mindoro",
+    "capital": "Mamburao",
+    "lat": 13.2167,
+    "lon": 120.5833
+  },
+  {
+    "province": "Oriental Mindoro",
+    "capital": "Calapan",
+    "lat": 13.4117,
+    "lon": 121.1803
+  },
+  {
+    "province": "Palawan",
+    "capital": "Puerto Princesa",
+    "lat": 9.7392,
+    "lon": 118.7353
+  },
+  {
+    "province": "Pampanga",
+    "capital": "San Fernando",
+    "lat": 15.0294,
+    "lon": 120.6897
+  },
+  {
+    "province": "Pangasinan",
+    "capital": "Lingayen",
+    "lat": 16.0186,
+    "lon": 120.2308
+  },
+  {
+    "province": "Quezon",
+    "capital": "Lucena",
+    "lat": 13.9372,
+    "lon": 121.6175
+  },
+  {
+    "province": "Quirino",
+    "capital": "Cabarroguis",
+    "lat": 16.5333,
+    "lon": 121.4833
+  },
+  {
+    "province": "Rizal",
+    "capital": "Antipolo",
+    "lat": 14.5864,
+    "lon": 121.1758
+  },
+  {
+    "province": "Romblon",
+    "capital": "Romblon",
+    "lat": 12.5778,
+    "lon": 122.2694
+  },
+  {
+    "province": "Samar",
+    "capital": "Catbalogan",
+    "lat": 11.775,
+    "lon": 124.8906
+  },
+  { "province": "Sarangani", "capital": "Alabel", "lat": 6.1, "lon": 125.2833 },
+  { "province": "Siquijor", "capital": "Siquijor", "lat": 9.2, "lon": 123.5 },
+  {
+    "province": "Sorsogon",
+    "capital": "Sorsogon City",
+    "lat": 12.9742,
+    "lon": 124.0053
+  },
+  {
+    "province": "South Cotabato",
+    "capital": "Koronadal",
+    "lat": 6.5008,
+    "lon": 124.8453
+  },
+  {
+    "province": "Southern Leyte",
+    "capital": "Maasin",
+    "lat": 10.1333,
+    "lon": 124.8333
+  },
+  {
+    "province": "Sultan Kudarat",
+    "capital": "Isulan",
+    "lat": 6.6333,
+    "lon": 124.6
+  },
+  { "province": "Sulu", "capital": "Jolo", "lat": 6.05, "lon": 121.0 },
+  {
+    "province": "Surigao del Norte",
+    "capital": "Surigao City",
+    "lat": 9.7847,
+    "lon": 125.4908
+  },
+  {
+    "province": "Surigao del Sur",
+    "capital": "Tandag",
+    "lat": 9.0781,
+    "lon": 126.1989
+  },
+  {
+    "province": "Tarlac",
+    "capital": "Tarlac City",
+    "lat": 15.4755,
+    "lon": 120.5964
+  },
+  {
+    "province": "Tawi-Tawi",
+    "capital": "Bongao",
+    "lat": 5.0289,
+    "lon": 119.7731
+  },
+  { "province": "Zambales", "capital": "Iba", "lat": 15.3294, "lon": 119.9778 },
+  {
+    "province": "Zamboanga del Norte",
+    "capital": "Dipolog",
+    "lat": 8.5833,
+    "lon": 123.3333
+  },
+  {
+    "province": "Zamboanga del Sur",
+    "capital": "Pagadian",
+    "lat": 7.8256,
+    "lon": 123.4353
+  },
+  {
+    "province": "Zamboanga Sibugay",
+    "capital": "Ipil",
+    "lat": 7.7833,
+    "lon": 122.5833
+  }
+]
