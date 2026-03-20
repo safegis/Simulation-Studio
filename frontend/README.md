@@ -2,6 +2,8 @@
   <h1>SafeGIS - Simulation Studio</h1>
 </div>
 
+> **Monorepo:** This app lives under `frontend/` in the Simulation-Studio repo. **Use Git only from the repository root** (parent folder that contains `frontend/`, `backend/`, and `.git`) — see the root [`README.md`](../README.md#git-workflow).
+
 ### 🧐 I. Overview
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).

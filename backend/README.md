@@ -1,6 +1,8 @@
-﻿<div align="center">
+<div align="center">
   <h1>Simulation Studio - Backend</h1>
 </div>
+
+> **Monorepo:** This service lives under `backend/` in the Simulation-Studio repo. **Use Git only from the repository root** (parent folder that contains `frontend/`, `backend/`, and `.git`) — see the root [`README.md`](../README.md#git-workflow).
 
 ### 🧐 I. Overview
 
