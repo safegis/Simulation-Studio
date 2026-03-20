@@ -2463,6 +2463,7 @@ export default function MainUILayout() {
                       "🔵 CALLBACK: Pathfinder ref available, geocoding locations"
                     );
                     try {
+                      pathfinderRef.current.setPathfinderTab("destination");
                       // Geocode start location
                       const startRes = await fetch(
                         `http://localhost:8000/geocode/search?query=${encodeURIComponent(
@@ -2540,6 +2541,46 @@ export default function MainUILayout() {
                 };
                 setTimeout(() => pollRef(), 100);
               },
+              findEvacuationFromStart: async (start: string, mode: string) => {
+                setShowPathfinder(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+                const pollRef = async (attempts = 0) => {
+                  if (pathfinderRef.current) {
+                    try {
+                      pathfinderRef.current.setPathfinderTab("evacuation");
+                      const startRes = await fetch(
+                        `http://localhost:8000/geocode/search?query=${encodeURIComponent(
+                          start
+                        )}`
+                      );
+                      const startData = await startRes.json();
+                      if (startData.results?.[0]) {
+                        const sr = startData.results[0];
+                        const startCoords = { lat: sr.lat, lon: sr.lon };
+                        pathfinderRef.current.setStartLocation(
+                          sr.name || start,
+                          startCoords
+                        );
+                        if (mode && mode !== "all") {
+                          pathfinderRef.current.setMode(mode);
+                        }
+                        mapRef.current?.flyTo?.({
+                          center: [sr.lon, sr.lat],
+                          zoom: 14,
+                        });
+                      }
+                    } catch (e) {
+                      console.error("findEvacuationFromStart:", e);
+                    }
+                  } else if (attempts < 20) {
+                    setTimeout(() => pollRef(attempts + 1), 100);
+                  }
+                };
+                setTimeout(() => pollRef(), 100);
+              },
               changeRouteMode: (mode: string) => {
                 console.log("🔵 CALLBACK: changeRouteMode called with:", mode);
                 if (pathfinderRef.current) {
@@ -2563,9 +2604,97 @@ export default function MainUILayout() {
                 setShowPlanningTools(false);
                 setShowAssessmentTools(false);
               },
+              setPathfinderTab: (tab: "destination" | "evacuation") => {
+                setShowPathfinder(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+                const trySet = (attempts = 0) => {
+                  if (pathfinderRef.current?.setPathfinderTab) {
+                    pathfinderRef.current.setPathfinderTab(tab);
+                  } else if (attempts < 25) {
+                    setTimeout(() => trySet(attempts + 1), 50);
+                  }
+                };
+                trySet();
+              },
               closePathfinder: () => {
                 console.log("🔵 CALLBACK: closePathfinder called");
                 setShowPathfinder(false);
+              },
+              clearPathfinderRoutes: () => {
+                pathfinderRef.current?.clearDisplayedRoutesFromMap?.();
+              },
+              listPathfinderSheltersInChat: () => {
+                const snap =
+                  pathfinderRef.current?.getEvacuationSheltersSnapshot?.();
+                if (!snap) {
+                  return {
+                    text: "Pathfinder isn’t available yet. Open **Pathfinder** and set a starting point in **Find Shelter/s** mode, then ask again.",
+                  };
+                }
+                if (snap.loading) {
+                  return {
+                    text: "Shelters are still loading from OpenStreetMap — try again in a moment.",
+                  };
+                }
+                if (snap.error) {
+                  return {
+                    text: `Could not load shelters: ${snap.error}`,
+                  };
+                }
+                if (snap.pathfinderTab !== "evacuation") {
+                  return {
+                    text: "Switch Pathfinder to **Find Shelter/s**, set your **starting location**, then ask me to list shelters again.",
+                  };
+                }
+                if (!snap.startName?.trim()) {
+                  return {
+                    text: "Set a **starting location** in Pathfinder (Find Shelter/s) first — then I can list loaded shelters.",
+                  };
+                }
+                if (snap.places.length === 0) {
+                  return {
+                    text: `No shelters or schools were found within **${snap.radiusKm} km** of **${snap.startName}**. Try increasing **Radius near start** in Pathfinder or moving the start pin.`,
+                  };
+                }
+                const lines = snap.places.map(
+                  (p, i) =>
+                    `${i + 1}. **${p.name}**${p.kind ? ` · _${p.kind}_` : ""}`
+                );
+                return {
+                  text:
+                    `Shelters / facilities within **${snap.radiusKm} km** of **${snap.startName}** (${snap.places.length}):\n\n` +
+                    lines.join("\n"),
+                };
+              },
+              selectPathfinderShelterByName: async (name: string) => {
+                const q = name.trim();
+                if (!q) return { ok: false, error: "empty_query" as const };
+                setShowPathfinder(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPlanningTools(false);
+                setShowAssessmentTools(false);
+                for (let attempt = 0; attempt < 45; attempt++) {
+                  await new Promise((r) => setTimeout(r, 100));
+                  const ref = pathfinderRef.current;
+                  if (!ref) continue;
+                  ref.setPathfinderTab("evacuation");
+                  const snap = ref.getEvacuationSheltersSnapshot?.();
+                  if (snap?.loading && attempt < 40) continue;
+                  const r = ref.selectEvacuationPlaceByName?.(q);
+                  if (r?.ok) return r;
+                  if (
+                    r?.error === "no_match" ||
+                    r?.error === "empty_query" ||
+                    r?.error === "no_start"
+                  ) {
+                    return r;
+                  }
+                }
+                return { ok: false, error: "timeout" as const };
               },
             }}
             openPanel={(panel: string) => {

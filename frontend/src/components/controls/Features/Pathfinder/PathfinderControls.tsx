@@ -122,8 +122,27 @@ export interface PathfinderControlsRef {
     location: string,
     coords: { lat: number; lon: number }
   ) => void;
+  /** Switch Pathfinder UI: point-to-point vs shelter / evacuation (OSM). */
+  setPathfinderTab: (tab: "destination" | "evacuation") => void;
+  /** Snapshot of OSM shelters/schools in evacuation mode (for Atlas chat listing). */
+  getEvacuationSheltersSnapshot: () => {
+    pathfinderTab: "destination" | "evacuation";
+    startName: string;
+    radiusKm: number;
+    places: { id: string; name: string; kind?: string }[];
+    loading: boolean;
+    error: string | null;
+  };
+  /** Match a loaded OSM evacuation row by name and recalculate routes (Atlas / chat). */
+  selectEvacuationPlaceByName: (query: string) => {
+    ok: boolean;
+    matched?: string;
+    error?: string;
+  };
   setMode: (mode: string) => void;
   setSort: (sort: string) => void;
+  /** Same as in-panel “Clear Routes”: map polylines, markers, pathfinder trip state. */
+  clearDisplayedRoutesFromMap: () => void;
   /** Clear inputs, routes, and polling (parent clears map routes/markers). */
   resetMapLinkedUi: () => void;
   getUndoSnapshot: () => PathfinderUndoSnapshot;
@@ -257,6 +276,15 @@ const PathfinderControls = forwardRef<
   );
   /** True while /routes fetch + traffic merge is in flight (sync, before awaits). */
   const routeRequestInFlightRef = useRef(false);
+  /** Previous start/dest used to tell mode-only changes (filtering overlay vs full find). */
+  const lastRouteFetchCoordsRef = useRef<{
+    s: { lat: number; lon: number } | null;
+    d: { lat: number; lon: number } | null;
+  }>({ s: null, d: null });
+  /** Latest select-by-name impl (defined after applyEvacPlaceAsDestination; ref set each render). */
+  const selectEvacByNameImplRef = useRef<
+    ((query: string) => { ok: boolean; matched?: string; error?: string }) | null
+  >(null);
 
   const clearSortOverlayTimeout = useCallback(() => {
     if (sortOverlayTimeoutRef.current !== null) {
@@ -284,6 +312,35 @@ const PathfinderControls = forwardRef<
     [clearSortOverlayTimeout]
   );
 
+  /** Atlas / Clear Routes button: remove routes from map and reset pathfinder trip fields. */
+  const clearDisplayedRoutesFromMap = useCallback(() => {
+    setStartText("");
+    setDestinationText("");
+    setStartCoords(null);
+    setDestinationCoords(null);
+    setRoutesData([]);
+    setSelectedRouteKey(null);
+    setSelectedMode("all");
+    routesCacheRef.current = {};
+    setSelectedEvacId("");
+    setShowEvacDropdown(false);
+    setEvacPlaces([]);
+    setEvacError(null);
+    if (trafficPollingIntervalRef.current) {
+      clearInterval(trafficPollingIntervalRef.current);
+      trafficPollingIntervalRef.current = null;
+      console.log("⏹️ Stopped traffic polling");
+    }
+    mapRef.current?.clearRoutes?.();
+    mapRef.current?.clearStartMarker?.();
+    mapRef.current?.clearDestinationMarker?.();
+    lastRouteFetchCoordsRef.current = { s: null, d: null };
+    routeRequestInFlightRef.current = false;
+    clearSortOverlayTimeout();
+    setIsLoadingRoutes(false);
+    setRoutesLoadingPhase(null);
+  }, [clearSortOverlayTimeout, mapRef]);
+
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     setStartLocation: (
@@ -304,6 +361,26 @@ const PathfinderControls = forwardRef<
       setDestinationSuggestions([]);
       mapRef.current?.addDestinationMarker(coords.lon, coords.lat);
     },
+    setPathfinderTab: (tab: "destination" | "evacuation") => {
+      setPathfinderTab(tab);
+    },
+    getEvacuationSheltersSnapshot: () => ({
+      pathfinderTab,
+      startName: startText,
+      radiusKm: evacRadiusKm,
+      places: evacPlaces.map((p) => ({
+        id: p.id,
+        name: p.name,
+        kind: p.kind,
+      })),
+      loading: evacLoading,
+      error: evacError,
+    }),
+    selectEvacuationPlaceByName: (query: string) => {
+      const fn = selectEvacByNameImplRef.current;
+      if (!fn) return { ok: false, error: "unavailable" };
+      return fn(query);
+    },
     setMode: (mode: string) => {
       setSelectedMode(mode);
     },
@@ -314,6 +391,9 @@ const PathfinderControls = forwardRef<
         best_balance: "Best balance",
       };
       applySelectedSort(sortMap[sort] || "Best balance");
+    },
+    clearDisplayedRoutesFromMap: () => {
+      clearDisplayedRoutesFromMap();
     },
     resetMapLinkedUi: () => {
       if (trafficPollingIntervalRef.current) {
@@ -507,30 +587,67 @@ const PathfinderControls = forwardRef<
     pathfinderTab,
     evacRadiusKm,
     selectedEvacId,
+    evacPlaces,
+    evacLoading,
+    evacError,
     mapRef,
     applySelectedSort,
     clearSortOverlayTimeout,
+    clearDisplayedRoutesFromMap,
   ]);
 
-  // Auto-fetch routes when both start and destination coords are set
+  // Auto-fetch routes when start, destination, or transport mode changes (includes Atlas setMode)
   useEffect(() => {
-    if (startCoords && destinationCoords) {
-      if (suppressCoordsRouteFetchRef.current) {
-        suppressCoordsRouteFetchRef.current = false;
-        return;
-      }
-      console.log(
-        "🔵 Both coords set, fetching routes:",
-        startCoords,
-        destinationCoords
-      );
-      fetchAndDrawRoutes(
-        startCoords,
-        destinationCoords,
-        selectedMode as "all" | "driving" | "walking" | "cycling" | "motorcycle"
-      );
+    if (!startCoords || !destinationCoords) {
+      lastRouteFetchCoordsRef.current = { s: null, d: null };
+      return;
     }
-  }, [startCoords, destinationCoords]);
+    if (suppressCoordsRouteFetchRef.current) {
+      suppressCoordsRouteFetchRef.current = false;
+      // Keep ref aligned with real pins so the next mode-only change uses isModeSwitch
+      lastRouteFetchCoordsRef.current = {
+        s: startCoords,
+        d: destinationCoords,
+      };
+      return;
+    }
+    const prev = lastRouteFetchCoordsRef.current;
+    const coordsUnchanged =
+      prev.s &&
+      prev.d &&
+      prev.s.lat === startCoords.lat &&
+      prev.s.lon === startCoords.lon &&
+      prev.d.lat === destinationCoords.lat &&
+      prev.d.lon === destinationCoords.lon;
+    lastRouteFetchCoordsRef.current = {
+      s: startCoords,
+      d: destinationCoords,
+    };
+    console.log(
+      "🔵 Fetch routes (coords or mode):",
+      startCoords,
+      destinationCoords,
+      "mode=",
+      selectedMode,
+      "modeOnly=",
+      coordsUnchanged
+    );
+    void fetchAndDrawRoutes(
+      startCoords,
+      destinationCoords,
+      selectedMode as "all" | "driving" | "walking" | "cycling" | "motorcycle",
+      coordsUnchanged
+    );
+    // fetchAndDrawRoutes is stable enough per render; suppress ref handles evac overlap
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startCoords, destinationCoords, selectedMode]);
+
+  // Walking has no traffic merge — keep sort dropdown consistent with mode buttons
+  useEffect(() => {
+    if (selectedMode === "walking") {
+      setSelectedSort("Fastest");
+    }
+  }, [selectedMode]);
 
   // Parent undo stack: debounce checkpoint when pathfinder-driven map content changes
   useEffect(() => {
@@ -1072,6 +1189,45 @@ const PathfinderControls = forwardRef<
     mapRef.current?.fitBoundsToMarkers?.();
   };
 
+  selectEvacByNameImplRef.current = (query: string) => {
+    const q = (query || "").trim();
+    if (!q) return { ok: false, error: "empty_query" };
+    if (pathfinderTab !== "evacuation") {
+      return { ok: false, error: "not_evacuation_tab" };
+    }
+    if (!startCoords) {
+      return { ok: false, error: "no_start" };
+    }
+    const normalize = (s: string) =>
+      s.toLowerCase().replace(/\s+/g, " ").trim();
+    const qn = normalize(q);
+    const rows = evacPlaces;
+    if (!rows.length) {
+      return { ok: false, error: "no_shelters_loaded" };
+    }
+    let best =
+      rows.find((p) => normalize(p.name) === qn) ||
+      rows.find(
+        (p) =>
+          normalize(p.name).includes(qn) ||
+          (qn.length >= 4 && qn.includes(normalize(p.name)))
+      );
+    if (!best) {
+      const words = qn.split(/\s+/).filter((w) => w.length > 2);
+      if (words.length) {
+        best = rows.find((p) => {
+          const n = normalize(p.name);
+          return words.every((w) => n.includes(w));
+        });
+      }
+    }
+    if (!best) {
+      return { ok: false, error: "no_match" };
+    }
+    void applyEvacPlaceAsDestination(best, startCoords);
+    return { ok: true, matched: best.name };
+  };
+
   /** Overpass: schools & shelters near start (evacuation mode). */
   useEffect(() => {
     if (pathfinderTab !== "evacuation" || !startCoords) {
@@ -1236,7 +1392,6 @@ const PathfinderControls = forwardRef<
     console.log("🗑️ Cache cleared - new destination");
 
     if (startCoords) {
-      fetchAndDrawRoutes(startCoords, coords, "all");
       mapRef.current?.fitBoundsToMarkers();
     } else {
       mapRef.current?.flyTo({ center: [coords.lon, coords.lat], zoom: 14 });
@@ -1766,46 +1921,7 @@ const PathfinderControls = forwardRef<
           {routesData.length > 0 && (
             <button
               onClick={() => {
-                // Clear all text inputs
-                setStartText("");
-                setDestinationText("");
-
-                // Clear coordinates
-                setStartCoords(null);
-                setDestinationCoords(null);
-
-                // Clear routes data
-                setRoutesData([]);
-
-                // Clear selected route
-                setSelectedRouteKey(null);
-
-                // Reset mode to all
-                setSelectedMode("all");
-
-                // Clear cache
-                routesCacheRef.current = {};
-
-                // Evacuation UI
-                setSelectedEvacId("");
-                setShowEvacDropdown(false);
-                setEvacPlaces([]);
-                setEvacError(null);
-
-                // Stop traffic polling
-                if (trafficPollingIntervalRef.current) {
-                  clearInterval(trafficPollingIntervalRef.current);
-                  trafficPollingIntervalRef.current = null;
-                  console.log("⏹️ Stopped traffic polling");
-                }
-
-                // Clear routes from map
-                mapRef.current?.clearRoutes?.();
-
-                // Clear markers from map
-                mapRef.current?.clearStartMarker?.();
-                mapRef.current?.clearDestinationMarker?.();
-
+                clearDisplayedRoutesFromMap();
                 console.log("🗑️ All routes cleared");
               }}
               className="px-2 py-1.5 rounded-md shadow-md text-center bg-[#5A5C99] text-white whitespace-nowrap text-[10px] cursor-pointer hover:opacity-90 w-full mt-0.5 mb-3"
@@ -1821,12 +1937,6 @@ const PathfinderControls = forwardRef<
                 className={buttonClass("all")}
                 onClick={() => {
                   if (startCoords && destinationCoords) {
-                    fetchAndDrawRoutes(
-                      startCoords,
-                      destinationCoords,
-                      "all",
-                      true
-                    );
                     setSelectedMode("all");
                   }
                 }}
@@ -1838,12 +1948,6 @@ const PathfinderControls = forwardRef<
                 className={buttonClass("driving")}
                 onClick={() => {
                   if (startCoords && destinationCoords) {
-                    fetchAndDrawRoutes(
-                      startCoords,
-                      destinationCoords,
-                      "driving",
-                      true
-                    );
                     setSelectedMode("driving");
                   }
                 }}
@@ -1855,12 +1959,6 @@ const PathfinderControls = forwardRef<
                 className={buttonClass("motorcycle")}
                 onClick={() => {
                   if (startCoords && destinationCoords) {
-                    fetchAndDrawRoutes(
-                      startCoords,
-                      destinationCoords,
-                      "motorcycle",
-                      true
-                    );
                     setSelectedMode("motorcycle");
                   }
                 }}
@@ -1878,12 +1976,6 @@ const PathfinderControls = forwardRef<
                 className={buttonClass("cycling")}
                 onClick={() => {
                   if (startCoords && destinationCoords) {
-                    fetchAndDrawRoutes(
-                      startCoords,
-                      destinationCoords,
-                      "cycling",
-                      true
-                    );
                     setSelectedMode("cycling");
                   }
                 }}
@@ -1895,15 +1987,7 @@ const PathfinderControls = forwardRef<
                 className={buttonClass("walking")}
                 onClick={() => {
                   if (startCoords && destinationCoords) {
-                    fetchAndDrawRoutes(
-                      startCoords,
-                      destinationCoords,
-                      "walking",
-                      true
-                    );
                     setSelectedMode("walking");
-                    // Auto-switch to "Fastest" for walking mode (no traffic data)
-                    setSelectedSort("Fastest");
                   }
                 }}
               >
@@ -2007,14 +2091,19 @@ const PathfinderControls = forwardRef<
               {/* Routes List */}
               {!isLoadingRoutes && routesData.length > 0 && (
                 <div className="scrollbar-rounded max-h-160 overflow-y-auto bg-[#1E1E1E] p-2 rounded-md space-y-2">
-                  {(selectedSort === "Fastest"
-                    ? sortRoutesFastest(routesData)
-                    : selectedSort === "Safest"
-                    ? sortRoutesSafest(routesData)
-                    : selectedSort === "Best balance"
-                    ? sortRoutesBestBalance(routesData)
-                    : routesData
-                  ).map((route, idx) => {
+                  {(
+                    selectedSort === "Fastest"
+                      ? sortRoutesFastest(routesData)
+                      : selectedSort === "Safest"
+                        ? sortRoutesSafest(routesData)
+                        : selectedSort === "Best balance"
+                          ? sortRoutesBestBalance(routesData)
+                          : routesData
+                  )
+                    .filter((r) =>
+                      selectedMode === "all" ? true : r.profile === selectedMode
+                    )
+                    .map((route, idx) => {
                     const routeKey = `${route.profile}-${route.source}-${route.index}`;
                     const isSelected = selectedRouteKey === routeKey;
                     const featureIdx = routeKeyToFeatureIndex[routeKey];

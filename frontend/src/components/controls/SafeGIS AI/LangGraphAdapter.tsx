@@ -57,6 +57,7 @@ export interface LangGraphResponse {
     // Pathfinder fields
     start?: string;
     destination?: string;
+    place_name?: string;
     sort_by?: string;
     // Spatial data agent (Atlas + Import / connect)
     url?: string;
@@ -145,10 +146,22 @@ export interface MapCallbacks {
     destination: string,
     mode: string
   ) => Promise<void>;
+  /** Shelter / evacuation tab: start only; OSM shelters load in UI */
+  findEvacuationFromStart?: (start: string, mode: string) => Promise<void>;
+  /** Read Pathfinder evacuation dropdown and return markdown for chat */
+  listPathfinderSheltersInChat?: () => { text: string };
+  /** Select loaded OSM evacuation row by name (Pathfinder Find Shelter/s) */
+  selectPathfinderShelterByName?: (
+    name: string
+  ) => Promise<{ ok: boolean; matched?: string; error?: string }>;
   changeRouteMode: (mode: string) => void;
   changeRouteSort: (sortBy: string) => void;
   openPathfinder: () => void;
   closePathfinder: () => void;
+  /** Set Destination vs Find Shelter/s */
+  setPathfinderTab?: (tab: "destination" | "evacuation") => void;
+  /** Clear pathfinder routes from map (same as Clear Routes button) */
+  clearPathfinderRoutes?: () => void;
 
   // Open panels / UI controls by name (e.g. "chat_expand", "map_style_dropdown", "boundary_panel")
   openPanel?: (panel: string) => void;
@@ -509,8 +522,21 @@ export async function processLangGraphResponse(
           }
           break;
 
-        case "find_route":
-          if (data.start && data.destination) {
+        case "find_route": {
+          const tab = String(data.pathfinder_tab || "").toLowerCase();
+          if (
+            (tab === "evacuation" || tab === "shelter" || tab === "shelters") &&
+            data.start &&
+            callbacks.findEvacuationFromStart
+          ) {
+            await callbacks.findEvacuationFromStart(
+              data.start,
+              data.mode || "all"
+            );
+            if (data.text) {
+              addMessage("assistant", data.text);
+            }
+          } else if (data.start && data.destination) {
             await callbacks.findRoute(
               data.start,
               data.destination,
@@ -521,6 +547,80 @@ export async function processLangGraphResponse(
             }
           }
           break;
+        }
+
+        case "list_evacuation_shelters": {
+          const r = callbacks.listPathfinderSheltersInChat?.();
+          const text =
+            r?.text ||
+            "Open Pathfinder in **Find Shelter/s** mode with a start location, then ask again.";
+          addMessage("assistant", text);
+          break;
+        }
+
+        case "select_evacuation_destination": {
+          const raw =
+            data.place_name || data.destination || (data as { shelter_name?: string }).shelter_name || "";
+          const name = String(raw).trim();
+          const mode = String(data.mode || "all").toLowerCase();
+          if (!name) {
+            addMessage(
+              "assistant",
+              "I need the **name** of the shelter or school to select (as in your Pathfinder list)."
+            );
+            break;
+          }
+          const r = await callbacks.selectPathfinderShelterByName?.(name);
+          if (!r) {
+            addMessage(
+              "assistant",
+              "Pathfinder shelter selection isn’t wired in this view. Open **Pathfinder** from the main app."
+            );
+            break;
+          }
+          if (r.ok) {
+            if (mode && mode !== "all") {
+              callbacks.changeRouteMode(mode);
+            }
+            addMessage(
+              "assistant",
+              data.text ||
+                `✅ Set evacuation destination to **${r.matched || name}** and refreshed routes.`
+            );
+          } else if (r?.error === "no_match") {
+            addMessage(
+              "assistant",
+              `Could not find **${name}** in the current shelter list. Open **Find Shelter/s**, check spelling, try a shorter name, or pick it from the dropdown.`
+            );
+          } else if (r?.error === "no_start") {
+            addMessage(
+              "assistant",
+              "Set a **starting location** in Pathfinder (Find Shelter/s) first, then ask me to select a shelter."
+            );
+          } else if (r?.error === "not_evacuation_tab") {
+            addMessage(
+              "assistant",
+              "Switch Pathfinder to **Find Shelter/s** (evacuation) mode, then ask again."
+            );
+          } else if (r?.error === "no_shelters_loaded") {
+            addMessage(
+              "assistant",
+              "No shelters are loaded yet — set a **start** in Find Shelter/s and wait for the list to load, then try again."
+            );
+          } else if (r?.error === "timeout") {
+            addMessage(
+              "assistant",
+              "Pathfinder didn’t become ready in time. Open **Find Shelter/s**, wait for shelters to load, then ask again."
+            );
+          } else {
+            addMessage(
+              "assistant",
+              data.text ||
+                "Could not update the Pathfinder shelter selection. Open Pathfinder and try again."
+            );
+          }
+          break;
+        }
 
         case "change_route_mode":
           if (data.mode) {
@@ -547,11 +647,52 @@ export async function processLangGraphResponse(
           }
           break;
 
+        case "set_pathfinder_tab": {
+          const raw = String(data.pathfinder_tab || "").toLowerCase();
+          const tab =
+            raw === "destination" ||
+            raw === "point_to_point" ||
+            raw === "point-to-point"
+              ? "destination"
+              : raw === "evacuation" ||
+                  raw === "shelter" ||
+                  raw === "shelters" ||
+                  raw === "evac"
+                ? "evacuation"
+                : null;
+          if (tab) {
+            callbacks.openPathfinder();
+            callbacks.setPathfinderTab?.(tab);
+            addMessage(
+              "assistant",
+              data.text ||
+                (tab === "destination"
+                  ? "✅ Switched Pathfinder to **Set Destination**."
+                  : "✅ Switched Pathfinder to **Find Shelter/s**.")
+            );
+          } else {
+            addMessage(
+              "assistant",
+              "I need tab **destination** (Set Destination) or **evacuation** (Find Shelter/s)."
+            );
+          }
+          break;
+        }
+
         case "close_pathfinder":
           callbacks.closePathfinder();
           if (data.text) {
             addMessage("assistant", data.text);
           }
+          break;
+
+        case "clear_pathfinder_routes":
+          callbacks.clearPathfinderRoutes?.();
+          addMessage(
+            "assistant",
+            data.text ||
+              "✅ **Cleared routes** from the map and reset Pathfinder inputs."
+          );
           break;
 
         case "open_panel":

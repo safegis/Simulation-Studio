@@ -99,10 +99,17 @@ type Props = {
       destination: string,
       mode: string
     ) => Promise<void>;
+    findEvacuationFromStart?: (start: string, mode: string) => Promise<void>;
+    listPathfinderSheltersInChat?: () => { text: string };
+    selectPathfinderShelterByName?: (
+      name: string
+    ) => Promise<{ ok: boolean; matched?: string; error?: string }>;
     changeRouteMode: (mode: string) => void;
     changeRouteSort: (sortBy: string) => void;
     openPathfinder: () => void;
     closePathfinder: () => void;
+    setPathfinderTab?: (tab: "destination" | "evacuation") => void;
+    clearPathfinderRoutes?: () => void;
   };
   // Open panels / UI by name (chat_expand, map_style_dropdown, boundary_panel, etc.)
   openPanel?: (panel: string) => void;
@@ -1522,6 +1529,23 @@ export default function SafeGISAIChat({
               await pathfinderCallbacks.findRoute(start, destination, mode);
             }
           },
+          findEvacuationFromStart: async (start: string, mode: string) => {
+            if (pathfinderCallbacks?.findEvacuationFromStart) {
+              await pathfinderCallbacks.findEvacuationFromStart(start, mode);
+            }
+          },
+          listPathfinderSheltersInChat: () => {
+            return pathfinderCallbacks?.listPathfinderSheltersInChat?.() ?? {
+              text: "Pathfinder shelter list isn’t wired in this view.",
+            };
+          },
+          selectPathfinderShelterByName: async (name: string) => {
+            return (
+              (await pathfinderCallbacks?.selectPathfinderShelterByName?.(
+                name
+              )) ?? { ok: false, error: "unavailable" }
+            );
+          },
           changeRouteMode: (mode: string) => {
             if (pathfinderCallbacks) {
               pathfinderCallbacks.changeRouteMode(mode);
@@ -1537,10 +1561,16 @@ export default function SafeGISAIChat({
               pathfinderCallbacks.openPathfinder();
             }
           },
+          setPathfinderTab: (tab: "destination" | "evacuation") => {
+            pathfinderCallbacks?.setPathfinderTab?.(tab);
+          },
           closePathfinder: () => {
             if (pathfinderCallbacks) {
               pathfinderCallbacks.closePathfinder();
             }
+          },
+          clearPathfinderRoutes: () => {
+            pathfinderCallbacks?.clearPathfinderRoutes?.();
           },
           openPanel: openPanel
             ? (panel: string) => openPanel(panel)
