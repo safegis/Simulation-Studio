@@ -34,6 +34,12 @@ import {
 import { ensureAffectedAreasOnTop } from "./Markers/Assessment Tools/ExposureAssessmentMarkers";
 import { ISO2_TO_ISO3 } from "@/lib/iso2ToIso3";
 import {
+  MAPBOX_CUSTOM_STANDARD_STYLE_URL,
+  MAPBOX_CUSTOM_STANDARD_STYLE_ID_FRAGMENT,
+  DEFAULT_STANDARD_3D_PITCH,
+  DEFAULT_STANDARD_3D_BEARING,
+} from "@/lib/mapboxCustomStandard";
+import {
   geoapifyPopupTypeLabel,
   osmPopupTypeLabel,
 } from "@/lib/boundaryLevelsBySource";
@@ -177,11 +183,13 @@ const MapComponent = forwardRef(function MapComponent(
     if (!mapContainer.current) return;
     const map = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      // Match app default basemap so first paint isn’t streets → Standard swap.
+      style: MAPBOX_CUSTOM_STANDARD_STYLE_URL,
       center: [0, 0],
       zoom: 1.8,
-      pitch: 0,
-      bearing: 0,
+      // Start angled for default Standard basemap (avoids top-down globe then ease).
+      pitch: DEFAULT_STANDARD_3D_PITCH,
+      bearing: DEFAULT_STANDARD_3D_BEARING,
       antialias: true,
     });
     mapInstance.current = map;
@@ -679,9 +687,17 @@ const MapComponent = forwardRef(function MapComponent(
       if (!map || !mapIsLoaded.current) return;
       map.setStyle(style);
       map.once("style.load", () => {
-        if (is3DMode.current && style.includes("standard")) {
+        const use3dTerrain =
+          is3DMode.current &&
+          (style.includes("standard") ||
+            style.includes(MAPBOX_CUSTOM_STANDARD_STYLE_ID_FRAGMENT));
+        if (use3dTerrain) {
           addTerrainOnly(map);
-          map.easeTo({ pitch: 60, bearing: 30, duration: 1000 });
+          map.easeTo({
+            pitch: DEFAULT_STANDARD_3D_PITCH,
+            bearing: DEFAULT_STANDARD_3D_BEARING,
+            duration: 1000,
+          });
         } else {
           map.setTerrain(null);
           map.easeTo({ pitch: 0, bearing: 0, duration: 800 });

@@ -188,6 +188,7 @@ export interface MapCallbacks {
  * Map style names from backend format to frontend format
  */
 const STYLE_MAP: Record<string, string> = {
+  streets: "Streets (Mapbox)",
   default: "Default (Custom Mapbox Standard)",
   satellite: "Satellite (Mapbox)",
   outdoors: "Outdoors (Mapbox)",

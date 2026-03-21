@@ -1277,7 +1277,9 @@ export default function SafeGISAIChat({
             } else if (mode === "3d") {
               // Use the provided style or fall back to current
               const styleToUse =
-                style || selectedMapStyle || "Default (Custom Mapbox Standard)";
+                style ||
+                selectedMapStyle ||
+                "Default (Custom Mapbox Standard)";
               console.log("AI switchViewMode to 3D with style:", styleToUse);
 
               // Update the state first

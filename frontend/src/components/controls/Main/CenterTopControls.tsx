@@ -121,6 +121,7 @@ rounded-md shadow-md hover:bg-[#3a3a3a] transition text-[11px] font-medium"
               {[
                 "Default (Custom Mapbox Standard)",
                 "Satellite (Mapbox)",
+                "Streets (Mapbox)",
                 "Outdoors (Mapbox)",
                 "Light (Mapbox)",
                 "Dark (Mapbox)",

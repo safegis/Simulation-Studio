@@ -1,7 +1,14 @@
 // \SafeGIS\Simulation-Studio\frontend\src\components\Main-UI-Layout.tsx
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useReducer } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useReducer,
+  useMemo,
+} from "react";
 import { flushSync } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
@@ -35,6 +42,11 @@ import Crop32Icon from "@mui/icons-material/Crop32";
 import Crop54Icon from "@mui/icons-material/Crop54";
 import Crop75Icon from "@mui/icons-material/Crop75";
 import CropFreeIcon from "@mui/icons-material/CropFree";
+import {
+  MAPBOX_CUSTOM_STANDARD_STYLE_URL,
+  DEFAULT_STANDARD_3D_PITCH,
+  DEFAULT_STANDARD_3D_BEARING,
+} from "@/lib/mapboxCustomStandard";
 
 type UiUndoSnapshot = {
   searchText: string;
@@ -101,9 +113,12 @@ function getMapboxStyleUrlForUndo(
   viewMode: "2d" | "3d"
 ): string {
   switch (label) {
+    case "Streets (Mapbox)":
+      return "mapbox://styles/mapbox/streets-v12";
     case "Default (Custom Mapbox Standard)":
+      // Custom Mapbox Standard is the 3D basemap; in 2D undo snapshots use streets
       return viewMode === "3d"
-        ? "mapbox://styles/shain34/cmesokqei00z501sdedixesto"
+        ? MAPBOX_CUSTOM_STANDARD_STYLE_URL
         : "mapbox://styles/mapbox/streets-v12";
     case "Satellite (Mapbox)":
       return "mapbox://styles/mapbox/standard-satellite";
@@ -130,7 +145,7 @@ export default function MainUILayout() {
 
   // Track if location was just selected to prevent re-fetching suggestions
   const locationJustSelectedRef = useRef(false);
-  const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
+  const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
   const [showChat, setShowChat] = useState(false);
   const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
@@ -143,8 +158,9 @@ export default function MainUILayout() {
   const [showMapStyleDropdown, setShowMapStyleDropdown] = useState(false);
   const [autoLightingInterval, setAutoLightingInterval] =
     useState<NodeJS.Timeout | null>(null);
+  // "Auto" matches default 3D + Standard basemap so Time of Day shows immediately (not after map ref is ready).
   const [selectedTimeOfDay, setSelectedTimeOfDay] = useState<string | null>(
-    null
+    "Auto"
   );
   const [show3DControls, setShow3DControls] = useState(true);
   const [selectedMapStyle, setSelectedMapStyle] = useState<string>(
@@ -650,6 +666,7 @@ export default function MainUILayout() {
   };
 
   const switchTo2D = () => {
+    if (selectedMapStyle === "Default (Custom Mapbox Standard)") return;
     mapRef.current?.switchTo2D?.(selectedMapStyle);
     setViewMode("2d");
 
@@ -662,6 +679,7 @@ export default function MainUILayout() {
   };
 
   const switchTo3D = () => {
+    if (selectedMapStyle === "Streets (Mapbox)") return;
     setViewMode("3d");
     handleTimeOfDayChange("Auto");
     // Use selectedMapStyle state - it should be updated by now if style was changed first
@@ -725,22 +743,22 @@ export default function MainUILayout() {
   };
 
   useEffect(() => {
-    const waitForMapAndSync = async () => {
+    const bootDefault3D = async () => {
       let tries = 0;
-      while (
-        (!mapRef.current || !mapRef.current.setLightPreset) &&
-        tries < 10
-      ) {
-        await new Promise((r) => setTimeout(r, 300));
+      while (!mapRef.current?.switchTo3D && tries < 40) {
+        await new Promise((r) => setTimeout(r, 150));
         tries++;
       }
-
-      if (mapRef.current?.setLightPreset) {
-        handleTimeOfDayChange("Auto");
+      if (mapRef.current?.switchTo3D) {
+        mapRef.current.switchTo3D("Default (Custom Mapbox Standard)");
       }
+      // Lighting needs Mapbox Standard style + terrain from switchTo3D’s style.load
+      window.setTimeout(() => {
+        handleTimeOfDayChange("Auto");
+      }, 1600);
     };
 
-    waitForMapAndSync();
+    bootDefault3D();
   }, []);
 
   useEffect(() => {
@@ -797,6 +815,38 @@ export default function MainUILayout() {
       "Navigation Night (Mapbox)",
     ];
 
+    // Streets is 2D-only (no 3D / no time-of-day lighting on this basemap)
+    if (label === "Streets (Mapbox)") {
+      setViewMode("2d");
+      setSelectedTimeOfDay(null);
+      setShowTimeOfDayDropdown(false);
+      setShow3DControls(true);
+      map.switchTo2D?.(label);
+      map.setMapStyle("mapbox://styles/mapbox/streets-v12");
+      if (savedAspectRatioShapeRef.current) {
+        setTimeout(() => {
+          restoreAspectRatioShape();
+        }, 500);
+      }
+      return;
+    }
+
+    // Custom Mapbox Standard is 3D-only — pick it from 2D by switching to 3D
+    if (label === "Default (Custom Mapbox Standard)" && viewMode === "2d") {
+      setShow3DControls(true);
+      setSelectedTimeOfDay("Auto");
+      setShowTimeOfDayDropdown(true);
+      setViewMode("3d");
+      map.switchTo3D?.(label);
+      window.setTimeout(() => handleTimeOfDayChange("Auto"), 0);
+      if (savedAspectRatioShapeRef.current) {
+        setTimeout(() => {
+          restoreAspectRatioShape();
+        }, 500);
+      }
+      return;
+    }
+
     const supportsLighting = !disableLightingPresets.includes(label);
 
     if (!supportsLighting) {
@@ -821,11 +871,11 @@ export default function MainUILayout() {
     // ✅ Apply the correct Mapbox style
     let styleUrl = "";
     switch (label) {
+      case "Streets (Mapbox)":
+        styleUrl = "mapbox://styles/mapbox/streets-v12";
+        break;
       case "Default (Custom Mapbox Standard)":
-        styleUrl =
-          viewMode === "3d"
-            ? "mapbox://styles/shain34/cmesokqei00z501sdedixesto"
-            : "mapbox://styles/mapbox/streets-v12";
+        styleUrl = MAPBOX_CUSTOM_STANDARD_STYLE_URL;
         break;
       case "Satellite (Mapbox)":
         styleUrl = "mapbox://styles/mapbox/standard-satellite";
@@ -863,12 +913,15 @@ export default function MainUILayout() {
 
   const handleTimeOfDayChange = useCallback(
     (label: string) => {
-      if (!mapRef.current) return;
-
       if (autoLightingInterval) {
         clearInterval(autoLightingInterval);
         setAutoLightingInterval(null);
       }
+
+      setSelectedTimeOfDay(label);
+      setShowTimeOfDayDropdown(false);
+
+      if (!mapRef.current) return;
 
       let preset: "dawn" | "day" | "dusk" | "night" | null = null;
 
@@ -895,9 +948,6 @@ export default function MainUILayout() {
       if (preset && mapRef.current.setLightPreset) {
         mapRef.current.setLightPreset(preset);
       }
-
-      setSelectedTimeOfDay(label); // <--- Add this line
-      setShowTimeOfDayDropdown(false);
     },
     [autoLightingInterval]
   );
@@ -1539,11 +1589,19 @@ export default function MainUILayout() {
   const canRedo =
     undoFutureRef.current.length > 0 && !historyNavBusy;
 
+  /** Basemaps that only support one view mode hide the 2D/3D control. */
+  const showViewModeToggle = useMemo(
+    () =>
+      show3DControls &&
+      selectedMapStyle !== "Default (Custom Mapbox Standard)" &&
+      selectedMapStyle !== "Streets (Mapbox)",
+    [show3DControls, selectedMapStyle]
+  );
+
   /**
-   * Map reset: clears drawn content, restores default basemap (2D + Default style),
-   * and turns off map-linked toggles (hazards, live monitor sources, layers selection,
-   * scope drawing, search, pathfinder fields, etc.). Keeps panels open (Live Hazard
-   * Monitor, tool panel, Atlas chat, etc.).
+   * Map reset: clears drawn content, restores the same default as a fresh session
+   * (Custom Mapbox Standard + 3D + Auto lighting), and turns off map-linked toggles.
+   * Keeps panels open (Live Hazard Monitor, tool panel, Atlas chat, etc.).
    */
   const performGlobalReset = () => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
@@ -1631,13 +1689,14 @@ export default function MainUILayout() {
       setAutoLightingInterval(null);
     }
 
-    // Basemap + view + map-linked UI (panels stay open).
+    // Basemap + view + map-linked UI (panels stay open) — match initial app defaults.
     flushSync(() => {
-      setViewMode("2d");
+      setViewMode("3d");
       setSelectedMapStyle("Default (Custom Mapbox Standard)");
       setShowMapStyleDropdown(false);
       setShow3DControls(true);
       setSelectedTimeOfDay("Auto");
+      setShowTimeOfDayDropdown(false);
       setLiveEarthquakeEnabled(false);
       setLiveWeatherEnabled(false);
       setSelectedEarthquakeSources([]);
@@ -1662,10 +1721,10 @@ export default function MainUILayout() {
       setIsFileLoading(false);
       setFileLoadingStage("");
     });
-    mapRef.current?.setIs3DModeForUndo?.(false);
+    mapRef.current?.setIs3DModeForUndo?.(true);
     const defaultStyleUrl = getMapboxStyleUrlForUndo(
       "Default (Custom Mapbox Standard)",
-      "2d"
+      "3d"
     );
     if (mapRef.current?.setMapStyle) {
       mapRef.current.setMapStyle(defaultStyleUrl);
@@ -1678,11 +1737,15 @@ export default function MainUILayout() {
       mapRef.current?.flyTo?.({
         center: [0, 0],
         zoom: 1.8,
-        pitch: 0,
-        bearing: 0,
+        pitch: DEFAULT_STANDARD_3D_PITCH,
+        bearing: DEFAULT_STANDARD_3D_BEARING,
         duration: 1200,
       });
-    }, 400);
+    }, 800);
+
+    window.setTimeout(() => {
+      handleTimeOfDayChange("Auto");
+    }, 1600);
   };
 
   const openResetConfirmModal = () => setShowResetConfirmModal(true);
@@ -2116,7 +2179,7 @@ export default function MainUILayout() {
           {!isChatExpanded && (
             <RightSideControls
               ref={centerRightControlsRef}
-              show3DControls={show3DControls}
+              showViewModeToggle={showViewModeToggle}
               viewMode={viewMode}
               switchTo2D={switchTo2D}
               switchTo3D={switchTo3D}

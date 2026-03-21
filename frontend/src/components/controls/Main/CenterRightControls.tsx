@@ -207,7 +207,8 @@ function PanelSelect<V extends string>({
 }
 
 interface RightSideControlsProps {
-  show3DControls: boolean;
+  /** When false, 2D/3D is fixed by the current basemap (e.g. Standard = 3D-only, Streets = 2D-only). */
+  showViewModeToggle: boolean;
   viewMode: "2d" | "3d";
   switchTo2D: () => void;
   switchTo3D: () => void;
@@ -239,7 +240,7 @@ const RightSideControls = forwardRef<
 >(
   (
     {
-      show3DControls,
+      showViewModeToggle,
       viewMode,
       switchTo2D,
       switchTo3D,
@@ -1000,8 +1001,8 @@ const RightSideControls = forwardRef<
 
     return (
       <div className="absolute right-[15px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2">
-        {/* 2D/3D Toggle */}
-        {show3DControls && (
+        {/* 2D/3D Toggle (hidden for basemaps that only support one mode) */}
+        {showViewModeToggle && (
           <div className="relative bg-[#2E2E2E] p-1 rounded-md shadow-md w-[40px] overflow-hidden">
             <div
               className="absolute w-[32px] h-[32px] left-1 rounded bg-gradient-to-b from-[#9699FF] to-white transition-all duration-300 ease-in-out"

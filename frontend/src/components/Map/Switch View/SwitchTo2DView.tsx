@@ -35,6 +35,9 @@ export const switchTo2D = (
 
   let style = "mapbox://styles/mapbox/streets-v12";
   switch (label) {
+    case "Streets (Mapbox)":
+      style = "mapbox://styles/mapbox/streets-v12";
+      break;
     case "Satellite (Mapbox)":
       style = "mapbox://styles/mapbox/standard-satellite";
       break;
