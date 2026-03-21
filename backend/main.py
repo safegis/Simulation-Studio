@@ -15,7 +15,16 @@ import uvicorn
 
 # Import our modules
 from fetch_data.HazardScraper import start_scraper
-from fetch_data import MapHazardAPIs, ExposureAssessment, GeoBoundaries, TomTomTraffic, OverpassEvacuation, SpatialDataConnect
+from fetch_data import (
+    MapHazardAPIs,
+    ExposureAssessment,
+    GeoBoundaries,
+    TomTomTraffic,
+    OverpassEvacuation,
+    OverpassBoundaries,
+    GeoapifyBoundaries,
+    SpatialDataConnect,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -128,6 +137,37 @@ async def get_boundaries(country_code: str, admin_level: str):
         GeoJSON FeatureCollection with boundary data
     """
     return await GeoBoundaries.get_boundary_data(country_code, admin_level)
+
+
+@app.get("/api/boundaries/osm/{iso2}/{admin_slot}")
+async def get_boundaries_osm(iso2: str, admin_slot: str):
+    """
+    Administrative boundaries from OpenStreetMap (Overpass API).
+
+    ``iso2``: ISO 3166-1 alpha-2 (e.g. PH, DE). ``admin_slot``: admin0–admin3
+    mapped to typical OSM admin_level values (2 / 4 / 8 / 6). Bulk extracts:
+    Geofabrik (https://download.geofabrik.de/).
+    """
+    return await OverpassBoundaries.fetch_osm_admin_boundaries(iso2, admin_slot)
+
+
+@app.get("/api/boundaries/geoapify/{iso2}/{admin_slot}")
+async def get_boundaries_geoapify(
+    iso2: str,
+    admin_slot: str,
+    country: str = Query(
+        ...,
+        min_length=2,
+        max_length=200,
+        description="Country name for Geoapify geocoding (e.g. Philippines)",
+    ),
+):
+    """
+    Administrative boundaries via Geoapify (Geocoding + Boundaries API).
+    Requires ``NEXT_PUBLIC_GEOAPIFY_API_KEY``. Optional: ``GEOAPIFY_BOUNDARIES_GEOMETRY``
+    (default ``geometry_10000``).
+    """
+    return await GeoapifyBoundaries.fetch_geoapify_boundaries(iso2, admin_slot, country)
 
 
 @app.get("/api/overpass/evacuation-destinations")

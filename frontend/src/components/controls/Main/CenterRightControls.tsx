@@ -30,6 +30,10 @@ import {
 import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 import { createPortal } from "react-dom";
 import geoBoundariesData from "./Boundary Options/geoBoundaries.json";
+import {
+  getBoundaryLevelsForCountry,
+  type BoundarySourceId,
+} from "@/lib/boundaryLevelsBySource";
 
 /** Payload for Atlas / chat-driven GeoJSON fetch (same contract as backend FetchUrlRequest). */
 export type AtlasFetchUrlPayload = {
@@ -606,19 +610,28 @@ const RightSideControls = forwardRef<
 
     const [showBoundaryLevelDropdown, setShowBoundaryLevelDropdown] =
       useState(false);
-    const [selectedBoundaryLevel, setSelectedBoundaryLevel] = useState<
+    /** Stable slot: admin0, admin1, … (labels differ by data source). */
+    const [selectedBoundaryAdminSlot, setSelectedBoundaryAdminSlot] = useState<
       string | null
     >(null);
     const boundaryLevelButtonRef = useRef<HTMLButtonElement>(null);
 
     // Boundary source dropdown state
     const [selectedBoundarySource, setSelectedBoundarySource] = useState<
-      string | null
+      BoundarySourceId | null
     >(null);
     const [showBoundarySourceDropdown, setShowBoundarySourceDropdown] =
       useState(false);
     const boundarySourceButtonRef = useRef<HTMLButtonElement>(null);
-    const boundarySourceOptions = ["geoBoundaries"];
+    /** UI label → id for `addBoundaryLayer` */
+    const boundarySourceOptions: { label: string; id: BoundarySourceId }[] = [
+      { label: "geoBoundaries", id: "geoboundaries" },
+      { label: "OSM (Overpass)", id: "osm" },
+      { label: "Geoapify", id: "geoapify" },
+    ];
+
+    const boundarySourceLabel = (id: string | null) =>
+      boundarySourceOptions.find((o) => o.id === id)?.label ?? id ?? "";
 
     // Use external loading state if provided, otherwise use local state
     const [localIsBoundaryLoading, setLocalIsBoundaryLoading] = useState(false);
@@ -653,7 +666,14 @@ const RightSideControls = forwardRef<
 
         // Set source if provided
         if (source) {
-          setSelectedBoundarySource(source);
+          const s = source.toLowerCase();
+          if (s.includes("osm") || s.includes("overpass")) {
+            setSelectedBoundarySource("osm");
+          } else if (s.includes("geoapify")) {
+            setSelectedBoundarySource("geoapify");
+          } else {
+            setSelectedBoundarySource("geoboundaries");
+          }
         }
 
         // Delay setting country and admin level to ensure panel is mounted
@@ -686,8 +706,8 @@ const RightSideControls = forwardRef<
                       (l) => l.adminLevel === `admin${adminLevel}`
                     );
                     if (level) {
-                      console.log("🔵 Setting admin level to:", level.label);
-                      setSelectedBoundaryLevel(level.label);
+                      console.log("🔵 Setting admin slot to:", level.adminLevel);
+                      setSelectedBoundaryAdminSlot(level.adminLevel);
                     } else {
                       console.warn(
                         `🔵 Admin level admin${adminLevel} not found for ${matchedCountry}. Available levels:`,
@@ -710,7 +730,7 @@ const RightSideControls = forwardRef<
         // Clear all boundary selections
         setSelectedBoundarySource(null);
         setSelectedBoundary(null);
-        setSelectedBoundaryLevel(null);
+        setSelectedBoundaryAdminSlot(null);
         // Close the panel
         setShowBoundariesPanel(false);
         // Clear boundaries from the map by calling the map's clear function
@@ -905,29 +925,32 @@ const RightSideControls = forwardRef<
       if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    const getBoundaryLevelOptions = (selectedCountry: string | null) => {
-      if (!selectedCountry) return [];
-      return countryBoundaries[selectedCountry]?.levels || [];
-    };
-
     // Effect to render boundary on map when selection changes
     useEffect(() => {
       if (!mapRef.current) return;
 
       // If no boundary level selected, remove any existing boundary layer
-      if (!selectedBoundary || !selectedBoundaryLevel) {
+      if (
+        !selectedBoundarySource ||
+        !selectedBoundary ||
+        !selectedBoundaryAdminSlot
+      ) {
         mapRef.current.removeBoundaryLayer?.();
         setIsBoundaryLoading(false);
         return;
       }
 
-      // Get the country code and admin level
       const countryData = countryBoundaries[selectedBoundary];
       if (!countryData) return;
 
       const countryCode = countryData.code;
-      const levelData = countryData.levels.find(
-        (l) => l.label === selectedBoundaryLevel
+      const levelRows = getBoundaryLevelsForCountry(
+        selectedBoundarySource,
+        selectedBoundary,
+        countryBoundaries
+      );
+      const levelData = levelRows.find(
+        (r) => r.adminLevel === selectedBoundaryAdminSlot
       );
       if (!levelData) return;
 
@@ -940,7 +963,11 @@ const RightSideControls = forwardRef<
           await mapRef.current.addBoundaryLayer?.(
             countryCode,
             levelData.adminLevel,
-            levelData.label
+            levelData.label,
+            selectedBoundarySource,
+            selectedBoundarySource === "geoapify"
+              ? countryData.name
+              : undefined
           );
           setBoundaryLoadingStage("Rendering boundary...");
         } catch (error) {
@@ -952,7 +979,24 @@ const RightSideControls = forwardRef<
       };
 
       loadBoundary();
-    }, [selectedBoundary, selectedBoundaryLevel, mapRef]);
+    }, [
+      selectedBoundarySource,
+      selectedBoundary,
+      selectedBoundaryAdminSlot,
+      mapRef,
+    ]);
+
+    const boundaryLevelRows =
+      selectedBoundarySource && selectedBoundary
+        ? getBoundaryLevelsForCountry(
+            selectedBoundarySource,
+            selectedBoundary,
+            countryBoundaries
+          )
+        : [];
+    const selectedBoundaryLevelLabel =
+      boundaryLevelRows.find((r) => r.adminLevel === selectedBoundaryAdminSlot)
+        ?.label ?? "";
 
     return (
       <div className="absolute right-[15px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2">
@@ -1029,10 +1073,10 @@ const RightSideControls = forwardRef<
 
           {showGeoJSONPanel && (
             <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-[min(100vw-2rem,320px)] max-h-[min(90vh,560px)] bg-[#2E2E2E] rounded-md shadow-md p-3 z-40 flex flex-col items-stretch min-h-0">
-              <h3 className="shrink-0 text-[11px] font-semibold text-white mb-0.5">
+              <h3 className="shrink-0 text-center text-[11px] font-semibold text-white mb-0.5">
                 Import / connect spatial data
               </h3>
-              <p className="shrink-0 text-[9px] text-[#AAAAAA] mb-2 leading-snug">
+              <p className="shrink-0 text-center text-[9px] text-[#AAAAAA] mb-2 leading-snug">
                 Import files or connect live sources (API, database, MCP).
               </p>
 
@@ -1670,7 +1714,9 @@ const RightSideControls = forwardRef<
                             : "text-gray-400"
                         }`}
                       >
-                        {selectedBoundarySource || "Select Source"}
+                        {selectedBoundarySource
+                          ? boundarySourceLabel(selectedBoundarySource)
+                          : "Select Source"}
                       </span>
                       <ChevronDown
                         size={12}
@@ -1703,15 +1749,15 @@ const RightSideControls = forwardRef<
                               <div
                                 key={index}
                                 onClick={() => {
-                                  setSelectedBoundarySource(option);
+                                  setSelectedBoundarySource(option.id);
                                   setShowBoundarySourceDropdown(false);
                                   // Reset country and boundary level when source changes
                                   setSelectedBoundary(null);
-                                  setSelectedBoundaryLevel(null);
+                                  setSelectedBoundaryAdminSlot(null);
                                 }}
                                 className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px]"
                               >
-                                {option}
+                                {option.label}
                               </div>
                             ))}
                           </div>
@@ -1724,7 +1770,7 @@ const RightSideControls = forwardRef<
                       if (!isBoundaryLoading) {
                         setSelectedBoundarySource(null);
                         setSelectedBoundary(null);
-                        setSelectedBoundaryLevel(null);
+                        setSelectedBoundaryAdminSlot(null);
                       }
                     }}
                     disabled={isBoundaryLoading}
@@ -1831,7 +1877,7 @@ const RightSideControls = forwardRef<
                                         setSelectedBoundary(option);
                                         setShowBoundaryDropdown(false);
                                         setBoundarySearchTerm("");
-                                        setSelectedBoundaryLevel(null); // Add this line to reset boundary level
+                                        setSelectedBoundaryAdminSlot(null); // Add this line to reset boundary level
                                       }}
                                       className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px]"
                                     >
@@ -1849,7 +1895,7 @@ const RightSideControls = forwardRef<
                           if (!isBoundaryLoading) {
                             setSelectedBoundary(null);
                             setBoundarySearchTerm("");
-                            setSelectedBoundaryLevel(null);
+                            setSelectedBoundaryAdminSlot(null);
                           }
                         }}
                         disabled={isBoundaryLoading}
@@ -1888,12 +1934,12 @@ const RightSideControls = forwardRef<
                         >
                           <span
                             className={`truncate ${
-                              selectedBoundaryLevel
+                              selectedBoundaryAdminSlot
                                 ? "text-white"
                                 : "text-gray-400"
                             }`}
                           >
-                            {selectedBoundaryLevel || "Options"}
+                            {selectedBoundaryLevelLabel || "Select level"}
                           </span>
                           <ChevronDown
                             size={12}
@@ -1928,20 +1974,20 @@ const RightSideControls = forwardRef<
                                 }}
                                 onScroll={(e) => e.stopPropagation()}
                               >
-                                {getBoundaryLevelOptions(selectedBoundary).map(
-                                  (option, index) => (
-                                    <div
-                                      key={index}
-                                      onClick={() => {
-                                        setSelectedBoundaryLevel(option.label);
-                                        setShowBoundaryLevelDropdown(false);
-                                      }}
-                                      className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px]"
-                                    >
-                                      {option.label}
-                                    </div>
-                                  )
-                                )}
+                                {boundaryLevelRows.map((option, index) => (
+                                  <div
+                                    key={`${option.adminLevel}-${index}`}
+                                    onClick={() => {
+                                      setSelectedBoundaryAdminSlot(
+                                        option.adminLevel
+                                      );
+                                      setShowBoundaryLevelDropdown(false);
+                                    }}
+                                    className="px-3 py-2 hover:bg-[#505050] cursor-pointer text-[10px] leading-snug"
+                                  >
+                                    {option.label}
+                                  </div>
+                                ))}
                               </div>
                             </div>,
                             document.body
@@ -1951,7 +1997,7 @@ const RightSideControls = forwardRef<
                       <button
                         onClick={() => {
                           if (!isBoundaryLoading) {
-                            setSelectedBoundaryLevel(null);
+                            setSelectedBoundaryAdminSlot(null);
                           }
                         }}
                         disabled={isBoundaryLoading}

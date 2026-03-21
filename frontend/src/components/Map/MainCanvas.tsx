@@ -33,6 +33,10 @@ import {
 
 import { ensureAffectedAreasOnTop } from "./Markers/Assessment Tools/ExposureAssessmentMarkers";
 import { ISO2_TO_ISO3 } from "@/lib/iso2ToIso3";
+import {
+  geoapifyPopupTypeLabel,
+  osmPopupTypeLabel,
+} from "@/lib/boundaryLevelsBySource";
 
 import {
   drawHealthFacilities as drawHealthFacilitiesHelper,
@@ -1955,11 +1959,13 @@ const MapComponent = forwardRef(function MapComponent(
       });
     },
 
-    // Add boundary layer using geoBoundaries API (free, CC-BY 4.0)
+    // Add boundary layer: geoBoundaries, OSM/Overpass, or Geoapify Boundaries API
     addBoundaryLayer: async (
       countryCode: string,
       adminLevel: string,
-      boundaryLabel?: string
+      boundaryLabel?: string,
+      dataSource: "geoboundaries" | "osm" | "geoapify" = "geoboundaries",
+      geoapifyCountryName?: string
     ) => {
       const map = mapInstance.current;
       if (!map || !mapIsLoaded.current) return;
@@ -2002,20 +2008,39 @@ const MapComponent = forwardRef(function MapComponent(
         return;
       }
 
-      const iso3 = ISO2_TO_ISO3[countryCode];
-      if (!iso3) {
+      const iso2 = countryCode.toUpperCase();
+      const iso3 = ISO2_TO_ISO3[iso2];
+      if (dataSource === "geoboundaries" && !iso3) {
         console.warn(`Unknown country code: ${countryCode}`);
         return;
       }
+      if (dataSource === "geoapify") {
+        const cn = (geoapifyCountryName || "").trim();
+        if (!cn) {
+          console.warn("Geoapify boundaries require a country name");
+          alert("Geoapify needs a country name — pick a country from the list.");
+          return;
+        }
+      }
 
       try {
-        console.log(`Fetching boundary for ${iso3} at ${gbAdminLevel}...`);
-
-        // Fetch boundary data from backend
         const backendEndpoint =
           process.env.NEXT_PUBLIC_BACKEND_ENDPOINT || "http://localhost:8000";
-        const backendUrl = `${backendEndpoint}/api/boundaries/${iso3}/${gbAdminLevel}`;
-        console.log(`Fetching from backend: ${backendUrl}`);
+        let backendUrl: string;
+        if (dataSource === "osm") {
+          backendUrl = `${backendEndpoint}/api/boundaries/osm/${iso2}/${adminLevel}`;
+          console.log(`Fetching OSM boundaries: ${backendUrl}`);
+        } else if (dataSource === "geoapify") {
+          const q = new URLSearchParams({
+            country: (geoapifyCountryName || "").trim(),
+          });
+          backendUrl = `${backendEndpoint}/api/boundaries/geoapify/${iso2}/${adminLevel}?${q}`;
+          console.log(`Fetching Geoapify boundaries: ${backendUrl}`);
+        } else {
+          console.log(`Fetching boundary for ${iso3} at ${gbAdminLevel}...`);
+          backendUrl = `${backendEndpoint}/api/boundaries/${iso3}/${gbAdminLevel}`;
+          console.log(`Fetching from backend: ${backendUrl}`);
+        }
 
         const response = await fetch(backendUrl);
 
@@ -2165,14 +2190,22 @@ const MapComponent = forwardRef(function MapComponent(
             { selected: true }
           );
 
-          // Get the boundary name - geoBoundaries uses shapeName field
+          // geoBoundaries / OSM backend both set shapeName
           const boundaryName =
             props.shapeName || props.name || props.NAME || "Unknown";
+          const sourceNote =
+            props.boundary_source === "osm"
+              ? '<div style="color:#888;font-size:9px;margin-top:6px;">© OpenStreetMap contributors (ODbL)</div>'
+              : props.boundary_source === "geoapify"
+                ? '<div style="color:#888;font-size:9px;margin-top:6px;">© Geoapify · OpenStreetMap (ODbL)</div>'
+                : "";
 
-          // Extract the specific boundary type from the label (e.g., "By province (Admin Level 1)" -> "Province")
           let typeLabel = "Boundary";
-          if (boundaryLabel) {
-            // Parse "By province (Admin Level 1)" to get "Province"
+          if (dataSource === "osm") {
+            typeLabel = osmPopupTypeLabel(adminLevel);
+          } else if (dataSource === "geoapify") {
+            typeLabel = geoapifyPopupTypeLabel(adminLevel);
+          } else if (boundaryLabel) {
             const match = boundaryLabel.match(/^By\s+(.+?)\s*\(/i);
             if (match) {
               typeLabel =
@@ -2183,8 +2216,12 @@ const MapComponent = forwardRef(function MapComponent(
             }
           }
 
-          // Get admin level display (e.g., "Admin Level 1")
-          const adminLevelDisplay = gbAdminLevel.replace("ADM", "Admin Level ");
+          const adminLevelDisplay =
+            dataSource === "osm" && props.osm_admin_level != null
+              ? `OSM admin_level ${String(props.osm_admin_level)}`
+              : dataSource === "geoapify"
+                ? `Geoapify · ${adminLevel}`
+                : `geoBoundaries ${gbAdminLevel}`;
 
           // Get country code from shapeGroup (ISO3 code)
           const isoCode = props.shapeGroup || "";
@@ -2241,7 +2278,7 @@ const MapComponent = forwardRef(function MapComponent(
                   letter-spacing: 0.5px;
                   margin-bottom: 2px;
                 ">
-                  Administrative Level
+                  Level (data source)
                 </div>
                 <div style="
                   color: #C7C7C7;
@@ -2281,6 +2318,7 @@ const MapComponent = forwardRef(function MapComponent(
               `
                   : ""
               }
+              ${sourceNote}
             </div>
           `;
 
@@ -2310,7 +2348,9 @@ const MapComponent = forwardRef(function MapComponent(
           duration: 1000,
         });
 
-        console.log(`Added boundary layer for ${iso3} at ${gbAdminLevel}`);
+        console.log(
+          `Added boundary layer (${dataSource}) for ${iso2} at ${gbAdminLevel}`
+        );
       } catch (error) {
         console.error("Error fetching boundary data:", error);
         // Show user-friendly error message

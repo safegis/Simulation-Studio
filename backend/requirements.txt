@@ -4,6 +4,7 @@ pandas
 geopandas
 playwright
 httpx
+osm2geojson
 sqlalchemy
 psycopg2-binary
 pillow
