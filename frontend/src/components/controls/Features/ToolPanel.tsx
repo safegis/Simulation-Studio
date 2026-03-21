@@ -10,7 +10,6 @@ import HazardMapControls from "./Maps/Hazard Layers/HazardLayersControls";
 import ExposureAssessmentControls, {
   ExposureAssessmentControlsRef,
 } from "./Assessment Tools/Exposure Assessment/ExposureAssessmentControls";
-import VulnerabilityAssessmentControls from "./Assessment Tools/Vulnerability Assessment/VulnerabilityAssessmentControls";
 
 interface Props {
   isVisible: boolean;
@@ -67,7 +66,12 @@ const displayNamePlanningTools: Record<string, string> = {
 
 const displayNameAssessmentTools: Record<string, string> = {
   "Exposure Assessment": "Exposure Assessment",
-  "Vulnerability Assessment": "Vulnerability Assessment",
+  "Hazard & Damage Assessment": "Hazard & Damage Assessment",
+  /** Legacy labels from saved UI state / older builds */
+  "Hazard & Damage Detection": "Hazard & Damage Assessment",
+  "Hazard & Damage Mapping": "Hazard & Damage Assessment",
+  "Critical Asset Assessment": "Critical Asset Assessment",
+  "Critical Asset Detection": "Critical Asset Assessment",
 };
 
 const hydroMeteorologicalCheckboxItems = [
@@ -1199,7 +1203,13 @@ export default function ToolPanel({
           : label;
 
         const key = `${
-          isMap ? "map" : isPlanningTool ? "planning" : "assessment"
+          isMap
+            ? "map"
+            : isPlanningTool
+            ? "planning"
+            : isAssessmentTool
+            ? "assessment"
+            : "other"
         }-${label}`;
         const isExpanded = expandedPanels[key];
 
@@ -1279,9 +1289,21 @@ export default function ToolPanel({
                   />
                 )}
 
-                {/* Vulnerability Assessment Controls */}
-                {label === "Vulnerability Assessment" && (
-                  <VulnerabilityAssessmentControls PanelToggle={PanelToggle} />
+                {(label === "Hazard & Damage Assessment" ||
+                  label === "Hazard & Damage Detection" ||
+                  label === "Hazard & Damage Mapping") && (
+                  <p className="text-[10px] text-[#C7C7C7] leading-relaxed">
+                    Hazard and damage assessment from imagery will be configured
+                    here (workflows, layers, and analysis tools).
+                  </p>
+                )}
+
+                {(label === "Critical Asset Assessment" ||
+                  label === "Critical Asset Detection") && (
+                  <p className="text-[10px] text-[#C7C7C7] leading-relaxed">
+                    Critical asset assessment from imagery will be configured
+                    here (models, thresholds, and outputs).
+                  </p>
                 )}
               </div>
             )}

@@ -20,7 +20,8 @@ export default function SelectAssessment({
 
   const assessmentOptions = [
     { label: "Exposure Assessment", disabled: false },
-    { label: "Vulnerability Assessment", disabled: true },
+    { label: "Hazard & Damage Assessment", disabled: false },
+    { label: "Critical Asset Assessment", disabled: false },
   ];
 
   const handleToggle = (label: string, disabled: boolean) => {

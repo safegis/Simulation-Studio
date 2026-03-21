@@ -108,6 +108,39 @@ type UiUndoSnapshot = {
 
 type FullUndoSnapshot = { ui: UiUndoSnapshot; map: MapUndoSnapshot | null };
 
+const ASSESSMENT_TOOL_LABEL_UPGRADES: Record<string, string> = {
+  "Hazard & Damage Detection": "Hazard & Damage Assessment",
+  "Critical Asset Detection": "Critical Asset Assessment",
+};
+
+function upgradeAssessmentToolLabels(tools: string[]): string[] {
+  let changed = false;
+  const next = tools.map((t) => {
+    const u = ASSESSMENT_TOOL_LABEL_UPGRADES[t];
+    if (u) {
+      changed = true;
+      return u;
+    }
+    return t;
+  });
+  if (!changed) return tools;
+  return [...new Set(next)];
+}
+
+/** Older undo payloads stored imagery tools separately — merge into assessment list. */
+function mergeAssessmentToolsForUndo(ui: UiUndoSnapshot): string[] {
+  const removedLegacy = new Set(["Vulnerability Assessment"]);
+  const fromAssessment = [...(ui.selectedAssessmentTools ?? [])].filter(
+    (t) => !removedLegacy.has(t)
+  );
+  const legacyImagery = (
+    (ui as { selectedImageryTools?: string[] }).selectedImageryTools ?? []
+  ).filter((t) => !removedLegacy.has(t));
+  return upgradeAssessmentToolLabels(
+    [...new Set([...fromAssessment, ...legacyImagery])]
+  );
+}
+
 function getMapboxStyleUrlForUndo(
   label: string,
   viewMode: "2d" | "3d"
@@ -201,6 +234,33 @@ export default function MainUILayout() {
   const [selectedAssessmentTools, setSelectedAssessmentTools] = useState<
     string[]
   >([]);
+
+  // Migrate legacy "Detection" assessment tool labels (saved / older sessions)
+  useEffect(() => {
+    setSelectedAssessmentTools((prev) => upgradeAssessmentToolLabels(prev));
+    setExpandedPanels((prev) => {
+      const keyUpgrades: [string, string][] = [
+        [
+          "assessment-Hazard & Damage Detection",
+          "assessment-Hazard & Damage Assessment",
+        ],
+        [
+          "assessment-Critical Asset Detection",
+          "assessment-Critical Asset Assessment",
+        ],
+      ];
+      let changed = false;
+      const next = { ...prev };
+      for (const [oldK, newK] of keyUpgrades) {
+        if (oldK in next) {
+          next[newK] = next[oldK];
+          delete next[oldK];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, []);
 
   // Uploaded files state (lifted from CenterRightControls)
   const [uploadedFiles, setUploadedFiles] = useState<
@@ -1390,7 +1450,7 @@ export default function MainUILayout() {
         setSelectedPlanningTools(ui.selectedPlanningTools ?? []);
         setSelectedPlan(ui.selectedPlan);
         setShowAssessmentTools(shell.showAssessmentTools);
-        setSelectedAssessmentTools(ui.selectedAssessmentTools ?? []);
+        setSelectedAssessmentTools(mergeAssessmentToolsForUndo(ui));
         setUploadedFiles(ui.uploadedFiles ?? []);
         setIsBoundaryLoading(ui.isBoundaryLoading);
         setBoundaryLoadingStage(ui.boundaryLoadingStage ?? "");
@@ -2833,7 +2893,22 @@ export default function MainUILayout() {
                 setShowAssessmentTools(false);
                 return;
               }
-              if (p === "assessment_tools" || p === "assessment_panel" || p === "exposure_panel" || p === "vulnerability_panel") {
+              if (p === "assessment_tools" || p === "assessment_panel" || p === "exposure_panel") {
+                setShowAssessmentTools(true);
+                setShowToolPanel(true);
+                setShowSelectMaps(false);
+                setShowPathfinder(false);
+                setShowPlanningTools(false);
+                return;
+              }
+              if (
+                p === "imagery_intelligence" ||
+                p === "imagery_intelligence_suite" ||
+                p === "imagery_suite" ||
+                p === "geo_ai_suite" ||
+                p === "geoai_suite" ||
+                p === "geo_ai"
+              ) {
                 setShowAssessmentTools(true);
                 setShowToolPanel(true);
                 setShowSelectMaps(false);
