@@ -69,3 +69,16 @@ Data © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyrig
 | Variable | Purpose |
 |----------|---------|
 | `GEOAPIFY_BOUNDARIES_GEOMETRY` | `geometry_1000` / `geometry_5000` / `geometry_10000` (default). Larger = simpler geometry, fewer API credits. |
+
+### Atlas chat history (Supabase)
+
+The frontend calls the **Simulation Studio backend** (not Next.js) for saved Atlas threads.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/atlas-chat/conversations` | GET, POST | List or create conversations |
+| `/api/atlas-chat/conversations/{id}` | GET, PATCH, DELETE | Load, save snapshot, delete |
+
+Set **`SUPABASE_URL`** (or `NEXT_PUBLIC_SUPABASE_URL`), **`SUPABASE_ANON_KEY`** (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`), and **`SUPABASE_SERVICE_ROLE_KEY`** in `backend/.env`. Run [`supabase/studio_atlas_conversations.sql`](supabase/studio_atlas_conversations.sql) in the Supabase SQL editor once.
+
+Requires `supabase` and `python-dotenv` (`pip install -r requirements.txt`).

@@ -25,6 +25,7 @@ from fetch_data import (
     GeoapifyBoundaries,
     SpatialDataConnect,
 )
+from fetch_data.StudioAtlasConversations import router as studio_atlas_conversations_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -206,6 +207,9 @@ def spatial_data_postgis(request: SpatialDataConnect.PostgisRequest):
 
 # Include TomTom Traffic router
 app.include_router(TomTomTraffic.router)
+
+# Atlas chat history (Supabase) — browser calls Simulation Studio backend, not Next.js
+app.include_router(studio_atlas_conversations_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

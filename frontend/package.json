@@ -20,6 +20,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.12",
+    "@supabase/supabase-js": "^2.99.3",
     "@tmcw/togeojson": "^7.1.2",
     "@turf/area": "^7.2.0",
     "@turf/intersect": "^7.2.0",

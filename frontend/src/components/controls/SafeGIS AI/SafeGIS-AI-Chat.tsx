@@ -18,6 +18,8 @@ import {
   ExternalLink,
   AudioLines,
   X,
+  Loader2,
+  Trash2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import LangGraphAdapter, {
@@ -25,6 +27,9 @@ import LangGraphAdapter, {
   sendToLangGraph,
   getAtlasBaseUrl,
 } from "./LangGraphAdapter";
+import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
+import { getOrCreateStudioGuestOwnerKey } from "@/lib/studioAtlasOwner";
+import { atlasConversationsUrl } from "@/lib/studioAtlasConversationsApi";
 
 type Props = {
   isVisible: boolean;
@@ -134,6 +139,41 @@ type Message = {
     published_date?: string;
   }>;
 };
+
+type AtlasConversationListItem = {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function deriveConversationTitle(msgs: Message[]): string {
+  const first = msgs.find((m) => m.role === "user");
+  if (!first) return "New conversation";
+  const line =
+    first.content.split("\n").find((l) => l.trim()) ?? first.content;
+  const cleaned = line
+    .replace(/^📎\s*\*\*Attached:\*\*.*/i, "")
+    .replace(/\*\*/g, "")
+    .trim();
+  const t = cleaned.slice(0, 80).trim();
+  return t || "Conversation";
+}
+
+function formatRelativeTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const diff = Date.now() - d.getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "Just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 48) return `${h}h ago`;
+    return d.toLocaleDateString();
+  } catch {
+    return iso;
+  }
+}
 
 // Citation Card Component
 function CitationCard({
@@ -437,6 +477,244 @@ export default function SafeGISAIChat({
   useEffect(() => {
     conversationHistoryRef.current = conversationHistory;
   }, [conversationHistory]);
+
+  /** Supabase session (optional — same project as Official Website). */
+  const accessTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    const sb = getSupabaseBrowserClient();
+    if (!sb) return;
+    void sb.auth.getSession().then(({ data }) => {
+      accessTokenRef.current = data.session?.access_token ?? null;
+    });
+    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+      accessTokenRef.current = session?.access_token ?? null;
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const buildAtlasChatHeaders = (): HeadersInit => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    const t = accessTokenRef.current;
+    if (t) headers["Authorization"] = `Bearer ${t}`;
+    else headers["x-studio-owner-key"] = getOrCreateStudioGuestOwnerKey();
+    return headers;
+  };
+
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
+  const activeConversationIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [historyList, setHistoryList] = useState<AtlasConversationListItem[]>(
+    []
+  );
+  const [historyListLoading, setHistoryListLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [openingHistoryId, setOpeningHistoryId] = useState<string | null>(
+    null
+  );
+  const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(
+    null
+  );
+  /** Opens styled delete confirmation inside the history panel (not `window.confirm`). */
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  const shouldPersistAfterResponse = useRef(false);
+
+  const openHistoryPanel = async () => {
+    const listUrl = atlasConversationsUrl("/conversations");
+    if (!listUrl) {
+      setHistoryError(
+        "Set NEXT_PUBLIC_BACKEND_ENDPOINT to your Simulation Studio backend (e.g. http://localhost:8000). Conversation history is served from the backend, not Next.js."
+      );
+      setShowHistoryPanel(true);
+      setHistoryList([]);
+      return;
+    }
+    setShowHistoryPanel(true);
+    setHistoryListLoading(true);
+    setHistoryError(null);
+    try {
+      const res = await fetch(listUrl, {
+        headers: buildAtlasChatHeaders(),
+      });
+      const data = (await res.json()) as {
+        conversations?: AtlasConversationListItem[];
+        error?: string;
+        hint?: string;
+        code?: string;
+      };
+      if (!res.ok) {
+        const detail = [data.error, data.hint].filter(Boolean).join(" — ");
+        throw new Error(detail || "Could not load history");
+      }
+      setHistoryList(data.conversations ?? []);
+    } catch (e: unknown) {
+      setHistoryError(
+        e instanceof Error ? e.message : "Could not load conversations"
+      );
+      setHistoryList([]);
+    } finally {
+      setHistoryListLoading(false);
+    }
+  };
+
+  const openConversationFromHistory = async (id: string) => {
+    const oneUrl = atlasConversationsUrl(`/conversations/${id}`);
+    if (!oneUrl) {
+      setHistoryError("NEXT_PUBLIC_BACKEND_ENDPOINT is not set.");
+      return;
+    }
+    setOpeningHistoryId(id);
+    setHistoryError(null);
+    try {
+      const res = await fetch(oneUrl, {
+        headers: buildAtlasChatHeaders(),
+      });
+      const data = (await res.json()) as {
+        conversation?: {
+          ui_messages?: unknown;
+          langgraph_history?: unknown;
+        };
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "Load failed");
+      const conv = data.conversation;
+      if (!conv) throw new Error("Missing conversation");
+      const ui = conv.ui_messages;
+      const lg = conv.langgraph_history;
+      const msgs = Array.isArray(ui) ? (ui as Message[]) : [];
+      const hist = Array.isArray(lg) ? (lg as LangGraphMessage[]) : [];
+      setActiveConversationId(id);
+      activeConversationIdRef.current = id;
+      setMessages(msgs);
+      setConversationHistory(hist);
+      conversationHistoryRef.current = hist;
+    } catch (e: unknown) {
+      setHistoryError(
+        e instanceof Error ? e.message : "Failed to open conversation"
+      );
+    } finally {
+      setOpeningHistoryId(null);
+    }
+  };
+
+  const runDeleteConversation = async (id: string) => {
+    const delUrl = atlasConversationsUrl(`/conversations/${id}`);
+    if (!delUrl) {
+      setHistoryError("NEXT_PUBLIC_BACKEND_ENDPOINT is not set.");
+      return;
+    }
+    setDeletingHistoryId(id);
+    setHistoryError(null);
+    try {
+      const res = await fetch(delUrl, {
+        method: "DELETE",
+        headers: buildAtlasChatHeaders(),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        hint?: string;
+      };
+      if (!res.ok) {
+        const detail = [data.error, data.hint].filter(Boolean).join(" — ");
+        throw new Error(detail || "Delete failed");
+      }
+      setHistoryList((prev) => prev.filter((x) => x.id !== id));
+      if (activeConversationIdRef.current === id) {
+        setActiveConversationId(null);
+        activeConversationIdRef.current = null;
+        shouldPersistAfterResponse.current = false;
+        setMessages([]);
+        setConversationHistory([]);
+        conversationHistoryRef.current = [];
+      }
+    } catch (e: unknown) {
+      setHistoryError(
+        e instanceof Error ? e.message : "Could not delete conversation"
+      );
+    } finally {
+      setDeletingHistoryId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!pendingDeleteId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPendingDeleteId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pendingDeleteId]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!shouldPersistAfterResponse.current) return;
+    if (messages.length === 0) {
+      shouldPersistAfterResponse.current = false;
+      return;
+    }
+    shouldPersistAfterResponse.current = false;
+    const snapshotMessages = messages;
+    const snapshotHist = conversationHistory;
+    const headers = buildAtlasChatHeaders();
+    const postUrl = atlasConversationsUrl("/conversations");
+    void (async () => {
+      try {
+        if (!postUrl) {
+          console.warn(
+            "Atlas chat history: skip persist — NEXT_PUBLIC_BACKEND_ENDPOINT not set"
+          );
+          return;
+        }
+        let id = activeConversationIdRef.current;
+        const title = deriveConversationTitle(snapshotMessages);
+        if (!id) {
+          const res = await fetch(postUrl, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ title }),
+          });
+          const data = (await res.json()) as { id?: string; error?: string };
+          if (!res.ok) {
+            console.warn("Atlas chat history: create failed", data.error);
+            return;
+          }
+          id = data.id ?? null;
+          if (id) {
+            setActiveConversationId(id);
+            activeConversationIdRef.current = id;
+          }
+        }
+        if (!id) return;
+        const patchUrl = atlasConversationsUrl(`/conversations/${id}`);
+        if (!patchUrl) return;
+        const res = await fetch(patchUrl, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({
+            title,
+            ui_messages: snapshotMessages,
+            langgraph_history: snapshotHist,
+          }),
+        });
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          console.warn("Atlas chat history: save failed", err.error);
+        }
+      } catch (e) {
+        console.warn("Atlas chat history persist error", e);
+      }
+    })();
+  }, [loading, messages, conversationHistory]);
 
   useEffect(() => {
     if (chatEndRef.current)
@@ -779,7 +1057,9 @@ export default function SafeGISAIChat({
         { currentMapStyle: selectedMapStyle, viewMode: viewMode },
         webSearchEnabled,
         uploadedFiles,
-        spatialContext
+        spatialContext,
+        undefined,
+        activeConversationIdRef.current
       );
       setConversationHistory(response.conversation_history);
       conversationHistoryRef.current = response.conversation_history;
@@ -827,7 +1107,8 @@ export default function SafeGISAIChat({
         webSearchEnabled,
         uploadedFiles,
         spatialContext,
-        signal
+        signal,
+        activeConversationIdRef.current
       );
       setConversationHistory(response.conversation_history);
       conversationHistoryRef.current = response.conversation_history;
@@ -1102,6 +1383,7 @@ export default function SafeGISAIChat({
 
     setInputText("");
     setMessages((prev) => [...prev, { role: "user", content: displayUserMessage }]);
+    shouldPersistAfterResponse.current = true;
     setLoading(true);
     setOperationSteps([]);
 
@@ -1128,7 +1410,9 @@ export default function SafeGISAIChat({
         },
         webSearchEnabled,
         uploadedFiles,
-        spatialContext
+        spatialContext,
+        undefined,
+        activeConversationIdRef.current
       );
 
       // Add more web search steps if search results were found
@@ -1608,6 +1892,7 @@ export default function SafeGISAIChat({
       setConversationHistory(response.conversation_history);
     } catch (error) {
       console.error("Error:", error);
+      shouldPersistAfterResponse.current = false;
       setMessages((prev) => [
         ...prev,
         {
@@ -1624,35 +1909,210 @@ export default function SafeGISAIChat({
   };
 
   const handleNewSession = () => {
+    setActiveConversationId(null);
+    activeConversationIdRef.current = null;
+    shouldPersistAfterResponse.current = false;
     setMessages([]);
+    setConversationHistory([]);
+    conversationHistoryRef.current = [];
     setInputText("");
     setLoading(false);
     setOperationSteps([]);
     setPendingRagFiles([]);
     setRagAttachError(null);
+    setShowHistoryPanel(false);
+    setPendingDeleteId(null);
   };
 
   return (
     <>
+      {/* Wrapper keeps history outside the scrollable message list (left of chat). */}
       <div
         className={`${
           isExpanded
-            ? "fixed top-0 right-0 h-screen w-[360px] rounded-none border-l border-white/10"
-            : "absolute bottom-[15px] h-[393px] right-[82px] w-[280px] rounded-md py-2"
+            ? "fixed top-0 right-0 z-10 flex h-screen flex-row items-stretch justify-end gap-2"
+            : "absolute bottom-[15px] right-[82px] z-50 flex flex-row items-stretch justify-end gap-2"
         } ${
-          isExpanded ? "z-10" : "z-50"
-        } shadow-md origin-bottom-right flex flex-col
-  ${
-    isVisible
-      ? "opacity-100 scale-100 pointer-events-auto transition-all duration-300 ease-out"
-      : "opacity-0 scale-75 pointer-events-none transition-all duration-150 ease-in"
-  }`}
-        style={{
-          background: "linear-gradient(to bottom, #5A5C99, #232323)",
-          overflow: "hidden",
-        }}
+          isVisible
+            ? "pointer-events-auto scale-100 opacity-100 transition-all duration-300 ease-out"
+            : `pointer-events-none opacity-0 transition-all duration-150 ease-in ${
+                isExpanded ? "scale-100" : "scale-75"
+              }`
+        }`}
       >
-        <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
+        {showHistoryPanel && (
+          <div
+            className={`flex min-h-0 flex-shrink-0 flex-col overflow-hidden rounded-md border border-white/10 bg-white/5 shadow-lg backdrop-blur-xl ${
+              isExpanded ? "my-3 w-[236px]" : "w-[200px]"
+            }`}
+          >
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-2 py-1.5">
+              <span className="text-[10px] font-semibold text-white">
+                Recent conversations
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHistoryPanel(false);
+                  setHistoryError(null);
+                  setPendingDeleteId(null);
+                }}
+                className="rounded p-0.5 text-white/80 hover:bg-white/10 hover:text-white"
+                title="Close"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+              <div className="custom-scrollbar relative z-0 min-h-0 h-full overflow-y-auto overflow-x-hidden p-1.5">
+              {historyError && (
+                <p className="px-1 py-2 text-[9px] leading-snug text-red-300/95">
+                  {historyError}
+                </p>
+              )}
+              {!historyListLoading &&
+                !historyError &&
+                historyList.length === 0 && (
+                  <p className="px-1 py-2 text-[9px] leading-snug text-white/50">
+                    No saved sessions yet. After you send messages, they appear
+                    here. The Simulation Studio backend stores them in Supabase
+                    (configure env on the backend).
+                  </p>
+                )}
+              {historyList.map((c) => {
+                const rowBusy =
+                  openingHistoryId === c.id || deletingHistoryId === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    className="mb-1 flex items-stretch gap-0.5 rounded-md border border-transparent transition-colors hover:border-white/15 hover:bg-white/5"
+                  >
+                    <button
+                      type="button"
+                      disabled={rowBusy}
+                      onClick={() => void openConversationFromHistory(c.id)}
+                      className="min-w-0 flex-1 px-2 py-1.5 text-left disabled:opacity-50"
+                    >
+                      <span className="line-clamp-2 block text-[10px] font-medium text-white">
+                        {c.title?.trim() || "Untitled"}
+                      </span>
+                      <div className="mt-0.5 text-[8px] text-white/40">
+                        {formatRelativeTime(c.updated_at)}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      title={
+                        openingHistoryId === c.id
+                          ? "Loading conversation…"
+                          : deletingHistoryId === c.id
+                            ? "Deleting…"
+                            : "Delete conversation"
+                      }
+                      disabled={rowBusy}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setPendingDeleteId(c.id);
+                      }}
+                      className="mr-0.5 flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-md text-white/35 hover:bg-red-500/15 hover:text-red-300 disabled:opacity-40"
+                    >
+                      {openingHistoryId === c.id || deletingHistoryId === c.id ? (
+                        <Loader2
+                          className="animate-spin text-white/70"
+                          size={12}
+                          aria-hidden
+                        />
+                      ) : (
+                        <Trash2 size={12} aria-hidden />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+              </div>
+              {historyListLoading && (
+                <div
+                  className="absolute inset-0 z-20 flex items-center justify-center bg-white/10 backdrop-blur-xl"
+                  aria-busy="true"
+                  role="status"
+                  aria-label="Loading conversations"
+                >
+                  <Loader2
+                    className="h-7 w-7 shrink-0 animate-spin text-white/85"
+                    aria-hidden
+                  />
+                  <span className="sr-only">Loading conversations</span>
+                </div>
+              )}
+              {pendingDeleteId && (
+                <div
+                  className="absolute inset-0 z-[35] flex items-center justify-center bg-black/50 p-3 backdrop-blur-[3px]"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="atlas-delete-conv-title"
+                  onClick={() => setPendingDeleteId(null)}
+                >
+                  <div
+                    className="w-full max-w-[240px] space-y-3 rounded-lg border border-white/15 bg-[#252536]/98 p-3 shadow-xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3
+                      id="atlas-delete-conv-title"
+                      className="text-[11px] font-semibold text-white"
+                    >
+                      Delete conversation?
+                    </h3>
+                    <p className="text-[9px] leading-snug text-white/55">
+                      &quot;
+                      {historyList
+                        .find((x) => x.id === pendingDeleteId)
+                        ?.title?.trim() || "Untitled"}
+                      &quot; will be removed. This can&apos;t be undone.
+                    </p>
+                    <div className="flex justify-end gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        disabled={deletingHistoryId === pendingDeleteId}
+                        onClick={() => setPendingDeleteId(null)}
+                        className="rounded-md border border-white/20 px-2.5 py-1 text-[9px] text-white/85 hover:bg-white/10 disabled:opacity-40"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deletingHistoryId === pendingDeleteId}
+                        onClick={() => {
+                          const id = pendingDeleteId;
+                          setPendingDeleteId(null);
+                          if (id) void runDeleteConversation(id);
+                        }}
+                        className="rounded-md bg-red-600/90 px-2.5 py-1 text-[9px] text-white hover:bg-red-600 disabled:opacity-40"
+                      >
+                        {deletingHistoryId === pendingDeleteId
+                          ? "Deleting…"
+                          : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`origin-bottom-right flex flex-col shadow-md ${
+            isExpanded
+              ? "h-screen w-[360px] flex-shrink-0 rounded-none border-l border-white/10"
+              : "h-[393px] w-[280px] flex-shrink-0 rounded-md py-2"
+          }`}
+          style={{
+            background: "linear-gradient(to bottom, #5A5C99, #232323)",
+            overflow: "hidden",
+          }}
+        >
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-transparent">
           {messages.length === 0 && (
             <div
               className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-3"
@@ -1674,7 +2134,7 @@ export default function SafeGISAIChat({
 
           {/* Messages */}
           <div
-            className={`flex-1 p-2 overflow-y-auto space-y-1.5 relative custom-scrollbar bg-transparent ${
+            className={`custom-scrollbar flex-1 space-y-1.5 overflow-y-auto bg-transparent p-2 ${
               isExpanded ? "pb-[120px]" : "pb-[120px]"
             }`}
           >
@@ -1757,7 +2217,12 @@ export default function SafeGISAIChat({
                 >
                   <MessageCirclePlus size={14} />
                 </button>
-                <button className="text-white hover:text-gray-200 h-[22px] w-[22px] flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => void openHistoryPanel()}
+                  className="text-white hover:text-gray-200 h-[22px] w-[22px] flex items-center justify-center"
+                  title="Conversation history"
+                >
                   <History size={14} />
                 </button>
                 <button
@@ -1940,6 +2405,7 @@ export default function SafeGISAIChat({
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Chat Button when Open - Hide when expanded */}

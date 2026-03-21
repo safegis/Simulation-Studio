@@ -873,7 +873,9 @@ export async function sendToLangGraph(
     layerName: string;
     sourceType?: string;
   }> = [],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  /** Supabase thread UUID — Atlas scopes vector memory to this conversation only */
+  conversationId?: string | null
 ): Promise<LangGraphResponse> {
   const endpoint = process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
     "/generate",
@@ -896,6 +898,7 @@ export async function sendToLangGraph(
       web_search_enabled: webSearchEnabled,
       uploaded_files: uploadedFiles,
       spatial_context: spatialContext,
+      ...(conversationId ? { conversation_id: conversationId } : {}),
     }),
     signal,
   });

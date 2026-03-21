@@ -28,6 +28,16 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+### Atlas chat history (Supabase via Simulation Studio backend)
+
+Conversations are stored in **Supabase Postgres** (table `studio_atlas_conversations`). The **Python backend** (`../backend`) exposes `GET`/`POST` `/api/atlas-chat/conversations` and `GET`/`PATCH`/`DELETE` `/api/atlas-chat/conversations/{id}` using the **service role** there — not Next.js.
+
+1. In the Supabase SQL editor, run [`../backend/supabase/studio_atlas_conversations.sql`](../backend/supabase/studio_atlas_conversations.sql) (once).
+2. **`frontend/.env`:** `NEXT_PUBLIC_BACKEND_ENDPOINT` (e.g. `http://localhost:8000`). For signed-in users, also set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (same project as Official Website).
+3. **`backend/.env`:** `SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`), `SUPABASE_ANON_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`), and `SUPABASE_SERVICE_ROLE_KEY` — see `backend/.env.example`.
+
+The browser sends either a Supabase **access token** (`Authorization: Bearer …`) or a **guest UUID** in `x-studio-owner-key` (`localStorage` key `safegis_studio_atlas_owner_key`).
+
 ### Other package managers
 
 ```bash
