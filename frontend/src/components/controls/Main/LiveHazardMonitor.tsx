@@ -6,9 +6,10 @@ import {
   ArrowDownAZ,
   ArrowDownZA,
 } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { earthquakeData } from "./EarthquakeDataConfig";
+import { tsunamiData } from "./TsunamiDataConfig";
 import { weatherData } from "./WeatherDataConfig";
 
 interface LiveHazardMonitorProps {
@@ -18,9 +19,13 @@ interface LiveHazardMonitorProps {
   onEarthquakeToggle: (enabled: boolean) => void;
   onWeatherToggle: (enabled: boolean) => void;
   onEarthquakeSourcesChange?: (sources: string[]) => void;
+  onTsunamiSourcesChange?: (sources: string[]) => void;
   onWeatherSourcesChange?: (sources: string[]) => void;
   initialSelectedEarthquakes?: string[];
+  initialSelectedTsunamis?: string[];
   initialSelectedWeather?: string[];
+  /** Increment from parent (e.g. Atlas) to auto-expand the Tsunami section */
+  expandTsunamiNonce?: number;
 }
 
 export default function LiveHazardMonitor({
@@ -30,21 +35,30 @@ export default function LiveHazardMonitor({
   onEarthquakeToggle,
   onWeatherToggle,
   onEarthquakeSourcesChange,
+  onTsunamiSourcesChange,
   onWeatherSourcesChange,
   initialSelectedEarthquakes = [],
+  initialSelectedTsunamis = [],
   initialSelectedWeather = [],
+  expandTsunamiNonce = 0,
 }: LiveHazardMonitorProps) {
   const [earthquakeExpanded, setEarthquakeExpanded] = useState(false);
+  const [tsunamiExpanded, setTsunamiExpanded] = useState(false);
   const [weatherExpanded, setWeatherExpanded] = useState(false);
   const [selectedEarthquakes, setSelectedEarthquakes] = useState<string[]>(
     initialSelectedEarthquakes
+  );
+  const [selectedTsunamis, setSelectedTsunamis] = useState<string[]>(
+    initialSelectedTsunamis
   );
   const [selectedWeather, setSelectedWeather] = useState<string[]>(
     initialSelectedWeather
   );
   const [earthquakeSortAsc, setEarthquakeSortAsc] = useState(true);
+  const [tsunamiSortAsc, setTsunamiSortAsc] = useState(true);
   const [weatherSortAsc, setWeatherSortAsc] = useState(true);
   const [earthquakeSearch, setEarthquakeSearch] = useState("");
+  const [tsunamiSearch, setTsunamiSearch] = useState("");
   const [weatherSearch, setWeatherSearch] = useState("");
 
   const sortedEarthquakeData = useMemo(() => {
@@ -62,6 +76,22 @@ export default function LiveHazardMonitor({
         : b.name.localeCompare(a.name)
     );
   }, [earthquakeSortAsc, earthquakeSearch]);
+
+  const sortedTsunamiData = useMemo(() => {
+    const filtered = tsunamiData.filter((item) => {
+      const searchLower = tsunamiSearch.toLowerCase();
+      return (
+        item.name.toLowerCase().includes(searchLower) ||
+        item.scope.toLowerCase().includes(searchLower) ||
+        item.source.toLowerCase().includes(searchLower)
+      );
+    });
+    return filtered.sort((a, b) =>
+      tsunamiSortAsc
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name)
+    );
+  }, [tsunamiSortAsc, tsunamiSearch]);
 
   const sortedWeatherData = useMemo(() => {
     const filtered = weatherData.filter((item) => {
@@ -85,8 +115,20 @@ export default function LiveHazardMonitor({
   }, [initialSelectedEarthquakes]);
 
   useEffect(() => {
+    setSelectedTsunamis(initialSelectedTsunamis);
+  }, [initialSelectedTsunamis]);
+
+  useEffect(() => {
     setSelectedWeather(initialSelectedWeather);
   }, [initialSelectedWeather]);
+
+  const prevExpandTsunamiNonce = useRef(0);
+  useEffect(() => {
+    if (expandTsunamiNonce > prevExpandTsunamiNonce.current) {
+      setTsunamiExpanded(true);
+      prevExpandTsunamiNonce.current = expandTsunamiNonce;
+    }
+  }, [expandTsunamiNonce]);
 
   // Notify parent when earthquake sources change
   useEffect(() => {
@@ -94,6 +136,12 @@ export default function LiveHazardMonitor({
       onEarthquakeSourcesChange(selectedEarthquakes);
     }
   }, [selectedEarthquakes, onEarthquakeSourcesChange]);
+
+  useEffect(() => {
+    if (onTsunamiSourcesChange) {
+      onTsunamiSourcesChange(selectedTsunamis);
+    }
+  }, [selectedTsunamis, onTsunamiSourcesChange]);
 
   // Notify parent when weather sources change
   useEffect(() => {
@@ -201,6 +249,110 @@ export default function LiveHazardMonitor({
                   >
                     <Checkbox
                       checked={selectedEarthquakes.includes(item.name)}
+                      className="pointer-events-none"
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        minWidth: "14px",
+                        minHeight: "14px",
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="text-white text-[10px] font-medium mb-1">
+                        {item.name}
+                      </div>
+                      <div className="text-gray-400 text-[9px] mb-0.5">
+                        Scope: {item.scope}
+                      </div>
+                      <div className="text-gray-400 text-[9px]">
+                        Source: {item.source}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tsunami (PHIVOLCS bulletin table) */}
+        <div className="mb-2">
+          <button
+            onClick={() => setTsunamiExpanded(!tsunamiExpanded)}
+            className="w-full flex items-center justify-between p-2.5 bg-[#3a3a3a] rounded-md hover:bg-[#424242] transition"
+          >
+            <span className="text-[11px] font-medium">Tsunami</span>
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-200 ${
+                tsunamiExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {tsunamiExpanded && (
+            <div className="mb-3 mx-2 space-y-2 border-l border-r border-b border-[#4a4a4a] rounded-b-md p-3">
+              <div className="flex justify-between items-center mb-2">
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={tsunamiSearch}
+                  onChange={(e) => setTsunamiSearch(e.target.value)}
+                  className="w-32 bg-[#3a3a3a] text-white text-[10px] px-2 py-1 rounded outline-none mr-2"
+                />
+                <div className="flex items-center">
+                  <button className="flex items-center gap-1.5 px-1 py-1 bg-transparent transition group">
+                    <ListFilter
+                      size={12}
+                      className="text-gray-400 group-hover:text-white transition"
+                    />
+                    <span className="text-[10px] text-gray-400 group-hover:text-white transition">
+                      Filter
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setTsunamiSortAsc(!tsunamiSortAsc)}
+                    className="flex items-center px-1 py-1 bg-transparent transition group"
+                  >
+                    {tsunamiSortAsc ? (
+                      <ArrowDownAZ
+                        size={14}
+                        className="text-gray-400 group-hover:text-white transition"
+                      />
+                    ) : (
+                      <ArrowDownZA
+                        size={14}
+                        className="text-gray-400 group-hover:text-white transition"
+                      />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div
+                className="space-y-2 max-h-[300px] overflow-y-auto pr-2"
+                style={{
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#706f6f transparent",
+                }}
+              >
+                {sortedTsunamiData.map((item, index) => (
+                  <div
+                    key={index}
+                    onClick={() => {
+                      setSelectedTsunamis((prev) =>
+                        prev.includes(item.name)
+                          ? prev.filter((name) => name !== item.name)
+                          : [...prev, item.name]
+                      );
+                    }}
+                    className={`p-3 rounded-md cursor-pointer transition flex items-center gap-3 ${
+                      selectedTsunamis.includes(item.name)
+                        ? "bg-[#3d3e69] border-2 border-[#9699FF]"
+                        : "bg-[#2a2a2a] hover:bg-[#353535]"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={selectedTsunamis.includes(item.name)}
                       className="pointer-events-none"
                       style={{
                         width: "14px",

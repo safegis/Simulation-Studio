@@ -15,6 +15,7 @@ import {
   clearFloodHazard as clearFloodHazardHelper,
 } from "./Markers/Hazard Map/FloodHazardMarker";
 import { drawEarthquakeDots as drawEarthquakeDotsHelper } from "./Markers/Hazard Map/EarthquakeMarker";
+import { drawTsunamiDots as drawTsunamiDotsHelper } from "./Markers/Hazard Map/TsunamiMarker";
 import { drawActiveFaults as drawActiveFaultsHelper } from "./Markers/Hazard Map/ActiveFaultsMarker";
 import { drawRoadClosures as drawRoadClosuresHelper } from "./Markers/Hazard Map/RoadClosureMarker";
 import { drawLaneClosures as drawLaneClosuresHelper } from "./Markers/Hazard Map/LaneClosureMarker";
@@ -91,6 +92,8 @@ export type MapUndoSnapshot = {
   affectedAreas: GeoJSON.FeatureCollection | null;
   volcanoes: any[];
   earthquakes: any[];
+  /** PHIVOLCS tsunami bulletin epicenters (live hazard monitor). */
+  tsunamis: any[];
   activeFaults: GeoJSON.FeatureCollection | null;
   floodHazards: Array<{
     geojsonUrl: string;
@@ -134,6 +137,7 @@ const MapComponent = forwardRef(function MapComponent(
   const latestRoutesGeoJSON = useRef<GeoJSON.FeatureCollection | null>(null);
   const latestVolcanoes = useRef<any[]>([]);
   const latestEarthquakes = useRef<any[]>([]);
+  const latestTsunamis = useRef<any[]>([]);
   const latestActiveFaults = useRef<GeoJSON.FeatureCollection | null>(null);
   const latestFloodHazards = useRef<
     Array<{ geojsonUrl: string; returnPeriod: string; provinceName: string }>
@@ -647,6 +651,7 @@ const MapComponent = forwardRef(function MapComponent(
         latestRoutesGeoJSON,
         latestVolcanoes,
         latestEarthquakes,
+        latestTsunamis,
         latestActiveFaults,
         latestFloodHazards,
         selectedFeatureIndexRef,
@@ -664,6 +669,7 @@ const MapComponent = forwardRef(function MapComponent(
         latestRoutesGeoJSON,
         latestVolcanoes,
         latestEarthquakes,
+        latestTsunamis,
         latestActiveFaults,
         latestFloodHazards,
         selectedFeatureIndexRef,
@@ -725,6 +731,13 @@ const MapComponent = forwardRef(function MapComponent(
             latestEarthquakes,
             latestEarthquakes.current
           );
+        if (latestTsunamis.current.length > 0)
+          drawTsunamiDotsHelper(
+            mapInstance.current,
+            mapIsLoaded.current,
+            latestTsunamis,
+            latestTsunamis.current
+          );
         if (latestActiveFaults.current)
           drawActiveFaultsHelper(
             mapInstance.current,
@@ -777,6 +790,15 @@ const MapComponent = forwardRef(function MapComponent(
         mapInstance.current,
         mapIsLoaded.current,
         latestEarthquakes,
+        features
+      );
+    },
+
+    drawTsunamiDots: (features: any[]) => {
+      drawTsunamiDotsHelper(
+        mapInstance.current,
+        mapIsLoaded.current,
+        latestTsunamis,
         features
       );
     },
@@ -1749,6 +1771,7 @@ const MapComponent = forwardRef(function MapComponent(
           : null,
         volcanoes: JSON.parse(JSON.stringify(latestVolcanoes.current)),
         earthquakes: JSON.parse(JSON.stringify(latestEarthquakes.current)),
+        tsunamis: JSON.parse(JSON.stringify(latestTsunamis.current)),
         activeFaults: latestActiveFaults.current
           ? JSON.parse(JSON.stringify(latestActiveFaults.current))
           : null,
@@ -1856,6 +1879,9 @@ const MapComponent = forwardRef(function MapComponent(
         : null;
       latestVolcanoes.current = JSON.parse(JSON.stringify(snap.volcanoes));
       latestEarthquakes.current = JSON.parse(JSON.stringify(snap.earthquakes));
+      latestTsunamis.current = JSON.parse(
+        JSON.stringify(snap.tsunamis ?? [])
+      );
       latestActiveFaults.current = snap.activeFaults
         ? JSON.parse(JSON.stringify(snap.activeFaults))
         : null;
@@ -1909,6 +1935,14 @@ const MapComponent = forwardRef(function MapComponent(
           mapIsLoaded.current,
           latestEarthquakes,
           latestEarthquakes.current
+        );
+      }
+      if (latestTsunamis.current.length > 0) {
+        drawTsunamiDotsHelper(
+          mapInstance.current,
+          mapIsLoaded.current,
+          latestTsunamis,
+          latestTsunamis.current
         );
       }
       if (latestActiveFaults.current) {

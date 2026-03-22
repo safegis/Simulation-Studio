@@ -52,10 +52,13 @@ type Props = {
     openLiveHazardMonitor: () => void;
     expandEarthquakeSection: () => void;
     expandWeatherSection: () => void;
+    expandTsunamiSection?: () => void;
     selectEarthquakeSource: (sourceName: string) => void;
     selectWeatherSource: (sourceName: string) => void;
+    selectTsunamiSource?: (sourceName: string) => void;
     getSelectedEarthquakeSources: () => string[];
     getSelectedWeatherSources: () => string[];
+    getSelectedTsunamiSources?: () => string[];
   };
   // Exposure Assessment control callbacks
   exposureAssessmentCallbacks?: {
@@ -1466,6 +1469,11 @@ export default function SafeGISAIChat({
           ...prev,
           "Configuring weather monitoring...",
         ]);
+      } else if (response.response.tool === "control_tsunami_data") {
+        setOperationSteps((prev) => [
+          ...prev,
+          "Showing PHIVOLCS tsunami bulletin on the map...",
+        ]);
       } else if (response.response.tool === "map_undo") {
         setOperationSteps((prev) => [...prev, "Undoing last map change..."]);
       } else if (response.response.tool === "map_redo") {
@@ -1664,6 +1672,24 @@ export default function SafeGISAIChat({
                   liveHazardMonitorCallbacks.getSelectedEarthquakeSources();
                 if (currentSources.includes(sourceName)) {
                   liveHazardMonitorCallbacks.selectEarthquakeSource(sourceName);
+                }
+              }
+            }
+          },
+          controlTsunami: (action: "enable" | "disable") => {
+            const TSUNAMI_SOURCE = "PHIVOLCS Tsunami Information";
+            if (liveHazardMonitorCallbacks?.selectTsunamiSource) {
+              liveHazardMonitorCallbacks.openLiveHazardMonitor();
+              liveHazardMonitorCallbacks.expandTsunamiSection?.();
+
+              if (action === "enable") {
+                liveHazardMonitorCallbacks.selectTsunamiSource(TSUNAMI_SOURCE);
+              } else {
+                const current =
+                  liveHazardMonitorCallbacks.getSelectedTsunamiSources?.() ??
+                  [];
+                if (current.includes(TSUNAMI_SOURCE)) {
+                  liveHazardMonitorCallbacks.selectTsunamiSource(TSUNAMI_SOURCE);
                 }
               }
             }

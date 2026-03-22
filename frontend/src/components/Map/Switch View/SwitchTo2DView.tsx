@@ -5,6 +5,7 @@ import mapboxgl from "mapbox-gl";
 import { drawRoutes as drawRoutesHelper } from "../Markers/Pathfinder/RouteLines";
 import { drawVolcanoDots as drawVolcanoDotsHelper } from "../Markers/Hazard Map/VolcanoListMarker";
 import { drawEarthquakeDots as drawEarthquakeDotsHelper } from "../Markers/Hazard Map/EarthquakeMarker";
+import { drawTsunamiDots as drawTsunamiDotsHelper } from "../Markers/Hazard Map/TsunamiMarker";
 import { drawActiveFaults as drawActiveFaultsHelper } from "../Markers/Hazard Map/ActiveFaultsMarker";
 import { drawFloodHazard as drawFloodHazardHelper } from "../Markers/Hazard Map/FloodHazardMarker";
 
@@ -16,6 +17,7 @@ export const switchTo2D = (
   latestRoutesGeoJSON: React.RefObject<GeoJSON.FeatureCollection | null>,
   latestVolcanoes: React.RefObject<any[]>,
   latestEarthquakes: React.RefObject<any[]>,
+  latestTsunamis: React.RefObject<any[]>,
   latestActiveFaults: React.RefObject<GeoJSON.FeatureCollection | null>,
   latestFloodHazards: React.RefObject<
     Array<{ geojsonUrl: string; returnPeriod: string; provinceName: string }>
@@ -86,6 +88,14 @@ export const switchTo2D = (
         mapIsLoaded.current,
         latestEarthquakes,
         latestEarthquakes.current
+      );
+
+    if (latestTsunamis.current.length > 0)
+      drawTsunamiDotsHelper(
+        mapInstance.current,
+        mapIsLoaded.current,
+        latestTsunamis,
+        latestTsunamis.current
       );
 
     if (latestActiveFaults.current)

@@ -9,7 +9,7 @@ import httpx
 from fastapi import Query, Response
 from dotenv import load_dotenv
 from datetime import datetime
-from .HazardScraper import get_latest_data
+from .HazardScraper import get_latest_data, get_latest_tsunami_data
 
 # Load environment variables (.env in project root or cwd)
 load_dotenv()
@@ -288,6 +288,14 @@ def get_latest_earthquakes():
     return {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "earthquakes": get_latest_data()
+    }
+
+
+def get_latest_tsunami():
+    """PHIVOLCS tsunami information table (scraped, past 60 days PHST)."""
+    return {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "events": get_latest_tsunami_data(),
     }
 
 async def get_weather_data(latitude: float, longitude: float, location: str):

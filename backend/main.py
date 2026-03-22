@@ -61,6 +61,13 @@ async def root():
 def get_latest_earthquakes():
     return MapHazardAPIs.get_latest_earthquakes()
 
+
+@app.get("/tsunami/latest")
+def tsunami_latest():
+    """PHIVOLCS tsunami.phivolcs.dost.gov.ph table (scraped, past 60 days)."""
+    return MapHazardAPIs.get_latest_tsunami()
+
+
 @app.get("/hazards/earthquakes")
 async def get_earthquakes(feed: str = "all_day"):
     return await MapHazardAPIs.get_earthquakes(feed)

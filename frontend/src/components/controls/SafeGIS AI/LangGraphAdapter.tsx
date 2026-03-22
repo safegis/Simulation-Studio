@@ -112,6 +112,9 @@ export interface MapCallbacks {
     province?: string
   ) => void;
 
+  /** PHIVOLCS tsunami bulletin layer (Live Hazard Monitor) */
+  controlTsunami?: (action: "enable" | "disable") => void;
+
   // Open Live Hazard Monitor panel
   openLiveHazardMonitor?: () => void;
 
@@ -451,6 +454,23 @@ export async function processLangGraphResponse(
                 `✅ **${
                   data.action === "enable" ? "Enabled" : "Disabled"
                 } ${sourceName} earthquake data**\n\nEarthquake monitoring has been updated.`
+              );
+            }
+          }
+          break;
+
+        case "control_tsunami_data":
+          if (data.action && callbacks.controlTsunami) {
+            callbacks.controlTsunami(data.action as "enable" | "disable");
+            if (data.action === "enable") {
+              addMessage(
+                "assistant",
+                `✅ **Showing PHIVOLCS tsunami bulletin on the map**\n\nThe Live Hazard Monitor opens (or stays open) with the tsunami layer turned on.`
+              );
+            } else {
+              addMessage(
+                "assistant",
+                `✅ **Hiding PHIVOLCS tsunami bulletin**\n\nTsunami markers are turned off on the map.`
               );
             }
           }

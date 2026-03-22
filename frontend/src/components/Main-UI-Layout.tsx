@@ -64,6 +64,8 @@ type UiUndoSnapshot = {
   liveEarthquakeEnabled: boolean;
   liveWeatherEnabled: boolean;
   selectedEarthquakeSources: string[];
+  /** Live hazard tsunami sources (optional for older undo payloads). */
+  selectedTsunamiSources?: string[];
   selectedWeatherSources: string[];
   showToolPanel: boolean;
   selectedMaps: string[];
@@ -207,9 +209,15 @@ export default function MainUILayout() {
   const [selectedEarthquakeSources, setSelectedEarthquakeSources] = useState<
     string[]
   >([]);
+  const [selectedTsunamiSources, setSelectedTsunamiSources] = useState<
+    string[]
+  >([]);
   const [selectedWeatherSources, setSelectedWeatherSources] = useState<
     string[]
   >([]);
+  /** Bumped when Atlas asks to expand the Tsunami section in Live Hazard Monitor */
+  const [liveHazardExpandTsunamiNonce, setLiveHazardExpandTsunamiNonce] =
+    useState(0);
   const [showToolPanel, setShowToolPanel] = useState(false);
   const [selectedMaps, setSelectedMaps] = useState<string[]>([]);
   const [showAffectedAreas, setShowAffectedAreas] = useState(false);
@@ -367,6 +375,7 @@ export default function MainUILayout() {
     liveEarthquakeEnabled,
     liveWeatherEnabled,
     selectedEarthquakeSources: [...selectedEarthquakeSources],
+    selectedTsunamiSources: [...selectedTsunamiSources],
     selectedWeatherSources: [...selectedWeatherSources],
     showToolPanel,
     selectedMaps: [...selectedMaps],
@@ -1439,6 +1448,7 @@ export default function MainUILayout() {
         setLiveEarthquakeEnabled(ui.liveEarthquakeEnabled);
         setLiveWeatherEnabled(ui.liveWeatherEnabled);
         setSelectedEarthquakeSources(ui.selectedEarthquakeSources ?? []);
+        setSelectedTsunamiSources(ui.selectedTsunamiSources ?? []);
         setSelectedWeatherSources(ui.selectedWeatherSources ?? []);
         setShowToolPanel(shell.showToolPanel);
         setSelectedMaps(ui.selectedMaps ?? []);
@@ -1631,6 +1641,7 @@ export default function MainUILayout() {
     liveEarthquakeEnabled,
     liveWeatherEnabled,
     selectedEarthquakeSources,
+    selectedTsunamiSources,
     selectedWeatherSources,
     searchText,
     highlightedIndex,
@@ -1717,6 +1728,7 @@ export default function MainUILayout() {
 
     // Clear hazard / traffic visuals (disable* below also clears + stops polling).
     mapRef.current?.drawEarthquakeDots?.([]);
+    mapRef.current?.drawTsunamiDots?.([]);
     mapRef.current?.drawVolcanoDots?.([]);
     mapRef.current?.drawActiveFaults?.(null);
     if (mapRef.current?.drawCongestion) {
@@ -1760,6 +1772,7 @@ export default function MainUILayout() {
       setLiveEarthquakeEnabled(false);
       setLiveWeatherEnabled(false);
       setSelectedEarthquakeSources([]);
+      setSelectedTsunamiSources([]);
       setSelectedWeatherSources([]);
       setSelectedMaps([]);
       setShowAffectedAreas(false);
@@ -1948,6 +1961,48 @@ export default function MainUILayout() {
     };
   }, [selectedEarthquakeSources]);
 
+  const liveTsunamiIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const fetchAndDisplayTsunami = async () => {
+      if (selectedTsunamiSources.length === 0) {
+        mapRef.current?.drawTsunamiDots?.([]);
+        return;
+      }
+
+      const { fetchMultipleTsunamiSources } = await import(
+        "./controls/Main/TsunamiDataConfig"
+      );
+
+      const features = await fetchMultipleTsunamiSources(
+        selectedTsunamiSources
+      );
+
+      console.log(`Drawing ${features.length} tsunami bulletin markers`);
+      if (features.length > 0) {
+        mapRef.current?.drawTsunamiDots?.(features);
+      } else {
+        mapRef.current?.drawTsunamiDots?.([]);
+      }
+    };
+
+    void fetchAndDisplayTsunami();
+
+    if (selectedTsunamiSources.length > 0) {
+      liveTsunamiIntervalRef.current = setInterval(
+        fetchAndDisplayTsunami,
+        60000
+      );
+    }
+
+    return () => {
+      if (liveTsunamiIntervalRef.current) {
+        clearInterval(liveTsunamiIntervalRef.current);
+        liveTsunamiIntervalRef.current = null;
+      }
+    };
+  }, [selectedTsunamiSources]);
+
   // Handle weather data fetching based on selected sources
   const liveWeatherIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -2123,9 +2178,12 @@ export default function MainUILayout() {
                 onEarthquakeToggle={setLiveEarthquakeEnabled}
                 onWeatherToggle={setLiveWeatherEnabled}
                 onEarthquakeSourcesChange={setSelectedEarthquakeSources}
+                onTsunamiSourcesChange={setSelectedTsunamiSources}
                 onWeatherSourcesChange={setSelectedWeatherSources}
                 initialSelectedEarthquakes={selectedEarthquakeSources}
+                initialSelectedTsunamis={selectedTsunamiSources}
                 initialSelectedWeather={selectedWeatherSources}
+                expandTsunamiNonce={liveHazardExpandTsunamiNonce}
               />
             </div>
           )}
@@ -2304,6 +2362,9 @@ export default function MainUILayout() {
               expandWeatherSection: () => {
                 // Weather section is expanded by default when Live Hazard Monitor opens
               },
+              expandTsunamiSection: () => {
+                setLiveHazardExpandTsunamiNonce((n) => n + 1);
+              },
               selectEarthquakeSource: (sourceName: string) => {
                 setSelectedEarthquakeSources((prev) =>
                   prev.includes(sourceName)
@@ -2318,8 +2379,16 @@ export default function MainUILayout() {
                     : [...prev, sourceName]
                 );
               },
+              selectTsunamiSource: (sourceName: string) => {
+                setSelectedTsunamiSources((prev) =>
+                  prev.includes(sourceName)
+                    ? prev.filter((name) => name !== sourceName)
+                    : [...prev, sourceName]
+                );
+              },
               getSelectedEarthquakeSources: () => selectedEarthquakeSources,
               getSelectedWeatherSources: () => selectedWeatherSources,
+              getSelectedTsunamiSources: () => selectedTsunamiSources,
             }}
             exposureAssessmentCallbacks={{
               openExposureAssessment: () => {
