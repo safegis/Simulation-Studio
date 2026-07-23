@@ -2739,7 +2739,11 @@ export default function MainUILayout() {
                 };
                 setTimeout(() => pollRef(), 100);
               },
-              findEvacuationFromStart: async (start: string, mode: string) => {
+              findEvacuationFromStart: async (
+                start: string,
+                mode: string,
+                radiusKm?: number
+              ) => {
                 setShowPathfinder(true);
                 setShowToolPanel(true);
                 setShowSelectMaps(false);
@@ -2749,6 +2753,9 @@ export default function MainUILayout() {
                   if (pathfinderRef.current) {
                     try {
                       pathfinderRef.current.setPathfinderTab("evacuation");
+                      if (radiusKm != null) {
+                        pathfinderRef.current.setEvacuationRadiusKm?.(radiusKm);
+                      }
                       const startRes = await fetch(
                         `http://localhost:8000/geocode/search?query=${encodeURIComponent(
                           start

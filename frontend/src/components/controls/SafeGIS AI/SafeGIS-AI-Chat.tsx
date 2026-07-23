@@ -107,7 +107,11 @@ type Props = {
       destination: string,
       mode: string
     ) => Promise<void>;
-    findEvacuationFromStart?: (start: string, mode: string) => Promise<void>;
+    findEvacuationFromStart?: (
+      start: string,
+      mode: string,
+      radiusKm?: number
+    ) => Promise<void>;
     listPathfinderSheltersInChat?: () => { text: string };
     selectPathfinderShelterByName?: (
       name: string
@@ -1841,9 +1845,17 @@ export default function SafeGISAIChat({
               await pathfinderCallbacks.findRoute(start, destination, mode);
             }
           },
-          findEvacuationFromStart: async (start: string, mode: string) => {
+          findEvacuationFromStart: async (
+            start: string,
+            mode: string,
+            radiusKm?: number
+          ) => {
             if (pathfinderCallbacks?.findEvacuationFromStart) {
-              await pathfinderCallbacks.findEvacuationFromStart(start, mode);
+              await pathfinderCallbacks.findEvacuationFromStart(
+                start,
+                mode,
+                radiusKm
+              );
             }
           },
           listPathfinderSheltersInChat: () => {
@@ -1969,7 +1981,9 @@ export default function SafeGISAIChat({
         {showHistoryPanel && (
           <div
             className={`flex min-h-0 flex-shrink-0 flex-col overflow-hidden rounded-md border border-white/10 bg-white/5 shadow-lg backdrop-blur-xl ${
-              isExpanded ? "my-3 w-[236px]" : "w-[200px]"
+              isExpanded
+                ? "my-3 h-[calc(100vh-1.5rem)] max-h-[calc(100vh-1.5rem)] w-[236px]"
+                : "h-[393px] max-h-[393px] w-[200px]"
             }`}
           >
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-2 py-1.5">

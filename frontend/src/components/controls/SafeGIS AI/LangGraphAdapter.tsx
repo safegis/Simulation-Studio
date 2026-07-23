@@ -59,6 +59,10 @@ export interface LangGraphResponse {
     destination?: string;
     place_name?: string;
     sort_by?: string;
+    pathfinder_tab?: string;
+    /** Evacuation / Find Shelter/s search radius (km), e.g. 2 or "2km" */
+    radius?: number | string;
+    radius_km?: number | string;
     // Spatial data agent (Atlas + Import / connect)
     url?: string;
     method?: string;
@@ -150,7 +154,11 @@ export interface MapCallbacks {
     mode: string
   ) => Promise<void>;
   /** Shelter / evacuation tab: start only; OSM shelters load in UI */
-  findEvacuationFromStart?: (start: string, mode: string) => Promise<void>;
+  findEvacuationFromStart?: (
+    start: string,
+    mode: string,
+    radiusKm?: number
+  ) => Promise<void>;
   /** Read Pathfinder evacuation dropdown and return markdown for chat */
   listPathfinderSheltersInChat?: () => { text: string };
   /** Select loaded OSM evacuation row by name (Pathfinder Find Shelter/s) */
@@ -200,6 +208,20 @@ const STYLE_MAP: Record<string, string> = {
   navigation_day: "Navigation Day (Mapbox)",
   navigation_night: "Navigation Night (Mapbox)",
 };
+
+/** Parse Atlas radius fields like "2km", "2 km", 2, "radius_km": 2 → km number. */
+function parseRadiusKm(raw: unknown): number | undefined {
+  if (raw == null || raw === "") return undefined;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  const s = String(raw).trim().toLowerCase().replace(/,/g, "");
+  const m = s.match(/^([\d.]+)\s*(km|kilometers?|m|meters?)?$/);
+  if (!m) return undefined;
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return undefined;
+  const unit = m[2] || "km";
+  if (unit.startsWith("m") && !unit.startsWith("km")) return n / 1000;
+  return n;
+}
 
 /**
  * Process LangGraph response and execute frontend actions
@@ -550,9 +572,11 @@ export async function processLangGraphResponse(
             data.start &&
             callbacks.findEvacuationFromStart
           ) {
+            const radiusKm = parseRadiusKm(data.radius ?? data.radius_km);
             await callbacks.findEvacuationFromStart(
               data.start,
-              data.mode || "all"
+              data.mode || "all",
+              radiusKm
             );
             if (data.text) {
               addMessage("assistant", data.text);

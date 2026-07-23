@@ -141,6 +141,8 @@ export interface PathfinderControlsRef {
   };
   setMode: (mode: string) => void;
   setSort: (sort: string) => void;
+  /** Evacuation / Find Shelter/s search radius in km (clamped to slider range). */
+  setEvacuationRadiusKm: (radiusKm: number) => void;
   /** Same as in-panel “Clear Routes”: map polylines, markers, pathfinder trip state. */
   clearDisplayedRoutesFromMap: () => void;
   /** Clear inputs, routes, and polling (parent clears map routes/markers). */
@@ -391,6 +393,13 @@ const PathfinderControls = forwardRef<
         best_balance: "Best balance",
       };
       applySelectedSort(sortMap[sort] || "Best balance");
+    },
+    setEvacuationRadiusKm: (radiusKm: number) => {
+      if (!Number.isFinite(radiusKm)) return;
+      // Match slider: 0.5–30 km, 0.5 steps
+      const clamped = Math.min(30, Math.max(0.5, radiusKm));
+      const stepped = Math.round(clamped * 2) / 2;
+      setEvacRadiusKm(stepped);
     },
     clearDisplayedRoutesFromMap: () => {
       clearDisplayedRoutesFromMap();
