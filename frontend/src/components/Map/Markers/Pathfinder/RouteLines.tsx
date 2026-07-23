@@ -74,6 +74,8 @@ export const drawRoutes = (
       data: { type: "FeatureCollection", features: [feature] },
     });
 
+    // Dark casing keeps the route legible on satellite / lit Standard styles.
+    // line-emissive-strength: 1 stops night/dusk lightPreset from washing the color out.
     map.addLayer(
       {
         id: `${id}-outline`,
@@ -81,9 +83,10 @@ export const drawRoutes = (
         source: id,
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#9699FF",
-          "line-width": 10,
-          "line-opacity": 0.9,
+          "line-color": "#0B1020",
+          "line-width": 12,
+          "line-opacity": 0.95,
+          "line-emissive-strength": 1,
         },
       },
       beforeId
@@ -96,9 +99,10 @@ export const drawRoutes = (
         source: id,
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": isSelected ? "#9699FF" : "#ffffff",
-          "line-width": 6,
-          "line-opacity": 0.85,
+          "line-color": isSelected ? "#B8BAFF" : "#FFFFFF",
+          "line-width": isSelected ? 7 : 6,
+          "line-opacity": 1,
+          "line-emissive-strength": 1,
         },
       },
       beforeId
@@ -135,8 +139,17 @@ export const highlightRouteByFeatureIndex = (
         map.setPaintProperty(
           layerId,
           "line-color",
-          idx === featureIndex ? "#9699FF" : "#ffffff"
+          idx === featureIndex ? "#B8BAFF" : "#FFFFFF"
         );
+        try {
+          map.setPaintProperty(
+            layerId,
+            "line-width",
+            idx === featureIndex ? 7 : 6
+          );
+        } catch {
+          // older styles may lack width updates mid-flight
+        }
       } catch {
         // ignore missing layers / race conditions
       }
@@ -277,6 +290,7 @@ export const drawIncidentSegments = (
           "line-color": color,
           "line-width": 10,
           "line-opacity": 0.9,
+          "line-emissive-strength": 1,
         },
       });
 
@@ -290,6 +304,7 @@ export const drawIncidentSegments = (
           "line-color": "#FFFFFF",
           "line-width": 4,
           "line-opacity": 1,
+          "line-emissive-strength": 1,
         },
       });
 
