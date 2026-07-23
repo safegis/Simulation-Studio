@@ -36,7 +36,8 @@ export const switchTo3D = (
     map: mapboxgl.Map,
     geojson: GeoJSON.FeatureCollection,
     getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined
-  ) => void // NEW
+  ) => void, // NEW
+  onAfterStyleLoad?: () => void
 ) => {
   const map = mapInstance.current;
   if (!map || is3DMode.current) return;
@@ -121,6 +122,8 @@ export const switchTo3D = (
           getTopSymbolLayerId
         );
       }
+
+      onAfterStyleLoad?.();
     };
 
     // MainCanvas boots with this style already — skip setStyle to avoid a visible flash/reload.

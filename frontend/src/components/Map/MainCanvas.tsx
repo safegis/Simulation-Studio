@@ -143,6 +143,20 @@ const MapComponent = forwardRef(function MapComponent(
     Array<{ geojsonUrl: string; returnPeriod: string; provinceName: string }>
   >([]);
   const latestAffectedAreas = useRef<GeoJSON.FeatureCollection | null>(null);
+  const latestCongestion = useRef<GeoJSON.FeatureCollection | null>(null);
+  const latestRoadClosures = useRef<GeoJSON.FeatureCollection | null>(null);
+  const latestLaneClosures = useRef<GeoJSON.FeatureCollection | null>(null);
+  const latestObstructions = useRef<GeoJSON.FeatureCollection | null>(null);
+  const latestIncidentSegments = useRef<Array<{
+    featureIndex: number;
+    trafficData?: {
+      incidents: Array<{
+        geometry: any;
+        severity: number;
+        category_name: string;
+      }>;
+    };
+  }> | null>(null);
 
   const healthPopupRef = useRef<mapboxgl.Popup | null>(null);
   const boundaryClickHandlerRef = useRef<
@@ -305,6 +319,54 @@ const MapComponent = forwardRef(function MapComponent(
       }
     }
     return undefined;
+  };
+
+  /** Re-draw TomTom / pathfinder incident overlays wiped by map.setStyle(). */
+  const restoreTrafficIncidentsAfterStyleLoad = () => {
+    const map = mapInstance.current;
+    if (!map || !mapIsLoaded.current) return;
+
+    if (latestCongestion.current) {
+      drawCongestionHelper(
+        map,
+        mapIsLoaded.current,
+        latestCongestion.current,
+        getTopSymbolLayerId
+      );
+    }
+    if (latestRoadClosures.current) {
+      drawRoadClosuresHelper(
+        map,
+        mapIsLoaded.current,
+        roadClosureMarkersRef,
+        latestRoadClosures.current,
+        getTopSymbolLayerId
+      );
+    }
+    if (latestLaneClosures.current) {
+      drawLaneClosuresHelper(
+        map,
+        mapIsLoaded.current,
+        laneClosureMarkersRef,
+        latestLaneClosures.current,
+        getTopSymbolLayerId
+      );
+    }
+    if (latestObstructions.current) {
+      drawRoadObstructionsHelper(
+        map,
+        mapIsLoaded.current,
+        latestObstructions.current
+      );
+    }
+    if (latestIncidentSegments.current?.length) {
+      drawIncidentSegmentsHelper(
+        map,
+        mapIsLoaded,
+        latestIncidentSegments.current,
+        getTopSymbolLayerId
+      );
+    }
   };
 
   const drawAffectedAreasHelper = (
@@ -657,7 +719,8 @@ const MapComponent = forwardRef(function MapComponent(
         selectedFeatureIndexRef,
         getTopSymbolLayerId,
         latestAffectedAreas, // NEW: Pass affected areas ref
-        drawAffectedAreasHelper // NEW: Pass helper function
+        drawAffectedAreasHelper, // NEW: Pass helper function
+        restoreTrafficIncidentsAfterStyleLoad
       ),
 
     switchTo3D: (label: string) =>
@@ -676,7 +739,8 @@ const MapComponent = forwardRef(function MapComponent(
         getTopSymbolLayerId,
         addTerrainOnly,
         latestAffectedAreas, // NEW: Pass affected areas ref
-        drawAffectedAreasHelper // NEW: Pass helper function
+        drawAffectedAreasHelper, // NEW: Pass helper function
+        restoreTrafficIncidentsAfterStyleLoad
       ),
 
     setLightPreset: (preset: "dawn" | "day" | "dusk" | "night") => {
@@ -756,6 +820,7 @@ const MapComponent = forwardRef(function MapComponent(
             );
           });
         }
+        restoreTrafficIncidentsAfterStyleLoad();
       });
     },
     drawRoutes: (geojson: GeoJSON.FeatureCollection) => {
@@ -882,6 +947,8 @@ const MapComponent = forwardRef(function MapComponent(
       return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
     },
     drawRoadClosures: (geojson: GeoJSON.FeatureCollection | null) => {
+      latestRoadClosures.current =
+        geojson && geojson.features.length > 0 ? geojson : null;
       drawRoadClosuresHelper(
         mapInstance.current,
         mapIsLoaded.current,
@@ -892,6 +959,8 @@ const MapComponent = forwardRef(function MapComponent(
     },
 
     drawLaneClosures: (geojson: GeoJSON.FeatureCollection | null) => {
+      latestLaneClosures.current =
+        geojson && geojson.features.length > 0 ? geojson : null;
       drawLaneClosuresHelper(
         mapInstance.current,
         mapIsLoaded.current,
@@ -902,6 +971,8 @@ const MapComponent = forwardRef(function MapComponent(
     },
 
     drawCongestion: (geojson: GeoJSON.FeatureCollection | null) => {
+      latestCongestion.current =
+        geojson && geojson.features.length > 0 ? geojson : null;
       drawCongestionHelper(
         mapInstance.current,
         mapIsLoaded.current,
@@ -912,6 +983,8 @@ const MapComponent = forwardRef(function MapComponent(
 
     congestionMarkersRef,
     drawRoadObstructions: (geojson: GeoJSON.FeatureCollection | null) => {
+      latestObstructions.current =
+        geojson && geojson.features.length > 0 ? geojson : null;
       drawRoadObstructionsHelper(
         mapInstance.current,
         mapIsLoaded.current,
@@ -2456,6 +2529,8 @@ const MapComponent = forwardRef(function MapComponent(
         };
       }>
     ) => {
+      latestIncidentSegments.current =
+        routesWithIncidents?.length > 0 ? routesWithIncidents : null;
       drawIncidentSegmentsHelper(
         mapInstance.current,
         mapIsLoaded,
@@ -2465,6 +2540,7 @@ const MapComponent = forwardRef(function MapComponent(
     },
 
     clearIncidentSegments: () => {
+      latestIncidentSegments.current = null;
       clearIncidentSegmentsHelper(mapInstance.current, mapIsLoaded);
     },
   }));

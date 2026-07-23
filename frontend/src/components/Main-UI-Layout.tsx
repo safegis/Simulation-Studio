@@ -2140,34 +2140,40 @@ export default function MainUILayout() {
               setShowLiveHazardMonitor={setShowLiveHazardMonitor}
             />
           )}
-          {/* Location Search Bar or Pathfinder Controls - Hide when expanded */}
-          {!isChatExpanded &&
-            (!showPathfinder ? (
-              <LocationSearchBar
-                searchText={searchText}
-                setSearchText={setSearchText}
-                suggestions={suggestions}
-                setSuggestions={setSuggestions}
-                highlightedIndex={highlightedIndex}
-                handleKeyDown={handleKeyDown}
-                handleSuggestionSelect={handleSuggestionSelect}
-                searchContainerRef={searchContainerRef}
-                inputRef={inputRef}
-                suggestionsRef={suggestionsRef}
-                clearSearch={() => {
-                  // Clear the location marker from the map
-                  mapRef.current?.clearLocationMarker?.();
-                }}
+          {/* Location Search Bar - hide when chat expanded or pathfinder open */}
+          {!isChatExpanded && !showPathfinder && (
+            <LocationSearchBar
+              searchText={searchText}
+              setSearchText={setSearchText}
+              suggestions={suggestions}
+              setSuggestions={setSuggestions}
+              highlightedIndex={highlightedIndex}
+              handleKeyDown={handleKeyDown}
+              handleSuggestionSelect={handleSuggestionSelect}
+              searchContainerRef={searchContainerRef}
+              inputRef={inputRef}
+              suggestionsRef={suggestionsRef}
+              clearSearch={() => {
+                // Clear the location marker from the map
+                mapRef.current?.clearLocationMarker?.();
+              }}
+            />
+          )}
+          {/* Pathfinder must stay mounted while open (even with chat expanded)
+              so Atlas pathfinderCallbacks can use pathfinderRef. */}
+          {showPathfinder && (
+            <div
+              className={`absolute top-[15px] z-50 w-[280px] ${
+                isChatExpanded ? "left-[15px]" : "left-[70px]"
+              }`}
+            >
+              <PathfinderControls
+                ref={pathfinderRef}
+                mapRef={mapRef}
+                onStateChangeForUndo={onPathfinderUndoSchedule}
               />
-            ) : (
-              <div className="absolute top-[15px] left-[70px] z-50 w-[280px]">
-                <PathfinderControls
-                  ref={pathfinderRef}
-                  mapRef={mapRef}
-                  onStateChangeForUndo={onPathfinderUndoSchedule}
-                />
-              </div>
-            ))}
+            </div>
+          )}
           {/* Panels - Hide when expanded */}
           {!isChatExpanded && showLiveHazardMonitor && (
             <div className="absolute left-[70px] top-[70px] w-[280px] z-40">

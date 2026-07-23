@@ -29,7 +29,8 @@ export const switchTo2D = (
     map: mapboxgl.Map,
     geojson: GeoJSON.FeatureCollection,
     getTopSymbolLayerId: (map: mapboxgl.Map) => string | undefined
-  ) => void // NEW parameter
+  ) => void, // NEW parameter
+  onAfterStyleLoad?: () => void
 ) => {
   const map = mapInstance.current;
   if (!map || !mapIsLoaded.current || !is3DMode.current) return;
@@ -126,5 +127,7 @@ export const switchTo2D = (
         getTopSymbolLayerId
       );
     }
+
+    onAfterStyleLoad?.();
   });
 };
