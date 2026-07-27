@@ -85,6 +85,13 @@ type Props = {
     fetchGeoJsonFromUrl: (
       payload: import("./LangGraphAdapter").AtlasFetchUrlPayload
     ) => Promise<{ ok: boolean; error?: string }>;
+    importSpatialFiles: (
+      files: FileList | File[]
+    ) => Promise<{
+      ok: boolean;
+      imported: { name: string; layerName: string }[];
+      errors: string[];
+    }>;
   };
   // Layers Panel control callbacks
   layersPanelCallbacks?: {
@@ -448,9 +455,9 @@ export default function SafeGISAIChat({
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   /** True while POSTing to Atlas /rag/ingest-file (on Send). */
   const [ragUploading, setRagUploading] = useState(false);
-  /** Files queued in the composer; ingested only when user sends. */
+  /** Files queued in the composer; RAG ingested / spatial imported when user sends. */
   const [pendingRagFiles, setPendingRagFiles] = useState<
-    { id: string; file: File }[]
+    { id: string; file: File; kind: "rag" | "spatial" }[]
   >([]);
   const [ragAttachError, setRagAttachError] = useState<string | null>(null);
 
@@ -772,29 +779,63 @@ export default function SafeGISAIChat({
   };
 
   const RAG_MAX_FILE_BYTES = 5_000_000;
+  const SPATIAL_MAX_FILE_BYTES = 50_000_000;
+  const SPATIAL_EXTS = new Set(["geojson", "json", "kml", "shp", "zip"]);
+  const RAG_EXTS = new Set([
+    "pdf",
+    "txt",
+    "md",
+    "markdown",
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "bmp",
+    "tiff",
+    "tif",
+  ]);
+
+  const classifyAttachFile = (file: File): "rag" | "spatial" | null => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (SPATIAL_EXTS.has(ext)) return "spatial";
+    if (RAG_EXTS.has(ext) || file.type.startsWith("image/")) return "rag";
+    return null;
+  };
 
   const handleRagFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
     e.target.value = "";
     if (!picked.length) return;
     setRagAttachError(null);
-    const oversized = picked.find((f) => f.size > RAG_MAX_FILE_BYTES);
-    if (oversized) {
-      setRagAttachError(
-        `File too large (max ${Math.round(RAG_MAX_FILE_BYTES / 1_000_000)} MB): ${oversized.name}`
-      );
-      return;
-    }
-    setPendingRagFiles((prev) => [
-      ...prev,
-      ...picked.map((file) => ({
+
+    const accepted: { id: string; file: File; kind: "rag" | "spatial" }[] = [];
+    for (const file of picked) {
+      const kind = classifyAttachFile(file);
+      if (!kind) {
+        setRagAttachError(
+          `Unsupported file: ${file.name}. Use GeoJSON/JSON/KML/SHP/ZIP for the map, or PDF/text/image for RAG.`
+        );
+        return;
+      }
+      const maxBytes =
+        kind === "spatial" ? SPATIAL_MAX_FILE_BYTES : RAG_MAX_FILE_BYTES;
+      if (file.size > maxBytes) {
+        setRagAttachError(
+          `File too large (max ${Math.round(maxBytes / 1_000_000)} MB): ${file.name}`
+        );
+        return;
+      }
+      accepted.push({
         id:
           typeof crypto !== "undefined" && crypto.randomUUID
             ? crypto.randomUUID()
             : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${file.name}`,
         file,
-      })),
-    ]);
+        kind,
+      });
+    }
+    setPendingRagFiles((prev) => [...prev, ...accepted]);
   };
 
   const removePendingRagFile = (id: string) => {
@@ -1317,11 +1358,75 @@ export default function SafeGISAIChat({
     if (!inputText.trim() && pendingRagFiles.length === 0) return;
 
     const filesSnapshot = [...pendingRagFiles];
+    const spatialSnapshot = filesSnapshot.filter((x) => x.kind === "spatial");
+    const ragSnapshot = filesSnapshot.filter((x) => x.kind === "rag");
     const userTextRaw = inputText.trim();
     const defaultAttachPrompt =
-      "Answer or summarize using the document(s) I attached in this message.";
+      ragSnapshot.length > 0 && spatialSnapshot.length === 0
+        ? "Answer or summarize using the document(s) I attached in this message."
+        : spatialSnapshot.length > 0 && ragSnapshot.length === 0
+          ? "Upload the attached spatial file(s) onto the map."
+          : "Use the attached files: put spatial data on the map and use documents for context.";
 
-    if (filesSnapshot.length > 0) {
+    let importedSpatial: { name: string; layerName: string }[] = [];
+
+    if (spatialSnapshot.length > 0) {
+      if (!spatialDataCallbacks?.importSpatialFiles) {
+        setRagAttachError(
+          "Spatial import is not available yet. Open Import / connect spatial data from the toolbar."
+        );
+        return;
+      }
+      setOperationSteps(["Importing spatial files onto the map..."]);
+      setRagUploading(true);
+      setRagAttachError(null);
+      try {
+        const result = await spatialDataCallbacks.importSpatialFiles(
+          spatialSnapshot.map((x) => x.file)
+        );
+        importedSpatial = result.imported || [];
+        if (result.errors?.length && importedSpatial.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `**Could not import spatial file(s):**\n${result.errors
+                .map((e) => `- ${e}`)
+                .join("\n")}`,
+            },
+          ]);
+          setRagUploading(false);
+          setOperationSteps([]);
+          return;
+        }
+        if (result.errors?.length) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `**Some spatial files failed:**\n${result.errors
+                .map((e) => `- ${e}`)
+                .join("\n")}`,
+            },
+          ]);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `**Spatial import failed:** ${message}`,
+          },
+        ]);
+        setRagUploading(false);
+        setOperationSteps([]);
+        return;
+      }
+      setRagUploading(false);
+    }
+
+    if (ragSnapshot.length > 0) {
       const base = getAtlasBaseUrl();
       if (!base) {
         setRagAttachError(
@@ -1333,8 +1438,8 @@ export default function SafeGISAIChat({
       setRagUploading(true);
       setRagAttachError(null);
       try {
-        for (let i = 0; i < filesSnapshot.length; i++) {
-          const { file } = filesSnapshot[i];
+        for (let i = 0; i < ragSnapshot.length; i++) {
+          const { file } = ragSnapshot[i];
           const safeName = file.name.replace(/[^\w.\-]+/g, "_") || "upload";
           const sourceId = `chat-${Date.now()}-${i}-${safeName}`;
           const fd = new FormData();
@@ -1374,19 +1479,59 @@ export default function SafeGISAIChat({
         return;
       }
       setRagUploading(false);
+    }
+
+    if (filesSnapshot.length > 0) {
       setPendingRagFiles([]);
     }
 
+    const spatialNames =
+      importedSpatial.length > 0
+        ? importedSpatial.map((x) => x.name)
+        : spatialSnapshot.map((x) => x.file.name);
+    const ragNames = ragSnapshot.map((x) => x.file.name);
     const attachmentNames = filesSnapshot.map((x) => x.file.name);
+
+    const contextLines: string[] = [];
+    if (importedSpatial.length > 0) {
+      contextLines.push(
+        `[Spatial files imported onto the map this turn: ${spatialNames.join(", ")}]`
+      );
+    } else if (spatialSnapshot.length > 0) {
+      contextLines.push(
+        `[Spatial files attached (import attempted): ${spatialSnapshot
+          .map((x) => x.file.name)
+          .join(", ")}]`
+      );
+    }
+    if (ragNames.length > 0) {
+      contextLines.push(
+        `[Documents indexed for RAG in this turn: ${ragNames.join(", ")}]`
+      );
+    }
+
     const userTextForApi =
       filesSnapshot.length > 0
-        ? `[Documents indexed for RAG in this turn: ${attachmentNames.join(", ")}]\n\n${userTextRaw || defaultAttachPrompt}`
+        ? `${contextLines.join("\n")}\n\n${userTextRaw || defaultAttachPrompt}`
         : userTextRaw;
 
     const displayUserMessage =
       filesSnapshot.length > 0
         ? `📎 **Attached:** ${attachmentNames.join(", ")}\n\n${userTextRaw || defaultAttachPrompt}`
         : userTextRaw;
+
+    const mergedSpatialContext = [
+      ...(spatialContext || []),
+      ...importedSpatial.map((row) => ({
+        name: row.name,
+        layerName: row.layerName,
+        sourceType: "file" as const,
+      })),
+    ];
+    const mergedUploadedFiles = [
+      ...(uploadedFiles || []),
+      ...importedSpatial.map((row) => row.name),
+    ];
 
     setInputText("");
     setMessages((prev) => [...prev, { role: "user", content: displayUserMessage }]);
@@ -1416,8 +1561,8 @@ export default function SafeGISAIChat({
           viewMode: viewMode,
         },
         webSearchEnabled,
-        uploadedFiles,
-        spatialContext,
+        mergedUploadedFiles,
+        mergedSpatialContext,
         undefined,
         activeConversationIdRef.current
       );
@@ -2287,12 +2432,16 @@ export default function SafeGISAIChat({
                 </p>
               )}
               <div className="flex w-full min-w-0 flex-row flex-wrap items-center content-start gap-x-1 gap-y-1 px-0.5 py-0.5 flex-1 min-h-[32px] max-h-[128px] overflow-y-auto overflow-x-hidden custom-scrollbar">
-                {pendingRagFiles.map(({ id, file }) => (
+                {pendingRagFiles.map(({ id, file, kind }) => (
                   <span
                     key={id}
-                    className="inline-flex max-w-[11rem] items-center gap-0.5 shrink-0 rounded-md bg-white/15 border border-white/10 text-[#E8E8E8] text-[9px] leading-tight pl-1.5 pr-0.5 py-0.5 align-middle"
+                    className={`inline-flex max-w-[11rem] items-center gap-0.5 shrink-0 rounded-md border text-[#E8E8E8] text-[9px] leading-tight pl-1.5 pr-0.5 py-0.5 align-middle ${
+                      kind === "spatial"
+                        ? "bg-[#9699FF]/25 border-[#9699FF]/35"
+                        : "bg-white/15 border-white/10"
+                    }`}
                   >
-                    <span className="truncate" title={file.name}>
+                    <span className="truncate" title={`${file.name} (${kind === "spatial" ? "map" : "RAG"})`}>
                       {file.name}
                     </span>
                     <button
@@ -2361,7 +2510,7 @@ export default function SafeGISAIChat({
                     type="file"
                     multiple
                     className="sr-only"
-                    accept=".pdf,.txt,.md,.markdown,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff,.tif,application/pdf,text/plain,text/markdown,image/*"
+                    accept=".pdf,.txt,.md,.markdown,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff,.tif,.geojson,.json,.kml,.shp,.zip,application/pdf,text/plain,text/markdown,application/geo+json,application/json,application/vnd.google-earth.kml+xml,application/zip,image/*"
                     aria-hidden
                     tabIndex={-1}
                     onChange={handleRagFileChange}
@@ -2374,8 +2523,8 @@ export default function SafeGISAIChat({
                     }
                     title={
                       ragUploading
-                        ? "Indexing document…"
-                        : "Attach PDF, text, or image (indexed when you send; images need Tesseract on the server)"
+                        ? "Uploading…"
+                        : "Attach spatial files (GeoJSON, KML, SHP/ZIP) for the map, or PDF/text/image for RAG"
                     }
                     className="h-5 w-5 flex items-center justify-center rounded-sm text-white hover:text-gray-200 transition bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
                   >

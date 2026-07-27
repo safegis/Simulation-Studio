@@ -2359,6 +2359,13 @@ export default function MainUILayout() {
                 centerRightControlsRef.current?.fetchAndAddGeoJsonFromUrl(
                   payload
                 ) ?? Promise.resolve({ ok: false, error: "Controls not ready" }),
+              importSpatialFiles: (files) =>
+                centerRightControlsRef.current?.importSpatialFiles(files) ??
+                Promise.resolve({
+                  ok: false,
+                  imported: [],
+                  errors: ["Controls not ready"],
+                }),
             }}
             liveHazardMonitorCallbacks={{
               openLiveHazardMonitor: () => setShowLiveHazardMonitor(true),

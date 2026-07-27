@@ -64,6 +64,17 @@ export interface CenterRightControlsRef {
   fetchAndAddGeoJsonFromUrl: (
     payload: AtlasFetchUrlPayload
   ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Import local spatial files the same way as the Import / connect panel
+   * (GeoJSON, JSON, KML, SHP/ZIP). Opens the panel and updates the On map list.
+   */
+  importSpatialFiles: (
+    files: FileList | File[]
+  ) => Promise<{
+    ok: boolean;
+    imported: { name: string; layerName: string }[];
+    errors: string[];
+  }>;
 }
 
 // Type for boundary data
@@ -319,6 +330,15 @@ const RightSideControls = forwardRef<
     const [hoveredButton, setHoveredButton] = useState<string | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const importSpatialFilesImplRef = useRef<
+      (
+        files: FileList | File[]
+      ) => Promise<{
+        ok: boolean;
+        imported: { name: string; layerName: string }[];
+        errors: string[];
+      }>
+    >(async () => ({ ok: false, imported: [], errors: ["Not ready"] }));
 
     const spatialFieldClass =
       "w-full bg-[#2E2E2E] text-white text-[10px] px-2 py-1.5 rounded-sm border border-[#555] outline-none focus:border-[#9699FF]";
@@ -752,10 +772,18 @@ const RightSideControls = forwardRef<
       },
       fetchAndAddGeoJsonFromUrl: (payload: AtlasFetchUrlPayload) =>
         runAtlasFetchUrl(payload),
+      importSpatialFiles: async (files: FileList | File[]) => {
+        setShowGeoJSONPanel(true);
+        setShowBoundariesPanel(false);
+        setSpatialDataTab("file");
+        return importSpatialFilesImplRef.current(files);
+      },
     }));
 
     // ✅ File handling inside component
-    const handleFiles = async (files: FileList) => {
+    const handleFiles = async (files: FileList | File[]) => {
+      const imported: { name: string; layerName: string }[] = [];
+      const errors: string[] = [];
       setIsFileLoading(true);
       setFileLoadingStage("Reading file...");
       try {
@@ -851,6 +879,7 @@ const RightSideControls = forwardRef<
                         ...prev,
                         { name: listName, layerName, sourceType: "file" },
                       ]);
+                      imported.push({ name: listName, layerName });
                     }
                   }
                 }
@@ -866,6 +895,7 @@ const RightSideControls = forwardRef<
                     ...prev,
                     { name: listName, layerName, sourceType: "file" },
                   ]);
+                  imported.push({ name: listName, layerName });
                 }
               }
             }
@@ -877,13 +907,20 @@ const RightSideControls = forwardRef<
               `Error processing file: "${file.name}"`,
               errorMessage
             );
+            errors.push(`${file.name}: ${errorMessage}`);
             alert(`Failed to load ${file.name}: ${errorMessage}`);
           }
         }
       } finally {
         setIsFileLoading(false);
       }
+      return {
+        ok: imported.length > 0 && errors.length === 0,
+        imported,
+        errors,
+      };
     };
+    importSpatialFilesImplRef.current = handleFiles;
 
     const handleDrop = (e: React.DragEvent) => {
       e.preventDefault();
