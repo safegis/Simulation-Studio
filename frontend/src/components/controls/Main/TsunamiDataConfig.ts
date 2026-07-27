@@ -8,7 +8,7 @@ export interface TsunamiDataConfig {
 export const tsunamiData: TsunamiDataConfig[] = [
   {
     name: "PHIVOLCS Tsunami Information",
-    scope: "Philippines / Pacific (tsunami bulletins)",
+    scope: "Global / Pacific (PHIVOLCS bulletins)",
     source: "Philippine Institute of Volcanology and Seismology (PHIVOLCS)",
   },
 ];
