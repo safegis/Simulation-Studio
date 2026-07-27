@@ -954,6 +954,8 @@ const RightSideControls = forwardRef<
         if (map.getSource(sourceId)) map.removeSource(sourceId);
       }
 
+      mapRef.current?.forgetUploadedLayer?.(layerName);
+
       if (setUploadedFiles) {
         setUploadedFiles((prev) =>
           prev.filter((f) => f.layerName !== layerName)

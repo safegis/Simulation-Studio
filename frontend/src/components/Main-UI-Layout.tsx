@@ -1696,6 +1696,7 @@ export default function MainUILayout() {
       if (map.getLayer("drawn-box-outline")) map.removeLayer("drawn-box-outline");
       if (map.getSource("drawn-box")) map.removeSource("drawn-box");
     }
+    mapRef.current?.clearUploadedLayersCache?.();
     setUploadedFiles([]);
 
     centerRightControlsRef.current?.clearBoundaries();

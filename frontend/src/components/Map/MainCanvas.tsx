@@ -157,6 +157,10 @@ const MapComponent = forwardRef(function MapComponent(
       }>;
     };
   }> | null>(null);
+  /** Uploaded / connected spatial layers — survive map.setStyle(). */
+  const latestUploadedLayers = useRef<
+    Map<string, GeoJSON.FeatureCollection>
+  >(new Map());
 
   const healthPopupRef = useRef<mapboxgl.Popup | null>(null);
   const boundaryClickHandlerRef = useRef<
@@ -518,6 +522,9 @@ const MapComponent = forwardRef(function MapComponent(
   } = useResources(mapInstance);
 
   const getUploadedLayerData = (layerName: string) => {
+    const cached = latestUploadedLayers.current.get(layerName);
+    if (cached) return cached;
+
     if (!mapInstance.current || !mapIsLoaded.current) return null;
 
     const map = mapInstance.current;
@@ -530,6 +537,25 @@ const MapComponent = forwardRef(function MapComponent(
     }
 
     return null;
+  };
+
+  const restoreUploadedLayersAfterStyleLoad = async () => {
+    const addLayer = mapUndoImplRefs.addGeoJSONLayer;
+    if (!addLayer || latestUploadedLayers.current.size === 0) return;
+    const entries = Array.from(latestUploadedLayers.current.entries());
+    for (const [layerName, data] of entries) {
+      try {
+        await addLayer(data, layerName);
+      } catch (e) {
+        console.warn(`Failed to restore uploaded layer ${layerName}:`, e);
+      }
+    }
+  };
+
+  /** Re-draw overlays wiped by map.setStyle(). */
+  const restoreOverlaysAfterStyleLoad = () => {
+    restoreTrafficIncidentsAfterStyleLoad();
+    void restoreUploadedLayersAfterStyleLoad();
   };
 
   const stripGeoboundariesForUndo = (map: mapboxgl.Map) => {
@@ -720,7 +746,7 @@ const MapComponent = forwardRef(function MapComponent(
         getTopSymbolLayerId,
         latestAffectedAreas, // NEW: Pass affected areas ref
         drawAffectedAreasHelper, // NEW: Pass helper function
-        restoreTrafficIncidentsAfterStyleLoad
+        restoreOverlaysAfterStyleLoad
       ),
 
     switchTo3D: (label: string) =>
@@ -740,7 +766,7 @@ const MapComponent = forwardRef(function MapComponent(
         addTerrainOnly,
         latestAffectedAreas, // NEW: Pass affected areas ref
         drawAffectedAreasHelper, // NEW: Pass helper function
-        restoreTrafficIncidentsAfterStyleLoad
+        restoreOverlaysAfterStyleLoad
       ),
 
     setLightPreset: (preset: "dawn" | "day" | "dusk" | "night") => {
@@ -820,7 +846,7 @@ const MapComponent = forwardRef(function MapComponent(
             );
           });
         }
-        restoreTrafficIncidentsAfterStyleLoad();
+        restoreOverlaysAfterStyleLoad();
       });
     },
     drawRoutes: (geojson: GeoJSON.FeatureCollection) => {
@@ -1101,6 +1127,10 @@ const MapComponent = forwardRef(function MapComponent(
     ) => {
       const map = mapInstance.current;
       if (!map || !mapIsLoaded.current) return;
+      latestUploadedLayers.current.set(
+        layerName,
+        JSON.parse(JSON.stringify(geojson)) as GeoJSON.FeatureCollection
+      );
       const safeName = layerName.replace(/[^a-zA-Z0-9_-]/g, "");
       const sourceId = `upload-${safeName}`;
       const baseId = `${sourceId}-layer`;
@@ -1801,6 +1831,14 @@ const MapComponent = forwardRef(function MapComponent(
     }),
     getUploadedLayerData,
 
+    forgetUploadedLayer: (layerName: string) => {
+      latestUploadedLayers.current.delete(layerName);
+    },
+
+    clearUploadedLayersCache: () => {
+      latestUploadedLayers.current.clear();
+    },
+
     captureUndoState: (
       uploadedFilesList: { name: string; layerName: string }[]
     ): MapUndoSnapshot | null => {
@@ -1964,7 +2002,12 @@ const MapComponent = forwardRef(function MapComponent(
         : null;
       selectedFeatureIndexRef.current = snap.routeFeatureIndex;
 
+      latestUploadedLayers.current.clear();
       for (const u of uploads) {
+        latestUploadedLayers.current.set(
+          u.layerName,
+          JSON.parse(JSON.stringify(u.data)) as GeoJSON.FeatureCollection
+        );
         await addLayer!(u.data, u.layerName);
       }
 
