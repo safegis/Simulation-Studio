@@ -330,7 +330,10 @@ export async function processLangGraphResponse(
         case "search_location":
           if (data.query) {
             await callbacks.searchLocation(data.query);
-            addMessage("assistant", `✅ Searching for: **${data.query}**`);
+            const msg =
+              (typeof data.text === "string" && data.text.trim()) ||
+              `Took you to **${data.query}** on the map.`;
+            addMessage("assistant", msg);
           }
           break;
 
@@ -338,10 +341,10 @@ export async function processLangGraphResponse(
           if (data.style) {
             const frontendStyle = STYLE_MAP[data.style] || data.style;
             callbacks.changeMapStyle(frontendStyle);
-            addMessage(
-              "assistant",
-              `✅ **Map style changed to ${frontendStyle}**\n\nThe map style has been updated.`
-            );
+            const msg =
+              (typeof data.text === "string" && data.text.trim()) ||
+              `I've changed the map style to ${frontendStyle}.`;
+            addMessage("assistant", msg);
           }
           break;
 

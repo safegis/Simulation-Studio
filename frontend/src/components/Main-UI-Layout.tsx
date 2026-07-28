@@ -924,7 +924,8 @@ export default function MainUILayout() {
       setShowTimeOfDayDropdown(false);
       setShow3DControls(false);
       setViewMode("2d");
-      map.switchTo2D?.();
+      // Must pass label — omit it and switchTo2D defaults to Streets, racing setMapStyle.
+      map.switchTo2D?.(label);
     } else {
       // Enable 3D controls
       setShow3DControls(true);
