@@ -21,7 +21,6 @@ from fetch_data import (
     GeoBoundaries,
     TomTomTraffic,
     OverpassEvacuation,
-    OverpassBoundaries,
     GeoapifyBoundaries,
     SpatialDataConnect,
 )
@@ -145,18 +144,6 @@ async def get_boundaries(country_code: str, admin_level: str):
         GeoJSON FeatureCollection with boundary data
     """
     return await GeoBoundaries.get_boundary_data(country_code, admin_level)
-
-
-@app.get("/api/boundaries/osm/{iso2}/{admin_slot}")
-async def get_boundaries_osm(iso2: str, admin_slot: str):
-    """
-    Administrative boundaries from OpenStreetMap (Overpass API).
-
-    ``iso2``: ISO 3166-1 alpha-2 (e.g. PH, DE). ``admin_slot``: admin0–admin3
-    mapped to typical OSM admin_level values (2 / 4 / 8 / 6). Bulk extracts:
-    Geofabrik (https://download.geofabrik.de/).
-    """
-    return await OverpassBoundaries.fetch_osm_admin_boundaries(iso2, admin_slot)
 
 
 @app.get("/api/boundaries/geoapify/{iso2}/{admin_slot}")

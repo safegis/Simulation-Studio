@@ -54,16 +54,6 @@ Requires `sqlalchemy` and `psycopg2-binary` (see `requirements.txt`). Install wi
 | `GEOBOUNDARIES_GITHUB_REF` | Git branch or tag for raw URLs (default `main`). |
 | `GEOBOUNDARIES_SKIP_API` | If `1` / `true` / `yes`, skip the org API and use GitHub only (useful when the site is unreachable). |
 
-**OpenStreetMap (Overpass)** — `GET /api/boundaries/osm/{ISO2}/{admin_slot}` returns administrative polygons from live OSM via the public [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API). `admin_slot` is one of `admin0` … `admin3`, mapped to typical OSM `admin_level` values (`2` / `4` / `8` / `6`). Coverage and meaning of levels **vary by country**; results may differ from geoBoundaries.
-
-Bulk regional extracts (PBF/SHP) for offline workflows are available from [Geofabrik](https://download.geofabrik.de/) — not used by this endpoint.
-
-| Variable | Purpose |
-|----------|---------|
-| `OVERPASS_INTERPRETER_URL` | Overpass interpreter base URL (default `https://overpass-api.de/api/interpreter`). |
-
-Data © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright).
-
 **Geoapify** — `GET /api/boundaries/geoapify/{ISO2}/{admin_slot}?country=...` uses the same [Geoapify](https://www.geoapify.com/) key as geocoding (`NEXT_PUBLIC_GEOAPIFY_API_KEY`). The `country` query parameter must be the **country name** used for geocoding (e.g. `Philippines`), matching the catalog’s `name` field. `admin_slot` is `admin0`–`admin3`: country outline via **part-of**, subdivisions via **consists-of** (with Geoapify `sublevel` for deeper tiers). Hierarchy varies by country.
 
 | Variable | Purpose |

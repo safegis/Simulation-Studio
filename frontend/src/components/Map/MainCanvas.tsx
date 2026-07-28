@@ -40,10 +40,7 @@ import {
   DEFAULT_STANDARD_3D_PITCH,
   DEFAULT_STANDARD_3D_BEARING,
 } from "@/lib/mapboxCustomStandard";
-import {
-  geoapifyPopupTypeLabel,
-  osmPopupTypeLabel,
-} from "@/lib/boundaryLevelsBySource";
+import { geoapifyPopupTypeLabel } from "@/lib/boundaryLevelsBySource";
 
 import {
   drawHealthFacilities as drawHealthFacilitiesHelper,
@@ -2125,12 +2122,12 @@ const MapComponent = forwardRef(function MapComponent(
       });
     },
 
-    // Add boundary layer: geoBoundaries, OSM/Overpass, or Geoapify Boundaries API
+    // Add boundary layer: geoBoundaries or Geoapify Boundaries API
     addBoundaryLayer: async (
       countryCode: string,
       adminLevel: string,
       boundaryLabel?: string,
-      dataSource: "geoboundaries" | "osm" | "geoapify" = "geoboundaries",
+      dataSource: "geoboundaries" | "geoapify" = "geoboundaries",
       geoapifyCountryName?: string
     ) => {
       const map = mapInstance.current;
@@ -2193,10 +2190,7 @@ const MapComponent = forwardRef(function MapComponent(
         const backendEndpoint =
           process.env.NEXT_PUBLIC_BACKEND_ENDPOINT || "http://localhost:8000";
         let backendUrl: string;
-        if (dataSource === "osm") {
-          backendUrl = `${backendEndpoint}/api/boundaries/osm/${iso2}/${adminLevel}`;
-          console.log(`Fetching OSM boundaries: ${backendUrl}`);
-        } else if (dataSource === "geoapify") {
+        if (dataSource === "geoapify") {
           const q = new URLSearchParams({
             country: (geoapifyCountryName || "").trim(),
           });
@@ -2356,20 +2350,16 @@ const MapComponent = forwardRef(function MapComponent(
             { selected: true }
           );
 
-          // geoBoundaries / OSM backend both set shapeName
+          // geoBoundaries / Geoapify backends set shapeName
           const boundaryName =
             props.shapeName || props.name || props.NAME || "Unknown";
           const sourceNote =
-            props.boundary_source === "osm"
-              ? '<div style="color:#888;font-size:9px;margin-top:6px;">© OpenStreetMap contributors (ODbL)</div>'
-              : props.boundary_source === "geoapify"
-                ? '<div style="color:#888;font-size:9px;margin-top:6px;">© Geoapify · OpenStreetMap (ODbL)</div>'
-                : "";
+            props.boundary_source === "geoapify"
+              ? '<div style="color:#888;font-size:9px;margin-top:6px;">© Geoapify · OpenStreetMap (ODbL)</div>'
+              : "";
 
           let typeLabel = "Boundary";
-          if (dataSource === "osm") {
-            typeLabel = osmPopupTypeLabel(adminLevel);
-          } else if (dataSource === "geoapify") {
+          if (dataSource === "geoapify") {
             typeLabel = geoapifyPopupTypeLabel(adminLevel);
           } else if (boundaryLabel) {
             const match = boundaryLabel.match(/^By\s+(.+?)\s*\(/i);
@@ -2383,11 +2373,9 @@ const MapComponent = forwardRef(function MapComponent(
           }
 
           const adminLevelDisplay =
-            dataSource === "osm" && props.osm_admin_level != null
-              ? `OSM admin_level ${String(props.osm_admin_level)}`
-              : dataSource === "geoapify"
-                ? `Geoapify · ${adminLevel}`
-                : `geoBoundaries ${gbAdminLevel}`;
+            dataSource === "geoapify"
+              ? `Geoapify · ${adminLevel}`
+              : `geoBoundaries ${gbAdminLevel}`;
 
           // Get country code from shapeGroup (ISO3 code)
           const isoCode = props.shapeGroup || "";

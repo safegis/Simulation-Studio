@@ -647,7 +647,6 @@ const RightSideControls = forwardRef<
     /** UI label → id for `addBoundaryLayer` */
     const boundarySourceOptions: { label: string; id: BoundarySourceId }[] = [
       { label: "geoBoundaries", id: "geoboundaries" },
-      { label: "OSM (Overpass)", id: "osm" },
       { label: "Geoapify", id: "geoapify" },
     ];
 
@@ -688,9 +687,7 @@ const RightSideControls = forwardRef<
         // Set source if provided
         if (source) {
           const s = source.toLowerCase();
-          if (s.includes("osm") || s.includes("overpass")) {
-            setSelectedBoundarySource("osm");
-          } else if (s.includes("geoapify")) {
+          if (s.includes("geoapify")) {
             setSelectedBoundarySource("geoapify");
           } else {
             setSelectedBoundarySource("geoboundaries");
