@@ -1233,183 +1233,18 @@ const RightSideControls = forwardRef<
                 )}
 
                 {spatialDataTab === "api" && (
-                  <div className="flex flex-col gap-1.5 bg-[#3a3a3a] rounded-sm p-2">
-                    <label className="text-[9px] text-[#AAAAAA]">
-                      Layer name on map (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={apiLayerDisplayName}
-                      onChange={(e) => setApiLayerDisplayName(e.target.value)}
-                      placeholder="Defaults to URL host or collection id"
-                      className={spatialFieldClass}
-                    />
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div>
-                        <label className="text-[9px] text-[#AAAAAA] block mb-0.5">
-                          HTTP method
-                        </label>
-                        <PanelSelect
-                          value={apiHttpMethod}
-                          onChange={(v) => setApiHttpMethod(v)}
-                          options={[
-                            { value: "GET", label: "GET" },
-                            { value: "POST", label: "POST" },
-                          ]}
-                          disabled={isFileLoading}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] text-[#AAAAAA] block mb-0.5">
-                          Auth type
-                        </label>
-                        <PanelSelect
-                          value={apiAuthType}
-                          onChange={(v) => setApiAuthType(v)}
-                          options={[
-                            { value: "none", label: "None" },
-                            { value: "bearer", label: "Bearer token" },
-                            {
-                              value: "apikey_header",
-                              label: "API key (header)",
-                            },
-                            {
-                              value: "apikey_query",
-                              label: "API key (query)",
-                            },
-                            { value: "basic", label: "Basic (user + password)" },
-                          ]}
-                          disabled={isFileLoading}
-                        />
-                      </div>
-                    </div>
-                    <label className="text-[9px] text-[#AAAAAA]">
-                      Endpoint URL
-                    </label>
-                    <input
-                      type="url"
-                      value={apiEndpointUrl}
-                      onChange={(e) => setApiEndpointUrl(e.target.value)}
-                      placeholder="https://example.com/ogc/collections/roads/items?f=geojson"
-                      className={spatialFieldClass}
-                    />
-                    {apiAuthType === "bearer" && (
-                      <>
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          Bearer token
-                        </label>
-                        <input
-                          type="password"
-                          autoComplete="off"
-                          value={apiBearerOrKeyValue}
-                          onChange={(e) => setApiBearerOrKeyValue(e.target.value)}
-                          placeholder="Authorization: Bearer …"
-                          className={spatialFieldClass}
-                        />
-                      </>
-                    )}
-                    {apiAuthType === "apikey_header" && (
-                      <>
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          Header name
-                        </label>
-                        <input
-                          type="text"
-                          value={apiKeyHeaderName}
-                          onChange={(e) => setApiKeyHeaderName(e.target.value)}
-                          placeholder="X-API-Key"
-                          className={spatialFieldClass}
-                        />
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          API key value
-                        </label>
-                        <input
-                          type="password"
-                          autoComplete="off"
-                          value={apiBearerOrKeyValue}
-                          onChange={(e) => setApiBearerOrKeyValue(e.target.value)}
-                          className={spatialFieldClass}
-                        />
-                      </>
-                    )}
-                    {apiAuthType === "apikey_query" && (
-                      <>
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          Query parameter name
-                        </label>
-                        <input
-                          type="text"
-                          value={apiQueryParamName}
-                          onChange={(e) => setApiQueryParamName(e.target.value)}
-                          placeholder="api_key"
-                          className={spatialFieldClass}
-                        />
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          API key value
-                        </label>
-                        <input
-                          type="password"
-                          autoComplete="off"
-                          value={apiBearerOrKeyValue}
-                          onChange={(e) => setApiBearerOrKeyValue(e.target.value)}
-                          className={spatialFieldClass}
-                        />
-                      </>
-                    )}
-                    {apiAuthType === "basic" && (
-                      <>
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          Username
-                        </label>
-                        <input
-                          type="text"
-                          autoComplete="off"
-                          value={apiBasicUser}
-                          onChange={(e) => setApiBasicUser(e.target.value)}
-                          className={spatialFieldClass}
-                        />
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          Password
-                        </label>
-                        <input
-                          type="password"
-                          autoComplete="off"
-                          value={apiBasicPassword}
-                          onChange={(e) => setApiBasicPassword(e.target.value)}
-                          className={spatialFieldClass}
-                        />
-                      </>
-                    )}
-                    {apiHttpMethod === "POST" && (
-                      <>
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          Request body (JSON, optional)
-                        </label>
-                        <textarea
-                          value={apiPostBody}
-                          onChange={(e) => setApiPostBody(e.target.value)}
-                          placeholder='{"query": "…"}'
-                          rows={3}
-                          className={`${spatialFieldClass} resize-y min-h-[52px] font-mono`}
-                        />
-                      </>
-                    )}
-                    <p className="text-[9px] text-[#888] leading-snug">
-                      All secrets go through the SafeGIS backend proxy; nothing
-                      is persisted in localStorage by default.
+                  <div
+                    className="flex min-h-[140px] flex-col items-center justify-center gap-1.5 rounded-sm bg-[#3a3a3a]/70 p-4 text-center opacity-60"
+                    aria-disabled="true"
+                  >
+                    <Link2 size={22} className="text-[#888]" aria-hidden />
+                    <p className="text-[11px] font-medium text-[#AAAAAA]">
+                      Coming Soon…
                     </p>
-                    <button
-                      type="button"
-                      disabled={isFileLoading}
-                      onClick={() => void handleConnectApi()}
-                      className={`mt-1 w-full py-1.5 rounded-sm text-[10px] font-medium ${
-                        isFileLoading
-                          ? "bg-[#5A5C99] text-white/50 cursor-not-allowed"
-                          : "bg-[#5A5C99] text-white cursor-pointer hover:opacity-90"
-                      }`}
-                    >
-                      Connect via API
-                    </button>
+                    <p className="text-[9px] leading-snug text-[#777] max-w-[220px]">
+                      Connect GeoJSON over HTTP with auth will be available
+                      here.
+                    </p>
                   </div>
                 )}
 
@@ -1575,120 +1410,18 @@ const RightSideControls = forwardRef<
                 )}
 
                 {spatialDataTab === "mcp" && (
-                  <div className="flex flex-col gap-1.5 bg-[#3a3a3a] rounded-sm p-2">
-                    <label className="text-[9px] text-[#AAAAAA]">
-                      Display name (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={mcpDisplayName}
-                      onChange={(e) => setMcpDisplayName(e.target.value)}
-                      placeholder="Shown in layer list"
-                      className={spatialFieldClass}
-                    />
-                    <label className="text-[9px] text-[#AAAAAA]">
-                      Transport
-                    </label>
-                    <PanelSelect
-                      value={mcpTransport}
-                      onChange={(v) => setMcpTransport(v)}
-                      options={[
-                        {
-                          value: "sse",
-                          label: "HTTP + SSE (classic remote MCP)",
-                        },
-                        {
-                          value: "streamable_http",
-                          label: "Streamable HTTP (MCP 2025-03-26)",
-                        },
-                        { value: "websocket", label: "WebSocket" },
-                        { value: "stdio", label: "Stdio (local command)" },
-                      ]}
-                      disabled={isFileLoading}
-                    />
-                    {mcpTransport === "stdio" ? (
-                      <>
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          Command + args
-                        </label>
-                        <input
-                          type="text"
-                          value={mcpStdioCommand}
-                          onChange={(e) => setMcpStdioCommand(e.target.value)}
-                          placeholder='npx -y @modelcontextprotocol/server-filesystem /path'
-                          className={spatialFieldClass}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <label className="text-[9px] text-[#AAAAAA]">
-                          Server URL
-                        </label>
-                        <input
-                          type="url"
-                          value={mcpServerUrl}
-                          onChange={(e) => setMcpServerUrl(e.target.value)}
-                          placeholder="https://mcp.example.com/sse"
-                          className={spatialFieldClass}
-                        />
-                      </>
-                    )}
-                    <label className="text-[9px] text-[#AAAAAA]">
-                      API key / access token (optional)
-                    </label>
-                    <input
-                      type="password"
-                      autoComplete="off"
-                      value={mcpAuthKeyOrToken}
-                      onChange={(e) => setMcpAuthKeyOrToken(e.target.value)}
-                      placeholder="Bearer or static token if required"
-                      className={spatialFieldClass}
-                    />
-                    <div className="border-t border-[#555] pt-1.5 mt-0.5">
-                      <p className="text-[9px] text-[#888] mb-1">
-                        OAuth (optional)
-                      </p>
-                      <label className="text-[9px] text-[#AAAAAA]">
-                        Client ID
-                      </label>
-                      <input
-                        type="text"
-                        autoComplete="off"
-                        value={mcpOAuthClientId}
-                        onChange={(e) => setMcpOAuthClientId(e.target.value)}
-                        className={`${spatialFieldClass} mb-1`}
-                      />
-                      <label className="text-[9px] text-[#AAAAAA]">
-                        Client secret
-                      </label>
-                      <input
-                        type="password"
-                        autoComplete="off"
-                        value={mcpOAuthClientSecret}
-                        onChange={(e) =>
-                          setMcpOAuthClientSecret(e.target.value)
-                        }
-                        className={spatialFieldClass}
-                      />
-                    </div>
-                    <p className="text-[9px] text-[#888] leading-snug">
-                      Full MCP JSON-RPC/SSE sessions are not implemented here yet.
-                      This button uses the same GeoJSON HTTP proxy as API when the
-                      URL returns FeatureCollection JSON. OAuth fields are not sent
-                      yet—use the access token field for Bearer auth.
+                  <div
+                    className="flex min-h-[140px] flex-col items-center justify-center gap-1.5 rounded-sm bg-[#3a3a3a]/70 p-4 text-center opacity-60"
+                    aria-disabled="true"
+                  >
+                    <Server size={22} className="text-[#888]" aria-hidden />
+                    <p className="text-[11px] font-medium text-[#AAAAAA]">
+                      Coming Soon…
                     </p>
-                    <button
-                      type="button"
-                      disabled={isFileLoading}
-                      onClick={() => void handleConnectMcp()}
-                      className={`mt-1 w-full py-1.5 rounded-sm text-[10px] font-medium ${
-                        isFileLoading
-                          ? "bg-[#5A5C99] text-white/50 cursor-not-allowed"
-                          : "bg-[#5A5C99] text-white cursor-pointer hover:opacity-90"
-                      }`}
-                    >
-                      Connect MCP / HTTP
-                    </button>
+                    <p className="text-[9px] leading-snug text-[#777] max-w-[220px]">
+                      Connect spatial data through MCP servers will be available
+                      here.
+                    </p>
                   </div>
                 )}
               </div>
