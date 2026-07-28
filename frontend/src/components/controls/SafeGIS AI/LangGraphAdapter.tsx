@@ -922,7 +922,9 @@ export async function sendToLangGraph(
   }> = [],
   signal?: AbortSignal,
   /** Supabase thread UUID — Atlas scopes vector memory to this conversation only */
-  conversationId?: string | null
+  conversationId?: string | null,
+  /** Ollama chat model override from Atlas UI selector */
+  model?: string | null
 ): Promise<LangGraphResponse> {
   const endpoint = process.env.NEXT_PUBLIC_MODEL_ENDPOINT?.replace(
     "/generate",
@@ -946,6 +948,7 @@ export async function sendToLangGraph(
       uploaded_files: uploadedFiles,
       spatial_context: spatialContext,
       ...(conversationId ? { conversation_id: conversationId } : {}),
+      ...(model ? { model } : {}),
     }),
     signal,
   });
@@ -957,9 +960,30 @@ export async function sendToLangGraph(
   return await response.json();
 }
 
+/** Fetch available Ollama models from Atlas `GET /models`. */
+export async function fetchAtlasModels(): Promise<{
+  models: string[];
+  current: string;
+}> {
+  const base = getAtlasBaseUrl();
+  if (!base) {
+    return { models: [], current: "" };
+  }
+  const response = await fetch(`${base}/models`);
+  if (!response.ok) {
+    throw new Error(`Failed to list models (${response.status})`);
+  }
+  const data = await response.json();
+  return {
+    models: Array.isArray(data.models) ? data.models.map(String) : [],
+    current: typeof data.current === "string" ? data.current : "",
+  };
+}
+
 export default {
   processLangGraphResponse,
   sendToLangGraph,
+  fetchAtlasModels,
   STYLE_MAP,
   getAtlasBaseUrl,
 };

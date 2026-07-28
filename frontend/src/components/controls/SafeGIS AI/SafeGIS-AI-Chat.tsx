@@ -16,16 +16,18 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
-  AudioLines,
   X,
   Loader2,
   Trash2,
+  Search,
+  RefreshCw,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import LangGraphAdapter, {
   LangGraphMessage,
   sendToLangGraph,
   getAtlasBaseUrl,
+  fetchAtlasModels,
 } from "./LangGraphAdapter";
 import { getSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import { getOrCreateStudioGuestOwnerKey } from "@/lib/studioAtlasOwner";
@@ -141,6 +143,21 @@ type Props = {
     performReset: () => void;
   };
 };
+
+const ATLAS_MODEL_CATALOG = [
+  { id: "gemma3:4b", name: "Gemma 3 4B (Free)", provider: "Google" },
+  { id: "fable-5", name: "Fable 5", provider: "Anthropic" },
+  { id: "opus-5", name: "Opus 5", provider: "Anthropic" },
+  { id: "sonnet-5", name: "Sonnet 5", provider: "Anthropic" },
+  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", provider: "OpenAI" },
+  { id: "gpt-5.6-terra", name: "GPT-5.6 Terra", provider: "OpenAI" },
+  { id: "gpt-5.5", name: "GPT-5.5", provider: "OpenAI" },
+] as const;
+
+const modelCatalogEntry = (id: string) =>
+  ATLAS_MODEL_CATALOG.find((model) => model.id === id);
+
+const modelDisplayName = (id: string) => modelCatalogEntry(id)?.name ?? id;
 
 type Message = {
   role: "user" | "assistant";
@@ -450,9 +467,26 @@ export default function SafeGISAIChat({
   useEffect(() => {
     setIsExpanded(isExpandedProp);
   }, [isExpandedProp]);
+
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const ragFileInputRef = useRef<HTMLInputElement | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  /** Ollama chat model selected in Atlas UI (sent per /chat request). */
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [modelSearchQuery, setModelSearchQuery] = useState("");
+  const [showAddModelsModal, setShowAddModelsModal] = useState(false);
+  const [addModelsSearchQuery, setAddModelsSearchQuery] = useState("");
+  const [showModelApiKeys, setShowModelApiKeys] = useState(false);
+  const [openAiApiKey, setOpenAiApiKey] = useState("");
+  const [anthropicApiKey, setAnthropicApiKey] = useState("");
+  const [enabledCatalogModels, setEnabledCatalogModels] = useState<string[]>([
+    "gemma3:4b",
+  ]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const modelDropdownRef = useRef<HTMLDivElement | null>(null);
+  const modelSearchInputRef = useRef<HTMLInputElement | null>(null);
   /** True while POSTing to Atlas /rag/ingest-file (on Send). */
   const [ragUploading, setRagUploading] = useState(false);
   /** Files queued in the composer; RAG ingested / spatial imported when user sends. */
@@ -460,6 +494,108 @@ export default function SafeGISAIChat({
     { id: string; file: File; kind: "rag" | "spatial" }[]
   >([]);
   const [ragAttachError, setRagAttachError] = useState<string | null>(null);
+
+  const selectableModels = Array.from(
+    new Set([
+      ...availableModels.filter(
+        (id) =>
+          !modelCatalogEntry(id) || enabledCatalogModels.includes(id)
+      ),
+      ...enabledCatalogModels.filter((id) =>
+        ATLAS_MODEL_CATALOG.some((model) => model.id === id)
+      ),
+    ])
+  );
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(
+        "safegis-atlas-enabled-models"
+      );
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setEnabledCatalogModels(
+          parsed.filter(
+            (id): id is string =>
+              typeof id === "string" &&
+              ATLAS_MODEL_CATALOG.some((model) => model.id === id)
+          )
+        );
+      }
+    } catch {
+      // Keep defaults when saved preferences are unavailable or malformed.
+    }
+  }, []);
+
+  const toggleCatalogModel = (modelId: string) => {
+    setEnabledCatalogModels((current) => {
+      const next = current.includes(modelId)
+        ? current.filter((id) => id !== modelId)
+        : [...current, modelId];
+      try {
+        window.localStorage.setItem(
+          "safegis-atlas-enabled-models",
+          JSON.stringify(next)
+        );
+      } catch {
+        // Selection still works for this session if storage is unavailable.
+      }
+      if (selectedModel === modelId && !next.includes(modelId)) {
+        const fallback =
+          availableModels.find((id) => id !== modelId) || next[0] || "";
+        setSelectedModel(fallback);
+      }
+      return next;
+    });
+  };
+
+  // Load Ollama models for the Atlas model selector
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setModelsLoading(true);
+      try {
+        const { models, current } = await fetchAtlasModels();
+        if (cancelled) return;
+        setAvailableModels(models);
+        setSelectedModel((prev) => {
+          if (prev && models.includes(prev)) return prev;
+          if (current) return current;
+          return models[0] || "";
+        });
+      } catch (e) {
+        console.warn("Could not load Atlas models:", e);
+      } finally {
+        if (!cancelled) setModelsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Close model dropdown on outside click; clear search + focus input when opened
+  useEffect(() => {
+    if (!showModelDropdown) {
+      setModelSearchQuery("");
+      return;
+    }
+    const t = window.setTimeout(() => modelSearchInputRef.current?.focus(), 0);
+    const onDown = (e: MouseEvent) => {
+      if (
+        modelDropdownRef.current &&
+        !modelDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowModelDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [showModelDropdown]);
 
   // Voice recording state (ElevenLabs real-time STT via WebSocket)
   const [isRecording, setIsRecording] = useState(false);
@@ -470,27 +606,6 @@ export default function SafeGISAIChat({
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const committedRef = useRef("");
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-
-  // Conversational AI mode (talk to Atlas, interrupt mid-sentence)
-  const [conversationalMode, setConversationalMode] = useState(false);
-  const [conversationLiveText, setConversationLiveText] = useState("");
-  const convWsRef = useRef<WebSocket | null>(null);
-  const convStreamRef = useRef<MediaStream | null>(null);
-  const convCtxRef = useRef<AudioContext | null>(null);
-  const convProcessorRef = useRef<ScriptProcessorNode | null>(null);
-  const convSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const convCommittedRef = useRef("");
-  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
-  const conversationAbortRef = useRef<AbortController | null>(null);
-  const pendingPromptRef = useRef("");
-  const isAtlasSpeakingRef = useRef(false);
-  const conversationHistoryRef = useRef<LangGraphMessage[]>([]);
-  const mapCallbacksRef = useRef<Parameters<typeof LangGraphAdapter.processLangGraphResponse>[1] | null>(null);
-  const ttsErrorShownRef = useRef(false);
-
-  useEffect(() => {
-    conversationHistoryRef.current = conversationHistory;
-  }, [conversationHistory]);
 
   /** Supabase session (optional — same project as Official Website). */
   const accessTokenRef = useRef<string | null>(null);
@@ -609,7 +724,6 @@ export default function SafeGISAIChat({
       activeConversationIdRef.current = id;
       setMessages(msgs);
       setConversationHistory(hist);
-      conversationHistoryRef.current = hist;
     } catch (e: unknown) {
       setHistoryError(
         e instanceof Error ? e.message : "Failed to open conversation"
@@ -647,7 +761,6 @@ export default function SafeGISAIChat({
         shouldPersistAfterResponse.current = false;
         setMessages([]);
         setConversationHistory([]);
-        conversationHistoryRef.current = [];
       }
     } catch (e: unknown) {
       setHistoryError(
@@ -753,19 +866,13 @@ export default function SafeGISAIChat({
         ? ""
         : "🎤 Listening... speak and see words here in real time";
     }
-    if (conversationalMode) {
-      return conversationLiveText.trim()
-        ? ""
-        : "Conversation mode — speak to Atlas, interrupt anytime";
-    }
     if (pendingRagFiles.length > 0 || inputText.trim()) {
       return "";
     }
     return "Ask a question or define a task...";
   };
 
-  const isTextareaDisabled =
-    isRecording || loading || conversationalMode || ragUploading;
+  const isTextareaDisabled = isRecording || loading || ragUploading;
 
   const formatRagApiDetail = (data: unknown): string => {
     if (!data || typeof data !== "object") return String(data ?? "");
@@ -982,355 +1089,6 @@ export default function SafeGISAIChat({
     }
   };
 
-  // Strip markdown for TTS (simple pass)
-  const stripMarkdownForTTS = (text: string): string => {
-    if (!text || !text.trim()) return "";
-    return text
-      .replace(/\*\*(.+?)\*\*/g, "$1")
-      .replace(/\*(.+?)\*/g, "$1")
-      .replace(/_(.+?)_/g, "$1")
-      .replace(/\[(.+?)\]\(.+?\)/g, "$1")
-      .replace(/^#+\s+/gm, "")
-      .replace(/\n+/g, " ")
-      .trim();
-  };
-
-  // Get text to speak from LangGraph response (response.response.text or last assistant message)
-  const getSpeakableText = (response: { response?: { text?: string }; conversation_history?: LangGraphMessage[] }): string => {
-    const fromResponse = response.response?.text;
-    if (fromResponse && String(fromResponse).trim()) return String(fromResponse).trim();
-    const history = response.conversation_history || [];
-    for (let i = history.length - 1; i >= 0; i--) {
-      const role = history[i].role;
-      const c = history[i].content;
-      if ((role === "assistant" || role === "ai") && c && typeof c === "string" && c.trim()) return c.trim();
-      if (role === "assistant" || role === "ai") break;
-    }
-    return "";
-  };
-
-  const playTTS = async (textToSpeak: string): Promise<void> => {
-    if (!textToSpeak.trim()) return;
-    const ttsUrl = (process.env.NEXT_PUBLIC_MODEL_ENDPOINT || "").replace("/generate", "") + "/tts";
-    try {
-      const ttsRes = await fetch(ttsUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: textToSpeak }),
-      });
-      if (!ttsRes.ok) {
-        console.error("TTS request failed:", ttsRes.status, await ttsRes.text());
-        return;
-      }
-      const blob = await ttsRes.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      ttsAudioRef.current = audio;
-      audio.volume = 1;
-      audio.onended = () => URL.revokeObjectURL(url);
-      audio.onerror = () => URL.revokeObjectURL(url);
-      await audio.play().catch((e) => console.warn("TTS play failed (e.g. autoplay policy):", e));
-    } catch (e) {
-      console.error("TTS error:", e);
-    }
-  };
-
-  /** Play text with ElevenLabs TTS; on 401 (e.g. free tier disabled) fall back to browser speech. */
-  const playTTSOrFallback = (text: string): Promise<void> => {
-    if (!text || !text.trim()) return Promise.resolve();
-    const ttsUrl = (process.env.NEXT_PUBLIC_MODEL_ENDPOINT || "").replace("/generate", "") + "/tts";
-    return fetch(ttsUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text.trim() }),
-    })
-      .then((res) => {
-        if (res.ok) {
-          return res.blob().then((blob) => {
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            ttsAudioRef.current = audio;
-            audio.volume = 1;
-            return new Promise<void>((resolve) => {
-              audio.onended = () => {
-                URL.revokeObjectURL(url);
-                resolve();
-              };
-              audio.onerror = () => {
-                URL.revokeObjectURL(url);
-                resolve();
-              };
-              audio.play().catch(() => resolve());
-            });
-          });
-        }
-        if (res.status === 401 && typeof window !== "undefined" && window.speechSynthesis) {
-          if (!ttsErrorShownRef.current) {
-            ttsErrorShownRef.current = true;
-            console.info("ElevenLabs TTS unavailable (e.g. free tier). Using browser speech.");
-          }
-          return new Promise<void>((resolve) => {
-            const u = new SpeechSynthesisUtterance(text.trim());
-            u.rate = 0.95;
-            u.onend = () => resolve();
-            u.onerror = () => resolve();
-            window.speechSynthesis.speak(u);
-          });
-        }
-        return Promise.resolve();
-      })
-      .catch(() => {
-        if (typeof window !== "undefined" && window.speechSynthesis) {
-          return new Promise<void>((resolve) => {
-            const u = new SpeechSynthesisUtterance(text.trim());
-            u.rate = 0.95;
-            u.onend = () => resolve();
-            u.onerror = () => resolve();
-            window.speechSynthesis.speak(u);
-          });
-        }
-        return Promise.resolve();
-      });
-  };
-
-  const playGreeting = async () => {
-    const greetingPrompt =
-      "The user just enabled voice conversation. Greet them in one short, friendly sentence and ask how you can help with the map. Use plain text only, no markdown.";
-    setLoading(true);
-    setOperationSteps(["Atlas is saying hello..."]);
-    try {
-      const response = await sendToLangGraph(
-        greetingPrompt,
-        conversationHistoryRef.current,
-        { currentMapStyle: selectedMapStyle, viewMode: viewMode },
-        webSearchEnabled,
-        uploadedFiles,
-        spatialContext,
-        undefined,
-        activeConversationIdRef.current
-      );
-      setConversationHistory(response.conversation_history);
-      conversationHistoryRef.current = response.conversation_history;
-      const rawText = getSpeakableText(response);
-      const textToSpeak = rawText ? stripMarkdownForTTS(rawText) : "";
-      if (rawText) {
-        setMessages((prev) => [...prev, { role: "assistant", content: rawText }]);
-      }
-      if (textToSpeak) {
-        isAtlasSpeakingRef.current = true;
-        playTTSOrFallback(textToSpeak).then(() => {
-          isAtlasSpeakingRef.current = false;
-          setLoading(false);
-          setOperationSteps([]);
-        });
-      } else {
-        setLoading(false);
-        setOperationSteps([]);
-      }
-    } catch (e) {
-      console.error("Greeting error:", e);
-      setLoading(false);
-      setOperationSteps([]);
-    }
-  };
-
-  const trySendConversation = async () => {
-    const prompt = pendingPromptRef.current.trim();
-    if (!prompt) {
-      setLoading(false);
-      setOperationSteps([]);
-      return;
-    }
-    if (loading) return;
-    pendingPromptRef.current = "";
-    setLoading(true);
-    setOperationSteps(["Listening...", "Sending to Atlas..."]);
-    conversationAbortRef.current = new AbortController();
-    const signal = conversationAbortRef.current.signal;
-    try {
-      const response = await sendToLangGraph(
-        prompt,
-        conversationHistoryRef.current,
-        { currentMapStyle: selectedMapStyle, viewMode: viewMode },
-        webSearchEnabled,
-        uploadedFiles,
-        spatialContext,
-        signal,
-        activeConversationIdRef.current
-      );
-      setConversationHistory(response.conversation_history);
-      conversationHistoryRef.current = response.conversation_history;
-      setMessages((prev) => [...prev, { role: "user", content: prompt }]);
-      if (mapCallbacksRef.current) {
-        await LangGraphAdapter.processLangGraphResponse(
-          response,
-          {
-            ...mapCallbacksRef.current,
-            ...(spatialDataCallbacks
-              ? {
-                  openSpatialDataPanel:
-                    spatialDataCallbacks.openImportConnectPanel,
-                  fetchGeoJsonFromUrl: spatialDataCallbacks.fetchGeoJsonFromUrl,
-                }
-              : {}),
-          },
-          (role: "user" | "assistant", content: string, citations?: any[]) => {
-            setMessages((prev) => [...prev, { role, content, citations }]);
-          }
-        );
-      } else {
-        const text = response.response?.text || "";
-        if (text) setMessages((prev) => [...prev, { role: "assistant", content: text }]);
-      }
-      const rawText = getSpeakableText(response);
-      const textToSpeak = rawText ? stripMarkdownForTTS(rawText) : "";
-      if (textToSpeak && !pendingPromptRef.current) {
-        isAtlasSpeakingRef.current = true;
-        playTTSOrFallback(textToSpeak).then(() => {
-          isAtlasSpeakingRef.current = false;
-          setLoading(false);
-          setOperationSteps([]);
-          trySendConversation();
-        });
-      } else {
-        setLoading(false);
-        setOperationSteps([]);
-        trySendConversation();
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setLoading(false);
-        setOperationSteps([]);
-        trySendConversation();
-        return;
-      }
-      setLoading(false);
-      setOperationSteps([]);
-      trySendConversation();
-    } finally {
-      if (!isAtlasSpeakingRef.current) setLoading(false);
-      setOperationSteps([]);
-    }
-  };
-
-  const startConversationMode = async () => {
-    const baseUrl = (process.env.NEXT_PUBLIC_MODEL_ENDPOINT || "").replace("/generate", "").replace(/^http/, "ws");
-    const wsUrl = `${baseUrl}/transcribe-ws`;
-    if (!baseUrl || !wsUrl.startsWith("ws")) {
-      alert("NEXT_PUBLIC_MODEL_ENDPOINT not set for conversational mode.");
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-      });
-      convStreamRef.current = stream;
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AudioContextClass({ sampleRate: 48000 });
-      convCtxRef.current = ctx;
-      const source = ctx.createMediaStreamSource(stream);
-      convSourceRef.current = source;
-      const processor = ctx.createScriptProcessor(4096, 1, 1);
-      convProcessorRef.current = processor;
-      const ws = new WebSocket(wsUrl);
-      convWsRef.current = ws;
-      convCommittedRef.current = "";
-      setConversationLiveText("");
-      ws.onopen = () => {
-        source.connect(processor);
-        processor.connect(ctx.destination);
-      };
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          const mt = msg.message_type;
-          if (mt === "partial_transcript") {
-            setConversationLiveText(convCommittedRef.current + (msg.text || ""));
-          } else if (mt === "committed_transcript" && msg.text) {
-            const text = (convCommittedRef.current + msg.text).trim();
-            convCommittedRef.current = "";
-            if (!text) return;
-            if (isAtlasSpeakingRef.current && ttsAudioRef.current) {
-              ttsAudioRef.current.pause();
-              ttsAudioRef.current.currentTime = 0;
-              isAtlasSpeakingRef.current = false;
-            }
-            if (conversationAbortRef.current) {
-              conversationAbortRef.current.abort();
-            }
-            pendingPromptRef.current = text;
-            trySendConversation();
-          } else if (mt === "error" || mt === "auth_error") {
-            console.error("Conversation STT error:", msg.error);
-          }
-        } catch (e) {
-          console.error("Conversation message parse error:", e);
-        }
-      };
-      ws.onerror = () => setConversationLiveText((t) => t + " [Connection error]");
-      processor.onaudioprocess = (e: AudioProcessingEvent) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        const input = e.inputBuffer.getChannelData(0);
-        const int16 = new Int16Array(input.length);
-        for (let i = 0; i < input.length; i++) {
-          const s = Math.max(-1, Math.min(1, input[i]));
-          int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-        }
-        const bytes = new Uint8Array(int16.buffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-        ws.send(JSON.stringify({ message_type: "input_audio_chunk", audio_base_64: btoa(binary), commit: false, sample_rate: 48000 }));
-      };
-      setConversationalMode(true);
-      // Atlas greets the user as soon as conversation mode is on
-      setTimeout(() => playGreeting(), 300);
-    } catch (err) {
-      console.error("Error starting conversation mode:", err);
-      alert("Could not access microphone for conversation mode.");
-    }
-  };
-
-  const stopConversationMode = () => {
-    const ws = convWsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-    convWsRef.current = null;
-    if (convProcessorRef.current && convSourceRef.current) {
-      try {
-        convProcessorRef.current.disconnect();
-        convSourceRef.current.disconnect();
-      } catch (_) {}
-    }
-    convProcessorRef.current = null;
-    convSourceRef.current = null;
-    if (convCtxRef.current) {
-      convCtxRef.current.close();
-      convCtxRef.current = null;
-    }
-    if (convStreamRef.current) {
-      convStreamRef.current.getTracks().forEach((t) => t.stop());
-      convStreamRef.current = null;
-    }
-    if (ttsAudioRef.current) {
-      ttsAudioRef.current.pause();
-      ttsAudioRef.current = null;
-    }
-    if (conversationAbortRef.current) {
-      conversationAbortRef.current.abort();
-    }
-    isAtlasSpeakingRef.current = false;
-    pendingPromptRef.current = "";
-    setConversationLiveText("");
-    setConversationalMode(false);
-  };
-
-  const handleConversationButtonClick = () => {
-    if (conversationalMode) {
-      stopConversationMode();
-    } else {
-      startConversationMode();
-    }
-  };
-
   if (!isVisible && !animateVisible) {
     return (
       <>
@@ -1354,7 +1112,7 @@ export default function SafeGISAIChat({
 
   // LangGraph Multi-Agent System Integration
   const handleSend = async () => {
-    if (conversationalMode || isRecording) return;
+    if (isRecording) return;
     if (!inputText.trim() && pendingRagFiles.length === 0) return;
 
     const filesSnapshot = [...pendingRagFiles];
@@ -1564,7 +1322,8 @@ export default function SafeGISAIChat({
         mergedUploadedFiles,
         mergedSpatialContext,
         undefined,
-        activeConversationIdRef.current
+        activeConversationIdRef.current,
+        selectedModel || undefined
       );
 
       // Add more web search steps if search results were found
@@ -1648,7 +1407,7 @@ export default function SafeGISAIChat({
         }
       }
 
-      // Process response and execute actions (store callbacks for conversational mode)
+      // Process response and execute actions
       const mapCallbacks = {
           searchLocation: async (query: string) => {
             // Location search - fly to location on map
@@ -2062,7 +1821,6 @@ export default function SafeGISAIChat({
           openSpatialDataPanel: spatialDataCallbacks?.openImportConnectPanel,
           fetchGeoJsonFromUrl: spatialDataCallbacks?.fetchGeoJsonFromUrl,
         };
-      mapCallbacksRef.current = mapCallbacks;
       await LangGraphAdapter.processLangGraphResponse(
         response,
         mapCallbacks,
@@ -2097,7 +1855,6 @@ export default function SafeGISAIChat({
     shouldPersistAfterResponse.current = false;
     setMessages([]);
     setConversationHistory([]);
-    conversationHistoryRef.current = [];
     setInputText("");
     setLoading(false);
     setOperationSteps([]);
@@ -2107,8 +1864,183 @@ export default function SafeGISAIChat({
     setPendingDeleteId(null);
   };
 
+  const filteredCatalogModels = ATLAS_MODEL_CATALOG.filter((model) => {
+    const query = addModelsSearchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      model.name.toLowerCase().includes(query) ||
+      model.provider.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <>
+      {showAddModelsModal && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[3px]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="atlas-add-models-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowAddModelsModal(false);
+            }
+          }}
+        >
+          <div className="flex max-h-[min(620px,85vh)] w-full max-w-[500px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#202020] shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
+              <div>
+                <h2
+                  id="atlas-add-models-title"
+                  className="text-[15px] font-semibold text-white"
+                >
+                  Add Models
+                </h2>
+                <p className="mt-0.5 text-[10px] text-white/45">
+                  Choose which models appear in the Atlas model selector.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModelsModal(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-white/55 transition hover:bg-white/10 hover:text-white"
+                title="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-5 py-3">
+              <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3">
+                <Search size={14} className="shrink-0 text-white/35" />
+                <input
+                  type="text"
+                  value={addModelsSearchQuery}
+                  onChange={(event) =>
+                    setAddModelsSearchQuery(event.target.value)
+                  }
+                  placeholder="Add or search model"
+                  className="h-full min-w-0 flex-1 border-none bg-transparent text-[12px] text-white outline-none placeholder:text-white/30"
+                  autoFocus
+                />
+                {addModelsSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setAddModelsSearchQuery("")}
+                    className="text-white/35 hover:text-white/70"
+                    title="Clear search"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddModelsSearchQuery("")}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white/55 transition hover:bg-white/10 hover:text-white"
+                title="Reset search"
+              >
+                <RefreshCw size={15} />
+              </button>
+            </div>
+
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-5">
+              {filteredCatalogModels.length === 0 ? (
+                <div className="flex h-24 items-center justify-center text-[11px] text-white/40">
+                  No matching models
+                </div>
+              ) : (
+                filteredCatalogModels.map((model) => {
+                  const enabled = enabledCatalogModels.includes(model.id);
+                  return (
+                    <div
+                      key={model.id}
+                      className="flex h-[62px] items-center justify-between gap-4 border-b border-white/[0.07] last:border-b-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-[13px] font-medium text-white/90">
+                          {model.name}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-white/38">
+                          {model.provider}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={enabled}
+                        aria-label={`${enabled ? "Remove" : "Add"} ${model.name}`}
+                        onClick={() => toggleCatalogModel(model.id)}
+                        className={`box-border flex h-[20px] w-[36px] shrink-0 items-center rounded-full border-0 p-[3px] transition-colors ${
+                          enabled ? "bg-emerald-500" : "bg-white/20"
+                        }`}
+                      >
+                        <span
+                          className={`block h-[14px] w-[14px] shrink-0 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                            enabled ? "translate-x-[16px]" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="shrink-0 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setShowModelApiKeys((current) => !current)}
+                className="flex h-12 w-full items-center gap-2 px-5 text-left text-[13px] font-medium text-white/75 transition hover:bg-white/[0.04] hover:text-white"
+                aria-expanded={showModelApiKeys}
+              >
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 transition-transform ${
+                    showModelApiKeys ? "rotate-0" : "-rotate-90"
+                  }`}
+                />
+                <span>API Keys</span>
+              </button>
+              {showModelApiKeys && (
+                <div className="space-y-3 border-t border-white/[0.07] px-5 pb-4 pt-3">
+                  <label className="block">
+                    <span className="mb-1.5 block text-[10px] font-medium text-white/55">
+                      OpenAI API Key
+                    </span>
+                    <input
+                      type="password"
+                      value={openAiApiKey}
+                      onChange={(event) => setOpenAiApiKey(event.target.value)}
+                      placeholder="sk-..."
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="h-9 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 text-[11px] text-white outline-none transition placeholder:text-white/25 focus:border-[#8183c8]/70 focus:bg-white/[0.06]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-[10px] font-medium text-white/55">
+                      Anthropic API Key
+                    </span>
+                    <input
+                      type="password"
+                      value={anthropicApiKey}
+                      onChange={(event) =>
+                        setAnthropicApiKey(event.target.value)
+                      }
+                      placeholder="sk-ant-..."
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="h-9 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 text-[11px] text-white outline-none transition placeholder:text-white/25 focus:border-[#8183c8]/70 focus:bg-white/[0.06]"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Wrapper keeps history outside the scrollable message list (left of chat). */}
       <div
         className={`${
@@ -2378,24 +2310,26 @@ export default function SafeGISAIChat({
               isExpanded ? "w-[345px]" : "w-[265px]"
             } bg-white/5 backdrop-blur-xl border border-white/10 rounded-md shadow-lg`}
           >
-            <div className="flex justify-between items-center mb-0">
-              {/* Web Search */}
-              <button
-                onClick={() => setWebSearchEnabled((prev) => !prev)}
-                className={`px-1.5 text-[9px] rounded-sm border transition-all duration-200 flex items-center justify-center h-[22px] gap-1 ${
-                  webSearchEnabled
-                    ? "bg-[#5A5C99]/35 border-[#8183c8] text-[#c6c8fb]"
-                    : "bg-white/5 border-white/20 text-white/70 hover:text-white"
-                }`}
-              >
-                <span className="flex items-center" style={{ lineHeight: 0 }}>
-                  <Globe size={10} />
-                </span>
-                <span style={{ lineHeight: "22px" }}>Web Search</span>
-              </button>
+            <div className="flex justify-between items-center mb-0 gap-1">
+              <div className="flex items-center gap-1 min-w-0">
+                {/* Web Search */}
+                <button
+                  onClick={() => setWebSearchEnabled((prev) => !prev)}
+                  className={`px-1.5 text-[9px] rounded-sm border transition-all duration-200 flex items-center justify-center h-[22px] gap-1 shrink-0 ${
+                    webSearchEnabled
+                      ? "bg-[#5A5C99]/35 border-[#8183c8] text-[#c6c8fb]"
+                      : "bg-white/5 border-white/20 text-white/70 hover:text-white"
+                  }`}
+                >
+                  <span className="flex items-center" style={{ lineHeight: 0 }}>
+                    <Globe size={10} />
+                  </span>
+                  <span style={{ lineHeight: "22px" }}>Web Search</span>
+                </button>
+              </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-0">
+              <div className="flex items-center gap-0 shrink-0">
                 <button
                   onClick={handleNewSession}
                   className="text-white hover:text-gray-200 h-[22px] w-[22px] flex items-center justify-center"
@@ -2456,21 +2390,11 @@ export default function SafeGISAIChat({
                   </span>
                 ))}
                 <textarea
-                  value={
-                    isRecording
-                      ? voiceLiveText
-                      : conversationalMode
-                      ? conversationLiveText
-                      : inputText
-                  }
+                  value={isRecording ? voiceLiveText : inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => {
                     const ta = e.currentTarget;
-                    const textVal = isRecording
-                      ? voiceLiveText
-                      : conversationalMode
-                      ? conversationLiveText
-                      : inputText;
+                    const textVal = isRecording ? voiceLiveText : inputText;
                     if (
                       !isTextareaDisabled &&
                       pendingRagFiles.length > 0 &&
@@ -2499,11 +2423,11 @@ export default function SafeGISAIChat({
                   disabled={isTextareaDisabled}
                   className={`min-w-[4rem] flex-[1_1_120px] min-h-[22px] max-h-[120px] resize-none self-center overflow-y-auto bg-transparent text-[#C7C7C7] placeholder-[#C7C7C7]/70 text-[10px] leading-snug rounded-sm px-0.5 py-0.5 outline-none border-none custom-scrollbar ${
                     isTextareaDisabled ? "cursor-not-allowed opacity-60" : ""
-                  } ${isRecording ? "placeholder-orange-300" : ""} ${conversationalMode ? "placeholder-emerald-300" : ""}`}
+                  } ${isRecording ? "placeholder-orange-300" : ""}`}
                 />
               </div>
 
-              <div className="flex justify-between mt-0.5 shrink-0">
+              <div className="flex justify-between items-center mt-0.5 shrink-0">
                 <div className="flex gap-0.5">
                   <input
                     ref={ragFileInputRef}
@@ -2519,7 +2443,7 @@ export default function SafeGISAIChat({
                     type="button"
                     onClick={() => ragFileInputRef.current?.click()}
                     disabled={
-                      ragUploading || loading || isRecording || conversationalMode
+                      ragUploading || loading || isRecording
                     }
                     title={
                       ragUploading
@@ -2536,25 +2460,135 @@ export default function SafeGISAIChat({
                   >
                     <AtSign size={12} />
                   </button>
+                  {/* Model selector */}
+                  <div className="relative min-w-0 ml-0.5" ref={modelDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowModelDropdown((v) => !v)}
+                      disabled={modelsLoading && selectableModels.length === 0}
+                      className={`h-5 w-[105px] px-1.5 rounded-sm flex items-center gap-0.5 text-[9px] transition ${
+                        showModelDropdown
+                          ? "bg-[#5A5C99]/35 text-[#c6c8fb]"
+                          : "bg-transparent text-white/70 hover:text-white hover:bg-white/10"
+                      }`}
+                      title={
+                        selectedModel
+                          ? `Model: ${selectedModel}`
+                          : "Select chat model"
+                      }
+                    >
+                      <span className="min-w-0 flex-1 truncate text-left">
+                        {modelsLoading && !selectedModel
+                          ? "Loading…"
+                          : selectedModel
+                            ? modelDisplayName(selectedModel)
+                            : "Model"}
+                      </span>
+                      <ChevronDown size={9} className="shrink-0 opacity-70" />
+                    </button>
+                    {showModelDropdown && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 w-[180px] max-w-[220px] rounded-md border border-white/15 bg-[#1a1a1a]/95 backdrop-blur-xl shadow-lg overflow-hidden">
+                        <div className="flex h-8 items-center gap-1.5 border-b border-white/10 px-2">
+                          <Search
+                            size={10}
+                            className="shrink-0 text-white/40"
+                          />
+                          <input
+                            ref={modelSearchInputRef}
+                            type="text"
+                            value={modelSearchQuery}
+                            onChange={(e) =>
+                              setModelSearchQuery(e.target.value)
+                            }
+                            onKeyDown={(e) => e.stopPropagation()}
+                            placeholder="Search models…"
+                            className="h-full min-w-0 flex-1 bg-transparent text-[10px] leading-none text-white/90 placeholder:text-white/40 outline-none border-none"
+                          />
+                          {modelSearchQuery ? (
+                            <button
+                              type="button"
+                              onClick={() => setModelSearchQuery("")}
+                              className="shrink-0 text-white/40 hover:text-white/80"
+                              title="Clear search"
+                            >
+                              <X size={10} />
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="max-h-[140px] overflow-y-auto custom-scrollbar p-1">
+                          {selectableModels.length === 0 ? (
+                            <div className="flex min-h-7 items-center px-2 text-[9px] leading-none text-white/50">
+                              No models added.
+                            </div>
+                          ) : (
+                            (() => {
+                              const q = modelSearchQuery.trim().toLowerCase();
+                              const filtered = q
+                                ? selectableModels.filter((modelId) => {
+                                    const entry = modelCatalogEntry(modelId);
+                                    return [
+                                      modelId,
+                                      entry?.name,
+                                      entry?.provider,
+                                    ].some((value) =>
+                                      value?.toLowerCase().includes(q)
+                                    );
+                                  })
+                                : selectableModels;
+                              if (filtered.length === 0) {
+                                return (
+                                  <div className="flex min-h-7 items-center px-2 text-[9px] leading-none text-white/50">
+                                    No matches
+                                  </div>
+                                );
+                              }
+                              return filtered.map((m) => (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedModel(m);
+                                    setShowModelDropdown(false);
+                                  }}
+                                  className={`flex h-7 min-h-7 w-full items-center rounded-sm px-2 text-left text-[9px] leading-[14px] transition-colors ${
+                                    m === selectedModel
+                                      ? "bg-[#5A5C99]/40 text-[#c6c8fb]"
+                                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                                  }`}
+                                  title={m}
+                                >
+                                  <span className="block w-full truncate leading-[14px]">
+                                    {modelDisplayName(m)}
+                                  </span>
+                                </button>
+                              ));
+                            })()
+                          )}
+                        </div>
+                        <div className="border-t border-white/10 p-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowModelDropdown(false);
+                              setAddModelsSearchQuery("");
+                              setShowAddModelsModal(true);
+                            }}
+                            className="flex h-7 w-full items-center gap-1.5 rounded-sm px-2 text-left text-[9px] leading-[14px] text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                            title="Manage available Atlas models"
+                          >
+                            <Plus size={10} className="shrink-0" />
+                            <span>Add Models</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-1">
-                  {/* Conversational AI mode (talk to Atlas, interrupt mid-sentence) */}
-                  <button
-                    onClick={handleConversationButtonClick}
-                    disabled={loading || isRecording}
-                    title={conversationalMode ? "Stop conversation mode" : "Start conversation mode"}
-                    className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
-                      conversationalMode
-                        ? "bg-emerald-600 hover:bg-emerald-500"
-                        : "bg-transparent hover:text-gray-200"
-                    }`}
-                  >
-                    <AudioLines size={13} />
-                  </button>
                   {/* Voice Prompt Button (push-to-talk) */}
                   <button
                     onClick={handleVoiceButtonClick}
-                    disabled={loading || conversationalMode}
+                    disabled={loading}
                     className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
                       isRecording
                         ? "bg-red-500 hover:bg-red-600"
@@ -2574,14 +2608,12 @@ export default function SafeGISAIChat({
                       loading ||
                       ragUploading ||
                       isRecording ||
-                      conversationalMode ||
                       (!inputText.trim() && pendingRagFiles.length === 0)
                     }
                     className={`h-5 w-5 flex items-center justify-center rounded-sm text-white transition ${
                       loading ||
                       ragUploading ||
                       isRecording ||
-                      conversationalMode ||
                       (!inputText.trim() && pendingRagFiles.length === 0)
                         ? "bg-[#676767] opacity-50 cursor-not-allowed"
                         : "bg-[#676767] hover:bg-[#737373]"
