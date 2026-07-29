@@ -146,6 +146,10 @@ type Props = {
 
 const ATLAS_MODEL_CATALOG = [
   { id: "gemma3:4b", name: "Gemma 3 4B (Free)", provider: "Google" },
+  { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash", provider: "Google" },
+  { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro", provider: "Google" },
+  { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", provider: "Google" },
+  { id: "gemini-3-flash", name: "Gemini 3 Flash", provider: "Google" },
   { id: "fable-5", name: "Fable 5", provider: "Anthropic" },
   { id: "opus-5", name: "Opus 5", provider: "Anthropic" },
   { id: "sonnet-5", name: "Sonnet 5", provider: "Anthropic" },
@@ -481,8 +485,13 @@ export default function SafeGISAIChat({
   const [showModelApiKeys, setShowModelApiKeys] = useState(false);
   const [openAiApiKey, setOpenAiApiKey] = useState("");
   const [anthropicApiKey, setAnthropicApiKey] = useState("");
+  const [googleAiStudioApiKey, setGoogleAiStudioApiKey] = useState("");
   const [enabledCatalogModels, setEnabledCatalogModels] = useState<string[]>([
     "gemma3:4b",
+    "gemini-3.6-flash",
+    "gemini-3.1-pro",
+    "gemini-3.5-flash",
+    "gemini-3-flash",
   ]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const modelDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -2020,7 +2029,7 @@ export default function SafeGISAIChat({
                   </label>
                   <label className="block">
                     <span className="mb-1.5 block text-[10px] font-medium text-white/55">
-                      Anthropic API Key
+                      Anthropic (Claude) API
                     </span>
                     <input
                       type="password"
@@ -2029,6 +2038,22 @@ export default function SafeGISAIChat({
                         setAnthropicApiKey(event.target.value)
                       }
                       placeholder="sk-ant-..."
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="h-9 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 text-[11px] text-white outline-none transition placeholder:text-white/25 focus:border-[#8183c8]/70 focus:bg-white/[0.06]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-[10px] font-medium text-white/55">
+                      Google AI Studio API Key
+                    </span>
+                    <input
+                      type="password"
+                      value={googleAiStudioApiKey}
+                      onChange={(event) =>
+                        setGoogleAiStudioApiKey(event.target.value)
+                      }
+                      placeholder="AIza..."
                       autoComplete="off"
                       spellCheck={false}
                       className="h-9 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 text-[11px] text-white outline-none transition placeholder:text-white/25 focus:border-[#8183c8]/70 focus:bg-white/[0.06]"

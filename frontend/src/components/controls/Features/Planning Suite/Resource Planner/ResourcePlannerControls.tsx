@@ -58,9 +58,10 @@ export default function ResourcePlannerControls({
               <div
                 key={`${res.type}-${index}`}
                 draggable
-                onDragStart={(e) =>
-                  e.dataTransfer.setData("resource-type", res.type)
-                }
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("resource-type", res.type);
+                  e.dataTransfer.setData("resource-name", res.name);
+                }}
                 className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
               >
                 <span className="text-[10px]">{res.name}</span>
@@ -107,9 +108,10 @@ export default function ResourcePlannerControls({
               <div
                 key={`${res.type}-${index}`}
                 draggable
-                onDragStart={(e) =>
-                  e.dataTransfer.setData("resource-type", res.type)
-                }
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("resource-type", res.type);
+                  e.dataTransfer.setData("resource-name", res.name);
+                }}
                 className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
               >
                 <span className="text-[10px] text-center">{res.name}</span>
@@ -152,9 +154,10 @@ export default function ResourcePlannerControls({
               <div
                 key={`${res.type}-${index}`}
                 draggable
-                onDragStart={(e) =>
-                  e.dataTransfer.setData("resource-type", res.type)
-                }
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("resource-type", res.type);
+                  e.dataTransfer.setData("resource-name", res.name);
+                }}
                 className="flex items-center justify-center p-3 h-[100px] rounded-lg cursor-move text-white text-center bg-gradient-to-br from-[#5A5C99] to-[#232323] hover:opacity-80"
               >
                 <span className="text-[10px] text-center">{res.name}</span>

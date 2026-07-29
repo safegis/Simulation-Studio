@@ -289,6 +289,9 @@ const MapComponent = forwardRef(function MapComponent(
         e.preventDefault();
         const type = e.dataTransfer?.getData("resource-type");
         if (!type) return;
+        const resourceLabel =
+          e.dataTransfer?.getData("resource-name") ||
+          type.charAt(0).toUpperCase() + type.slice(1);
         const rect = map.getCanvas().getBoundingClientRect();
         const lngLat = map.unproject([
           e.clientX - rect.left,
@@ -296,7 +299,7 @@ const MapComponent = forwardRef(function MapComponent(
         ]);
         // Open modal instead of directly adding
         setPendingResource({ lngLat, type });
-        setResourceName(type.charAt(0).toUpperCase() + type.slice(1));
+        setResourceName(resourceLabel);
         setResourceDesc("");
       });
     });
